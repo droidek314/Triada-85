@@ -1,6 +1,7 @@
 package org.triada.core;
 
 import org.triada.core.cpu.Cpu;
+import org.triada.core.io.DebugDevice;
 import org.triada.core.io.InputDevice;
 import org.triada.core.io.IoRegisters;
 import org.triada.core.io.SystemDevice;
@@ -30,12 +31,14 @@ public final class Machine {
     private final Cpu cpu = new Cpu(bus);
     private final InputDevice input = new InputDevice();
     private final SystemDevice system = new SystemDevice();
+    private final DebugDevice debug = new DebugDevice(cpu::endFrame);
 
     /** A machine in power-on state, with an empty (all-zero) ROM. */
     public Machine() {
         bus.attach(IoRegisters.FRAME, 1, system);
         bus.attach(InputDevice.FIRST_REGISTER, InputDevice.REGISTER_COUNT, input);
         bus.attach(IoRegisters.RAND, 1, system);
+        bus.attach(DebugDevice.FIRST_REGISTER, DebugDevice.REGISTER_COUNT, debug);
     }
 
     /**
@@ -51,7 +54,7 @@ public final class Machine {
     }
 
     /**
-     * Power-on (SPEC §2.4): RAM cleared, CPU reset, FRAME 0, key queue empty.
+     * Power-on (SPEC §2.4): RAM cleared, CPU reset, FRAME 0, key queue and debug output empty.
      * The ROM is kept, as a real ROM chip would be.
      */
     public void powerOn() {
@@ -59,6 +62,7 @@ public final class Machine {
         cpu.reset();
         system.resetFrame();
         input.clearKeys();
+        debug.reset();
     }
 
     public Bus bus() {
@@ -71,6 +75,11 @@ public final class Machine {
 
     public InputDevice input() {
         return input;
+    }
+
+    /** The debug port: DEBUG_CHAR / DEBUG_NUM output and HOST_EXIT requests. */
+    public DebugDevice debug() {
+        return debug;
     }
 
     public SystemDevice system() {

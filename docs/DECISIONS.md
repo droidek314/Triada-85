@@ -129,3 +129,44 @@ Format: see CLAUDE.md §5.4.
 **Decision:** Every line is processed. A bad line is reported and skipped, up to `Assembler.MAX_ERRORS` (100) errors. If any error happens in pass 1 (layout), pass 2 (encoding) is skipped. Operand *counts* are checked in pass 1, so they appear alongside the other pass-1 errors. An error inside a constant's definition is reported once, at that definition. Lines that use the broken constant fail silently.
 **Why:** Fixing several mistakes per attempt is much nicer. But after a broken line in pass 1, every later address may be off, and pass 2 would then report confusing follow-on errors ("unknown name", "out of range") that disappear once the first error is fixed.
 **Consequences:** A program with both a pass-1 error and a pass-2 error (for example an unknown name) shows the second only after the first is fixed.
+
+## D-017 — How the headless runner starts, stops and reports   (Milestone M05, 2026-11-07)
+**Situation:** CLAUDE.md fixes the runner's command line, and says it "can load a `.tri` and start at its load address". Open questions: when should it stop, what should its exit codes be, and what about programs that never stop?
+**Options:**
+- Start through a ROM stub, or directly.
+- After HLT: keep running empty frames, or stop.
+- Without `--frames`: run forever, or until a limit.
+
+**Decision:**
+- **Start:** the image is copied into RAM, PC = its load address, SP = 59,049 (what the ROM will do, SPEC §8.2). Images outside RAM are rejected. No ROM stub: the ROM stays all zeros until M8, and nothing in M5 needs it.
+- **Stop and exit code:**
+  - HOST_EXIT n → exit code n;
+  - HLT → 0, with a note on stderr;
+  - CPU fault → 3, with fault code and address on stderr;
+  - frame limit reached → 0 if `--frames N` was given (running N frames was the goal), otherwise 4 (time-out).
+- **Other codes:** 1 = assembly errors, 2 = usage or file error.
+- **Default frame limit:** 3,600 frames, one minute of machine time.
+
+**Why:** Starting directly keeps M5 independent of the ROM. A halted CPU can never do anything again without input, so the runner stops instead of running empty frames. HLT is a normal way to end in TRIADA, so it counts as success. The default limit makes a forgotten HOST_EXIT a clear failure instead of a hung test or terminal. Each failure kind has its own code, so scripts can tell them apart.
+**Consequences:**
+- Exit codes from HOST_EXIT collide with the runner's own codes 1–4. stderr always says which it was, but test programs should prefer 0 for success and values from 10 upwards for their own meanings.
+- Operating systems keep only the low 8 bits of an exit code on Unix, so HOST_EXIT −1 shows as 255 there.
+- `RET` from the top level of a program pops an empty stack, jumps to address 0 (a system-variable word, 0 = HLT) and halts. In M8 the monitor's `RUN` gives programs a real return address.
+
+## D-018 — The debug port: unprintable characters, and HOST_EXIT ends the frame   (Milestone M05, 2026-11-07)
+**Situation:** SPEC §5 says DEBUG_CHAR prints "the value as a character" and HOST_EXIT makes the runner stop. A word can hold values that are not characters at all (0, −5, 1,000), and the CPU would keep running for the rest of the frame after HOST_EXIT.
+**Decision:**
+- DEBUG_CHAR prints printable ASCII (32–126), newline, carriage return and tab as themselves. Every other value prints as its number in angle brackets, e.g. `<0>`.
+- DEBUG_NUM prints the decimal value and a newline.
+- Writing HOST_EXIT records the code and ends the CPU's frame immediately (`Cpu.endFrame()`), so no further instruction runs.
+- The output collects in `DebugDevice`; the host drains it with `takeOutput()` after each frame.
+
+**Why:** Invisible or terminal-confusing characters would hide bugs. A visible `<0>` shows exactly what the program wrote. Stopping right at HOST_EXIT means "the last thing the program did" really is the last thing. Buffering keeps `triada-core` free of console I/O.
+**Consequences:** A program can't print characters beyond ASCII through the debug port (the TRIADA font doesn't have them either). SPEC §5 notes these rules.
+
+## D-019 — `--dump-screen` is rejected until the video chip exists   (Milestone M05, 2026-11-07)
+**Situation:** CLAUDE.md lists `--dump-screen out.png` in M5's command line, but the video chip that would draw the screen is M6.
+**Options:** A) Write a blank or placeholder image. B) Accept the option and silently do nothing. C) Reject it with a clear message until M6.
+**Decision:** C. `triada run … --dump-screen x.png` exits with code 2 and says the option needs the video chip, which arrives in M6. M6 implements it.
+**Why:** CLAUDE.md §1 rule 7: never fake progress. A blank PNG would look like a working feature and make the first M6 golden-image tests misleading.
+**Consequences:** The option is parsed and documented now, and a test checks that no file is written. M6 replaces the rejection with real output.

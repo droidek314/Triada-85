@@ -1,0 +1,27 @@
+; ============================================================================
+;  HELLO.TASM -- the first program for the TRIADA-85
+;
+;  Prints "HELLO, WORLD" to the host through the DEBUG_CHAR register, one
+;  character at a time, then asks the host to stop with exit code 0.
+;
+;  Run it:   triada run programs/hello.tasm
+; ============================================================================
+
+        .org 243                    ; programs load at 243 = 3^5 (SPEC 2.3)
+
+start:  LDI R1, IO_BASE             ; R1 points at the I/O registers
+        LDI R2, msg                 ; R2 walks along the string
+
+next:   LD R0, [R2]                 ; fetch one character (LD sets S)
+        JZ done                     ; a 0 word ends the string
+        ST R0, [R1+DEBUG_CHAR]      ; hand it to the host
+        INC R2                      ; on to the next character
+        JMP next
+
+done:   LDI R0, '\n'                ; finish the line
+        ST R0, [R1+DEBUG_CHAR]
+        LDI R0, 0
+        ST R0, [R1+HOST_EXIT]       ; "all went well": exit code 0
+        HLT                         ; never reached: HOST_EXIT ends the run
+
+msg:    .str "HELLO, WORLD"

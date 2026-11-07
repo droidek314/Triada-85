@@ -14,3 +14,13 @@ application {
     mainClass.set("org.triada.cli.Main")
     applicationName = "triada"
 }
+
+tasks.named<JavaExec>("run") {
+    // `./gradlew :triada-cli:run --args="run programs/hello.tasm"` works from the project root.
+    workingDir = rootProject.projectDir
+}
+
+tasks.withType<Test>().configureEach {
+    // Integration tests find programs/ and rom/ through this property.
+    systemProperty("triada.root", rootProject.projectDir.absolutePath)
+}

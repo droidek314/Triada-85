@@ -1,0 +1,31 @@
+; ============================================================================
+;  COUNTDOWN.TASM -- counts down from 10, one number per frame
+;
+;  Shows DEBUG_NUM (prints a number and a newline) and WAIT (sleep until the
+;  next frame). The whole countdown takes 11 frames, about 0.18 seconds of
+;  machine time. Ends with HOST_EXIT 0.
+;
+;  Run it:   triada run programs/countdown.tasm
+; ============================================================================
+
+        .org 243
+
+        LDI R1, IO_BASE
+        LDI R0, 10                  ; start value
+
+loop:   ST R0, [R1+DEBUG_NUM]       ; print it
+        WAIT                        ; one number per frame
+        DEC R0                      ; ADDI R0, -1 also sets S ...
+        JGE loop                    ; ... so loop while R0 >= 0
+
+        LDI R2, msg
+print:  LD R0, [R2]
+        JZ bye
+        ST R0, [R1+DEBUG_CHAR]
+        INC R2
+        JMP print
+
+bye:    LDI R0, 0
+        ST R0, [R1+HOST_EXIT]
+
+msg:    .str "LIFT-OFF!\n"

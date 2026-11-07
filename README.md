@@ -10,7 +10,7 @@ This project builds that whole machine as a program you can run on a normal PC: 
 
 ## Status
 
-Milestones **M0 to M4** are done: project setup, ternary math, memory, the processor, and the assembler. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. There is no screen output yet, and no command to run a program from a file; that arrives in M5. See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
+Milestones **M0 to M5** are done: project setup, ternary math, memory, the processor, the assembler, and a command-line tool that runs programs without a window. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. There is no screen output yet: programs talk to the outside world through a "debug port" until the video chip arrives in M6. See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
 
 ## Where to start reading
 
@@ -19,14 +19,32 @@ Milestones **M0 to M4** are done: project setup, ternary math, memory, the proce
 
 ## How to run (for now)
 
-You need a Java Development Kit (JDK) version 25 installed. Gradle (the build tool) downloads itself.
+You need a Java Development Kit (JDK) version 25 installed. Gradle (the build tool) downloads itself. On Windows, use `gradlew.bat` instead of `./gradlew` if you are not in a Bash-style shell.
+
+Build everything and run all tests:
 
 ```bash
 ./gradlew build
 ```
 
+Run the first program (it prints `HELLO, WORLD`):
+
+```bash
+./gradlew :triada-cli:run --args="run programs/hello.tasm"
+```
+
+Or install the `triada` command once and use it directly. Its launcher uses the `JAVA_HOME` environment variable, which must point to a JDK 25:
+
+```bash
+./gradlew :triada-cli:installDist
+```
+
+```bash
+triada-cli/build/install/triada/bin/triada run programs/ternary.tasm
+```
+
+`triada help` lists all commands and exit codes. The (still empty) desktop window opens with:
+
 ```bash
 ./gradlew :triada-desktop:run
 ```
-
-On Windows, use `gradlew.bat` instead of `./gradlew` if you are not in a Bash-style shell.

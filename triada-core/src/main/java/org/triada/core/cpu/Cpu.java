@@ -70,6 +70,7 @@ public final class Cpu {
      * @return the number of cycles actually used (0 if already halted)
      */
     public int runFrame(int budget) {
+        waitRequested = false;          // a WAIT single-stepped outside a frame doesn't carry over
         int used = 0;
         while (used < budget && !halted) {
             step();
@@ -80,6 +81,15 @@ public final class Cpu {
             }
         }
         return used;
+    }
+
+    /**
+     * Ends the current {@link #runFrame(int)} after the instruction that is
+     * executing now, as if it had been a WAIT. Devices use this when the
+     * program asks the host to stop (HOST_EXIT), so nothing runs after that.
+     */
+    public void endFrame() {
+        waitRequested = true;
     }
 
     /**

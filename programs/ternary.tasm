@@ -1,0 +1,111 @@
+; ============================================================================
+;  TERNARY.TASM -- prints the numbers -13 .. 13 in balanced ternary
+;
+;  Output lines look like "  5 = +--". The trick: in balanced ternary,
+;  n MOD 3 is already the lowest trit (-1, 0 or +1), and n DIV 3 (which
+;  rounds to nearest) removes it. Trits come out lowest first, so they are
+;  pushed onto the stack and printed in reverse order.
+;
+;  Run it:   triada run programs/ternary.tasm
+; ============================================================================
+
+        .org 243
+
+        LDI R1, IO_BASE
+        LDI R4, -13                 ; the number to show
+        LDI R7, 3                   ; divisor
+
+number: ; --- print the number in decimal, right-aligned in 3 columns ------
+        MOV R0, R4
+        JSR pad3
+        MOV R0, R4
+        JSR putdec
+        LDI R0, ' '
+        ST R0, [R1+DEBUG_CHAR]
+        LDI R0, '='
+        ST R0, [R1+DEBUG_CHAR]
+        LDI R0, ' '
+        ST R0, [R1+DEBUG_CHAR]
+
+        ; --- collect the trits on the stack, lowest first ---------------
+        MOV R2, R4                  ; value being taken apart
+        LDI R3, 0                   ; how many trits pushed
+trits:  MOV R0, R2
+        MOD R0, R7                  ; R0 = lowest trit: -1, 0 or +1
+        PUSH R0
+        INC R3
+        DIV R2, R7                  ; drop that trit (rounds to nearest)
+        JNZ trits                   ; until nothing is left
+        ; (0 itself needs one trit: the loop runs at least once)
+
+        ; --- pop them: highest trit comes out first -----------------------
+show:   POP R0
+        LDI R5, '0'
+        MOV R0, R0                  ; set S from the trit
+        BR3 minus, put, plus        ; pick the character
+minus:  LDI R5, '-'
+        JMP put
+plus:   LDI R5, '+'
+put:    ST R5, [R1+DEBUG_CHAR]
+        DEC R3
+        JNZ show
+
+        LDI R0, '\n'
+        ST R0, [R1+DEBUG_CHAR]
+        INC R4
+        LDI R5, 13
+        CMP R4, R5
+        JLE number                  ; up to and including 13
+
+        LDI R0, 0
+        ST R0, [R1+HOST_EXIT]
+
+; ---------------------------------------------------------------------------
+; putdec: prints R0 in decimal, with a '-' sign if negative. Uses R0, R5, R6.
+; Digits come out lowest first, so they go on the stack too.
+putdec: LDI R6, 0                   ; digit count
+        MOV R0, R0
+        JGE pd_pos
+        LDI R5, '-'
+        ST R5, [R1+DEBUG_CHAR]
+        NEG R0
+pd_pos: LDI R5, 10
+pd_dig: PUSH R0                     ; keep n
+        MOD R0, R5                  ; rounding MOD: may be negative!
+        JGE pd_ok                   ; e.g. 7 MOD 10 = -3, because 7/10 rounds to 1
+        ADD R0, R5                  ; ... so -3 becomes 7
+pd_ok:  MOV R2, R0                  ; R2 = the digit 0..9 (R2 is free here)
+        POP R0                      ; n again
+        SUB R0, R2                  ; n - digit is an exact multiple of 10
+        DIV R0, R5
+        ADDI R2, '0'
+        PUSH R2
+        INC R6
+        MOV R0, R0
+        JNZ pd_dig
+pd_out: POP R2
+        ST R2, [R1+DEBUG_CHAR]
+        DEC R6
+        JNZ pd_out
+        RET
+
+; pad3: prints spaces so that the number in R0 takes 3 columns in total.
+;   -10 and below, 100 and above: 3 characters already, no space
+;   -9 .. -1 and 10 .. 99:        2 characters, one space
+;   0 .. 9:                       1 character, two spaces
+; Uses R5, R6.
+pad3:   LDI R5, ' '
+        LDI R6, -10
+        CMP R0, R6
+        JLE p_done                  ; n <= -10
+        LDI R6, 100
+        CMP R0, R6
+        JGE p_done                  ; n >= 100
+        ST R5, [R1+DEBUG_CHAR]      ; first space, for -9 .. 99
+        MOV R0, R0
+        JN p_done                   ; -9 .. -1: done
+        LDI R6, 10
+        CMP R0, R6
+        JGE p_done                  ; 10 .. 99: done
+        ST R5, [R1+DEBUG_CHAR]      ; second space, for 0 .. 9
+p_done: RET

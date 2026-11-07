@@ -9,7 +9,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M2 | Memory and bus | ✅ done | 2026-11-07 |
 | M3 | CPU core | ✅ done | 2026-11-07 |
 | M4 | Assembler and disassembler | ✅ done | 2026-11-07 |
-| M5 | Headless runner and first program | ⬜ not started | |
+| M5 | Headless runner and first program | ✅ done | 2026-11-07 |
 | M6 | Video chip and frontend display | ⬜ not started | |
 | M7 | Input and sound | ⬜ not started | |
 | M8 | ROM: kernel and monitor | ⬜ not started | |

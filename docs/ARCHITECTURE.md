@@ -36,7 +36,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
 
-## Current state (after M4)
+## Current state (after M5)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -48,7 +48,9 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `org.triada.core.Machine`: bus + CPU + devices wired together; `runFrame()` is one 1/60-second frame.
 - `triada-core` also has `TriImage`: a program image (load address + words) and the `.tri` byte format.
 - `triada-assembler`: `Lexer` → `Parser` → `Assembler` (two passes; `.include` through the `SourceLoader` interface, so no file I/O) → `AssemblyResult` (image, listing, symbols). `Disassembler` turns words back into text. Errors are `AssemblyError` records with file, line and column.
-- `triada-cli` prints a usage message.
+- `triada-core` also has `DebugDevice` (registers 20–22: DEBUG_CHAR, DEBUG_NUM, HOST_EXIT), which buffers output for the host and ends the frame on HOST_EXIT via `Cpu.endFrame()`.
+- `triada-cli` is the `triada` tool: `Main` (commands, exit codes), `TasmCommand` (`tasm`), `RunCommand` (`run`: headless frames, debug output to stdout), `FileSourceLoader` (disk access for the assembler).
+- `programs/` has `hello.tasm`, `countdown.tasm` and `ternary.tasm`.
 - `triada-desktop` opens a 960 × 672 window titled "TRIADA-85" and clears it to a dark color every frame.
 
 ## Inside triada-core: the bus
@@ -64,6 +66,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
                        (CPU writes ignored)     |
                                                 +- k = 0, 19    SystemDevice (FRAME, RAND)
                                                 +- k = 1 ... 6  InputDevice (joystick, buttons, KEY)
+                                                +- k = 20 ... 22 DebugDevice (DEBUG_CHAR, DEBUG_NUM, HOST_EXIT)
                                                 +- others       not attached yet -> read 0
 ```
 
@@ -77,9 +80,12 @@ Host code (frontends, tests, the future debugger) also uses `Bus.peek()` (no sid
                                                               v
                                        AssemblyResult: TriImage + listing + symbols
                                                               |
-                         TriImage.toBytes() -> hello.tri      |  (M5: CLI writes the files)
+                         TriImage.toBytes() -> hello.tri      |  (triada tasm writes the files)
                                                               v
                                  Bus.loadRam(loadAddress, words) -> Machine.runFrame() ...
+                                                              |
+                     triada run: after each frame, DebugDevice.takeOutput() -> stdout;
+                     stop on HOST_EXIT (exit code), HLT (0), fault (3) or frame limit
 ```
 
 The `Disassembler` goes the other way (words -> text) and will be used by the debugger (M9).

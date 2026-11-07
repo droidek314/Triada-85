@@ -50,6 +50,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Cycle budget**: How many cycles the CPU may use per frame. *In TRIADA:* 59,049 = 3^10 (SPEC §6). First seen: M3.
 
+**Debug port**: I/O registers through which a program sends text and numbers to the host instead of the screen. *In TRIADA:* DEBUG_CHAR, DEBUG_NUM, HOST_EXIT (registers 20–22). First seen: M5.
+
 **Decode**: Splitting an instruction word into its fields (opcode, registers, immediate). First seen: M3.
 
 **Dependency**: A ready-made library your project uses instead of writing that code itself. *In TRIADA:* libGDX (window, sound, input) and JUnit (tests), and nothing else without a DECISIONS.md entry. First seen: M0.
@@ -62,13 +64,19 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Emulator**: A program that imitates a different computer closely enough to run its programs. First seen: M3.
 
+**End-to-end test**: A test that goes through the whole system the way a user would, e.g. assembling and running a real file through the real command line. First seen: M5.
+
 **Enum**: A Java type with a fixed list of named values, such as `Region` with UNMAPPED, IO, ROM and RAM. First seen: M2.
+
+**Environment variable**: A named setting the operating system gives every program, such as `JAVA_HOME`. First seen: M5.
 
 **Escape sequence**: A backslash code for a special character inside quotes, such as `\n` for a new line. First seen: M4.
 
 **Execute**: Carrying out an instruction. First seen: M3.
 
 **Exhaustive test**: A test that tries every possible input instead of a sample. *In TRIADA:* all 531,441 words in `WordTest`. First seen: M1.
+
+**Exit code**: The number a program hands back to the operating system when it ends; 0 means success. *In TRIADA:* `triada run` returns the value a program writes to HOST_EXIT. First seen: M5.
 
 **Expression**: A small calculation in the source, such as `IO_BASE + KEY` or `end - start`. *In TRIADA:* numbers and names combined with + and −. First seen: M4.
 
@@ -98,6 +106,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Horner's rule**: Building a number digit by digit: multiply what you have by the base, then add the next digit. `+-0` → 1, 1·3−1 = 2, 2·3+0 = 6. First seen: M1.
 
+**Host**: The real computer the emulator runs on, as opposed to the imaginary TRIADA-85. First seen: M5.
+
 **I/O register**: An address that isn't storage but a doorbell or window to hardware: reading or writing it talks to a device. *In TRIADA:* 729 slots from −20,412, 23 of them defined (SPEC §5). First seen: M2.
 
 **Image (program image)**: The block of words a program occupies, together with its load address. *In TRIADA:* `TriImage`, stored in a `.tri` file. First seen: M4.
@@ -106,9 +116,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Instruction**: One command for the CPU, such as "add R2 to R1". *In TRIADA:* one to four words. First seen: M3.
 
+**Integration test**: A test that checks several parts working together, rather than one part alone. First seen: M5.
+
 **Interface (Java)**: A list of methods a class promises to provide, so code can work with any class that keeps the promise. First seen: M2.
 
 **Interpreter**: An emulator that handles one instruction at a time: fetch, decode, execute, repeat. First seen: M3.
+
+**JAVA_HOME**: An environment variable telling scripts which Java installation to use. The `triada` launcher needs it to point to Java 25. First seen: M5.
 
 **JDK (Java Development Kit)**: The tools needed to compile and run Java programs. *In TRIADA:* JDK 25. First seen: M0.
 
@@ -121,6 +135,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Kernel**: The core built-in software of a computer. *In TRIADA:* lives in ROM, written in TRIADA assembly (M8). First seen: M2.
 
 **Label**: A name for an address in a program, written `name:` at the start of a line. First seen: M4.
+
+**Launcher script**: A small script that starts a Java program with the right settings. *In TRIADA:* `triada` / `triada.bat`, made by `./gradlew :triada-cli:installDist`. First seen: M5.
 
 **Least significant trit**: The rightmost trit, worth 1. *In TRIADA:* t0. First seen: M1.
 
@@ -159,6 +175,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **OpenGL**: A standard way for programs to ask the graphics card to draw. libGDX uses it behind the scenes. First seen: M0.
 
 **Operand**: An input to an instruction: a register, an immediate or an address. First seen: M3.
+
+**Option (command line)**: A setting given on a command line, such as `--frames 10` or `-o out.tri`. First seen: M5.
 
 **Parameterized test**: One test method run once for every row of a table of inputs. First seen: M2.
 
@@ -216,6 +234,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Stack pointer**: The register that remembers where the top of the stack is. *In TRIADA:* R8, also called SP. First seen: M2.
 
+**stderr (standard error)**: A program's second output channel, for messages about the run (errors, notes), kept apart from its real output. First seen: M5.
+
+**stdout (standard output)**: A program's main output channel. *In TRIADA:* `triada run` prints the debug-port text there. First seen: M5.
+
 **Subroutine**: A piece of program that can be called from anywhere and returns to where it was called from. *In TRIADA:* JSR calls, RET returns. First seen: M3.
 
 **Symbol**: A name the assembler knows the value of: a label, a constant or a built-in name like `PUTCHAR`. First seen: M4.
@@ -229,6 +251,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Tile**: A small fixed picture (8×8 pixels) used as a building block for the screen. *In TRIADA:* 243 tiles at RAM 40,000 (SPEC §4.4). First seen: M2.
 
 **Tile map**: The grid saying which tile goes in each square of the screen. *In TRIADA:* 27 × 18 cells at RAM 44,000. First seen: M2.
+
+**Time-out**: Stopping something because it took longer than allowed. *In TRIADA:* `triada run` gives up after 3,600 frames without `--frames` (exit code 4). First seen: M5.
 
 **Token**: One piece of a source line after the lexer has cut it up: a name, a number, a comma … First seen: M4.
 

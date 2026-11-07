@@ -262,6 +262,8 @@ Register `k` lives at address `IO_BASE + k`, where **IO_BASE = −20,412**. All 
 | 22 | −20,390 | HOST_EXIT | W | Headless runner stops with this exit code (for tests) |
 | 23–728 | | reserved | | Read 0, writes ignored |
 
+Debug port details (D-018): DEBUG_CHAR prints printable ASCII (32–126), newline, carriage return and tab as themselves, and any other value as its number in angle brackets, e.g. `<0>`. Writing HOST_EXIT ends the CPU's current frame immediately, so no instruction runs after it.
+
 ---
 
 ## 6. Timing

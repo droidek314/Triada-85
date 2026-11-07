@@ -153,7 +153,7 @@ class AssembledProgramTest {
                         ST R0, [R2]
                         INC R2
                         JMP loop
-                done:   ST R2, [R1+DEBUG_NUM] ; nothing attached yet: ignored
+                done:   ST R2, [R1+DEBUG_NUM] ; prints the end address to the debug port
                         HLT
                 """;
         TriImage img = AssemblerTest.asm(src).image();
