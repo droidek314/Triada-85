@@ -145,7 +145,7 @@ public final class CpuBenchmark {
     }
 
     /** Bytes this thread has allocated so far (HotSpot-specific, hence the cast). */
-    static long allocatedBytes() {
+    public static long allocatedBytes() {
         return ((com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean())
                 .getThreadAllocatedBytes(Thread.currentThread().threadId());
     }

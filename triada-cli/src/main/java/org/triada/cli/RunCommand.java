@@ -10,7 +10,6 @@ import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
-import org.triada.core.memory.MemoryMap;
 
 /**
  * {@code triada run program.tri [--frames N] [--dump-screen out.png]}: runs a
@@ -18,6 +17,7 @@ import org.triada.core.memory.MemoryMap;
  *
  * <p>The program is copied into RAM at its load address; the CPU starts there
  * with SP = 59,049, as if the ROM had started it (the real ROM arrives in M8).
+ * With {@code --dump-screen}, the last picture is saved as a PNG when the run ends.
  * Then the runner runs frames, and after each one prints whatever the
  * program wrote to DEBUG_CHAR and DEBUG_NUM. It stops when
  * <ul>
@@ -76,31 +76,29 @@ final class RunCommand {
         if (program == null) {
             throw new Main.UsageException("run: which program? e.g. triada run hello.tri");
         }
-        if (dumpScreen != null) {
-            // Honest placeholder: there is no video chip to draw the screen until M6.
-            err.println("triada: --dump-screen needs the video chip, which arrives in milestone M6");
-            return Main.EXIT_USAGE;
-        }
-
         TriImage image;
         try {
             image = load(program);
         } catch (LoadFailure f) {
             return f.exitCode;
         }
-        long last = (long) image.loadAddress() + image.size() - 1;
-        if (image.loadAddress() < MemoryMap.RAM_START || last > MemoryMap.RAM_END) {
-            err.println("triada: " + program + " occupies addresses " + image.loadAddress() + " .. " + last
-                    + ", which is not inside RAM (" + MemoryMap.RAM_START + " .. " + MemoryMap.RAM_END + ")");
+        Machine machine = new Machine();
+        try {
+            machine.loadProgram(image);
+        } catch (IllegalArgumentException e) {
+            err.println("triada: " + program + ": " + e.getMessage());
             return Main.EXIT_USAGE;
         }
-
-        Machine machine = new Machine();
-        machine.bus().loadRam(image.loadAddress(), image.words());
-        Cpu cpu = machine.cpu();
-        cpu.setPc(image.loadAddress());
-        cpu.setRegister(8, MemoryMap.STACK_TOP);
-        return execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null);
+        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null);
+        if (dumpScreen != null) {
+            try {
+                ScreenDump.writePng(machine.video(), Path.of(dumpScreen));
+            } catch (IOException e) {
+                err.println("triada: can't write " + dumpScreen + ": " + e.getMessage());
+                return Main.EXIT_USAGE;
+            }
+        }
+        return code;
     }
 
     private int execute(Machine machine, int limit, boolean explicitLimit) {

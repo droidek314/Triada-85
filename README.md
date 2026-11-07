@@ -10,7 +10,7 @@ This project builds that whole machine as a program you can run on a normal PC: 
 
 ## Status
 
-Milestones **M0 to M5** are done: project setup, ternary math, memory, the processor, the assembler, and a command-line tool that runs programs without a window. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. There is no screen output yet: programs talk to the outside world through a "debug port" until the video chip arrives in M6. See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
+Milestones **M0 to M6** are done: project setup, ternary math, memory, the processor, the assembler, a command-line tool that runs programs without a window, and the video chip: 27 colours, tiles, scrolling and sprites, shown in a window. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. `programs/colors.tasm` shows all 27 colours and a bouncing ball. Sound and keyboard input come next (M7). See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
 
 ## Where to start reading
 
@@ -43,8 +43,8 @@ Or install the `triada` command once and use it directly. Its launcher uses the 
 triada-cli/build/install/triada/bin/triada run programs/ternary.tasm
 ```
 
-`triada help` lists all commands and exit codes. The (still empty) desktop window opens with:
+`triada help` lists all commands and exit codes. To see a program in a window:
 
 ```bash
-./gradlew :triada-desktop:run
+./gradlew :triada-desktop:run --args="programs/colors.tasm"
 ```

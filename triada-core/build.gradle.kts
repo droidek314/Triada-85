@@ -15,3 +15,11 @@ tasks.register<JavaExec>("benchmark") {
     mainClass.set("org.triada.core.cpu.CpuBenchmark")
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) })
 }
+
+tasks.named<Test>("test") {
+    // Golden-image tests (M6): where the expected pictures live, where to put
+    // "actual" pictures when a check fails, and whether to (re)create them.
+    systemProperty("triada.goldenDir", file("src/test/resources/golden").absolutePath)
+    systemProperty("triada.diffDir", layout.buildDirectory.dir("golden-diff").get().asFile.absolutePath)
+    systemProperty("triada.updateGolden", System.getProperty("triada.updateGolden") ?: "false")
+}

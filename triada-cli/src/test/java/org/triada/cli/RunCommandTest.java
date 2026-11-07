@@ -144,10 +144,34 @@ class RunCommandTest {
     }
 
     @Test
-    void dumpScreenIsHonestlyNotAvailableYet() throws Exception {
-        Cli.Result r = runSource("HLT\n", "--dump-screen", dir.resolve("s.png").toString());
+    void dumpScreenWritesTheLastFrameAsPng() throws Exception {
+        // Red border; one white tile in the top-left map cell.
+        Cli.Result r = runSource("""
+                        LDI R1, IO_BASE
+                        LDI R0, 5
+                        ST R0, [R1+BORDER]
+                        LDI R2, TILES + 16
+                        LDI R0, 265720          ; .pix 13, 13, 13, 13: four white pixels
+                        ST R0, [R2]
+                        LDI R2, MAP
+                        LDI R0, 1
+                        ST R0, [R2]             ; map cell (0, 0) = tile 1
+                        WAIT                    ; let the chip draw one frame
+                        HLT
+                """, "--dump-screen", dir.resolve("s.png").toString());
+        assertEquals(0, r.code(), r.toString());
+        java.awt.image.BufferedImage png = javax.imageio.ImageIO.read(dir.resolve("s.png").toFile());
+        assertEquals(240, png.getWidth());
+        assertEquals(168, png.getHeight());
+        assertEquals(0xFF0000, png.getRGB(0, 0) & 0xFFFFFF, "border");
+        assertEquals(0xFFFFFF, png.getRGB(12, 12) & 0xFFFFFF, "first screen pixel: row 0 of tile 1");
+        assertEquals(0x808080, png.getRGB(12, 13) & 0xFFFFFF, "row 1 of tile 1 is still 0 = gray");
+    }
+
+    @Test
+    void dumpScreenProblemsAreReported() throws Exception {
+        Cli.Result r = runSource("HLT\n", "--dump-screen", dir.resolve("no/such/folder/s.png").toString());
         assertEquals(2, r.code());
-        assertTrue(r.err().contains("needs the video chip, which arrives in milestone M6"), r.err());
-        assertTrue(!Files.exists(dir.resolve("s.png")), "no fake image is written");
+        assertTrue(r.err().contains("can't write"), r.err());
     }
 }

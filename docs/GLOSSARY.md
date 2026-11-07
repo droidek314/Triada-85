@@ -18,6 +18,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **BOM (bill of materials)**: A list that pins every part of a library family to versions that work together. *In TRIADA:* the JUnit BOM. First seen: M0.
 
+**Border (video)**: The frame of one colour around the screen. *In TRIADA:* 12 pixels wide, colour from the BORDER register (D-020). First seen: M6.
+
 **Boundary test**: A test at the exact edges of a range (first, last, one beyond), where off-by-one mistakes hide. First seen: M2.
 
 **Branch**: Another word for a jump, especially a conditional one. *In TRIADA:* BR3 is a three-way branch. First seen: M3.
@@ -35,6 +37,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Cartridge**: A plug-in module that adds memory or software to a computer. *In TRIADA:* lore only; addresses 59,049 and up are reserved for them. First seen: M2.
 
 **CLI (command-line interface)**: A program you control by typing commands in a terminal instead of clicking. *In TRIADA:* the `triada` tool in `triada-cli`. First seen: M0.
+
+**Clipping**: Cutting off the parts of a picture that fall outside the visible area. *In TRIADA:* sprites are clipped to the 216 × 144 screen. First seen: M6.
 
 **Commit**: A saved snapshot of the whole project in version control (git), with a message saying what changed. *In TRIADA:* at least one commit per milestone. First seen: M0.
 
@@ -84,15 +88,23 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Fetch**: Reading the next instruction from memory at the address in PC. First seen: M3.
 
+**Fixed time step**: Running a simulation in equal steps (here 1/60 s) whatever the display's refresh rate, by counting elapsed time. *In TRIADA:* `FrameClock`. First seen: M6.
+
 **Flag**: A one-digit note the processor keeps about the last calculation, which later instructions can check. *In TRIADA:* S (sign) and O (overflow/carry), both trits. First seen: M1.
+
+**Flipping**: Turning a picture upside down. *In TRIADA:* sprite FLAGS = −1. First seen: M6.
 
 **Forward reference**: Using a label before the line that defines it, e.g. `JMP end` above `end:`. Two passes make it possible. First seen: M4.
 
 **Frame**: One complete picture on the screen. Showing many frames per second makes movement. *In TRIADA:* 60 frames per second (SPEC §6). First seen: M0.
 
+**Frame buffer**: The block of memory that holds a finished picture. *In TRIADA:* `VideoChip.frame()`, 240 × 168 RGB values. First seen: M6.
+
 **Frontend**: The part of a program that faces the person: window, sound, keyboard. *In TRIADA:* `triada-desktop`, built with libGDX. The machine itself (`triada-core`) knows nothing about it. First seen: M0.
 
 **Garbage collector**: The part of Java that finds objects no longer used and frees their memory. It costs time, so fast code creates few objects. First seen: M1.
+
+**Golden image**: A stored, checked-by-a-person picture that new output is compared with pixel by pixel; any difference fails the test. First seen: M6.
 
 **Gradle**: The build tool this project uses. Its settings are written in Kotlin script files (`*.gradle.kts`). First seen: M0.
 
@@ -115,6 +127,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Immediate**: A small number built into the instruction itself instead of coming from a register. *In TRIADA:* the imm5 field, −121 … +121. First seen: M3.
 
 **Instruction**: One command for the CPU, such as "add R2 to R1". *In TRIADA:* one to four words. First seen: M3.
+
+**Integer scaling**: Enlarging a picture by a whole number (2×, 3×, 4× …) so every pixel stays exactly the same size. First seen: M6.
 
 **Integration test**: A test that checks several parts working together, rather than one part alone. First seen: M5.
 
@@ -160,6 +174,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Memory map**: The plan of which addresses are RAM, ROM, I/O or empty. *In TRIADA:* SPEC §2.2 and `MemoryMap`. First seen: M2.
 
+**Mirroring**: Reversing a picture left to right. *In TRIADA:* a negative tile number in the tile map or a sprite's TILE. First seen: M6.
+
 **Mnemonic**: The short name of an instruction, such as `ADD` or `JSR`. First seen: M3.
 
 **Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-cli` and `triada-desktop`. First seen: M0.
@@ -170,6 +186,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Native library**: Code compiled directly for one kind of computer and operating system, not Java. LWJGL needs some to reach the graphics card. First seen: M0.
 
+**Nearest-neighbour filtering**: Enlarging a picture by copying the nearest original pixel, with no smoothing, so pixel art stays crisp. First seen: M6.
+
+**Node.js**: A program that runs JavaScript outside a web browser. Used for the M6 web spike. First seen: M6.
+
 **Opcode**: The number that says which instruction it is. *In TRIADA:* 3 trits, −13 … +13, all 27 used. First seen: M3.
 
 **OpenGL**: A standard way for programs to ask the graphics card to draw. libGDX uses it behind the scenes. First seen: M0.
@@ -178,11 +198,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Option (command line)**: A setting given on a command line, such as `--frames 10` or `-o out.tri`. First seen: M5.
 
+**Palette**: The list of colours a machine can show. *In TRIADA:* 27 colours, each one's three trits giving red, green and blue (SPEC §4.2). First seen: M6.
+
 **Parameterized test**: One test method run once for every row of a table of inputs. First seen: M2.
 
 **Parser**: The part of a translator that recognises the structure of the tokens (label, instruction, operands …). First seen: M4.
 
 **Peek**: Looking at a memory address without any side effect. *In TRIADA:* `Bus.peek()`, used by the debugger; also a monitor command (M8). First seen: M2.
+
+**Pixel**: One dot of a picture. *In TRIADA:* a 3-trit value from −13 to 13; four pixels fit in one word. First seen: M6.
 
 **Plugin (Gradle)**: A ready-made bundle of build steps you switch on in a build file, for example `application`, which knows how to run a program. First seen: M0.
 
@@ -208,6 +232,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Return address**: Where the program continues after a subroutine; JSR pushes it on the stack and RET pops it. First seen: M3.
 
+**RGB**: Describing a colour by how much red, green and blue light it contains. First seen: M6.
+
 **Ring buffer**: A fixed-size array used as a queue whose start and end chase each other round and round, so nothing is ever moved or allocated. First seen: M2.
 
 **ROM (read-only memory)**: Memory that can be read but not changed by programs. *In TRIADA:* addresses −19,683 … −1, holding the kernel. First seen: M2.
@@ -215,6 +241,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Rotate (ROT)**: *In TRIADA:* turn every trit one step around a three-hour clock: − → 0 → + → −. First seen: M1.
 
 **Round trip**: Converting something there and back and getting exactly what you started with. *In TRIADA:* assemble → disassemble → assemble. First seen: M4.
+
+**Scrolling**: Sliding the whole background so a different part of it is visible. *In TRIADA:* SCROLL_X/SCROLL_Y; what slides out comes back on the other side. First seen: M6.
 
 **Seed**: The starting value of a pseudo-random number generator. The same seed always gives the same sequence. First seen: M3.
 
@@ -227,6 +255,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Source code**: The text of a program as people write it. First seen: M0.
 
 **Spec (specification)**: The exact written description of how something must behave. *In TRIADA:* `docs/SPEC.md`, the law of the machine. First seen: M0.
+
+**Spike**: A quick, throwaway experiment that answers one question before committing to a plan. *In TRIADA:* the M6 web spike (D-022). First seen: M6.
 
 **Sprite**: A small picture that moves freely over the background. *In TRIADA:* 27 sprites, table at RAM 44,600 (SPEC §4.7). First seen: M2.
 
@@ -244,9 +274,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **System variables**: RAM cells where the built-in software keeps its own notes. *In TRIADA:* addresses 0 … 242. First seen: M2.
 
+**TeaVM**: A tool that translates Java bytecode into JavaScript (or WebAssembly). The libGDX community web backend gdx-teavm is built on it. First seen: M6.
+
 **Ternary**: Counting with three digits. *Balanced* ternary uses −1, 0 and +1 (written `-`, `0`, `+`). *In TRIADA:* everything. First seen: M0.
 
 **Test (automatic test)**: A small program that checks whether another piece of code does what it should, and complains loudly if not. First seen: M0.
+
+**Texture**: A picture uploaded to the graphics card so it can be drawn quickly. First seen: M6.
 
 **Tile**: A small fixed picture (8×8 pixels) used as a building block for the screen. *In TRIADA:* 243 tiles at RAM 40,000 (SPEC §4.4). First seen: M2.
 
@@ -257,6 +291,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Token**: One piece of a source line after the lexer has cut it up: a name, a number, a comma … First seen: M4.
 
 **Toolchain (Gradle)**: Gradle's setting for "compile and test with exactly this Java version", even if a different one is installed as the default. First seen: M0.
+
+**Transparency**: A colour that is not drawn, so whatever is behind shows through. *In TRIADA:* gray (value 0) in sprites. First seen: M6.
 
 **Trit**: One ternary digit: −1, 0 or +1. The ternary cousin of the bit. First seen: M0.
 
@@ -275,6 +311,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Version catalog**: One file (`gradle/libs.versions.toml`) that lists every external library and its version, so they aren't scattered across build files. First seen: M0.
 
 **Version control (git)**: A system that remembers every saved version of a project, so you can see what changed, when and why, and go back. First seen: M0.
+
+**Video chip**: The part of a computer that turns memory contents into a picture, many times per second. *In TRIADA:* `VideoChip`, once per frame (SPEC §4). First seen: M6.
 
 **Vsync**: Waiting for the monitor to finish showing one picture before handing it the next, so the image never tears halfway. First seen: M0.
 

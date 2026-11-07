@@ -1,0 +1,151 @@
+; ============================================================================
+;  COLORS.TASM -- all 27 TRIADA colours, and a ball that bounces over them
+;
+;  The screen shows 27 vertical colour bars (black ... gray ... white) in the
+;  middle rows, framed by white lines so the black bar stands out from the
+;  black background, inside a blue border. A sprite (a red ball with a white
+;  highlight) bounces around. Its tile has the highlight at the top right;
+;  moving left the ball is mirrored, moving down it is flipped, so the
+;  highlight always faces the direction of travel: a demonstration of sprite
+;  mirroring (negative TILE) and flipping (FLAGS = -1).
+;
+;  Window:   ./gradlew :triada-desktop:run --args="programs/colors.tasm"
+;  Picture:  triada run programs/colors.tasm --frames 60 --dump-screen colors.png
+; ============================================================================
+
+        .org 243
+
+ONE4      = 20440               ; .pix 1, 1, 1, 1: four pixels of value 1
+BALL      = 28                  ; tile number of the ball
+BALL_TILE = 40448               ; its address: TILES + 16 * 28
+BAR_TOP   = 6                   ; first tile-map row of the colour bars
+BAR_END   = 12                  ; first row after them
+
+start:  LDI R1, IO_BASE
+        LDI R0, -11
+        ST R0, [R1+BORDER]      ; blue border
+
+; --- tiles 1 .. 27: solid colours; tile t has colour t - 14 ----------------
+        LDI R0, 1               ; t
+        LDI R3, ONE4
+tiles:  MOV R5, R0
+        ADDI R5, -14            ; colour c = t - 14   (-13 .. 13)
+        MUL R5, R3              ; c * 20440 = .pix c, c, c, c
+        MOV R2, R0
+        LDI R4, 16
+        MUL R2, R4              ; 16 * t
+        LDI R4, TILES
+        ADD R2, R4              ; R2 = address of tile t
+        LDI R4, 16              ; 16 words per tile
+fill:   ST R5, [R2]
+        INC R2
+        DEC R4
+        JNZ fill
+        INC R0
+        LDI R4, 28
+        CMP R0, R4
+        JN tiles                ; until tile 27 is done
+
+; --- the ball: copy 16 words from 'ball' into tile 28 ----------------------
+        LDI R2, ball
+        LDI R3, BALL_TILE
+        LDI R4, 16
+copy:   LD R0, [R2]
+        ST R0, [R3]
+        INC R2
+        INC R3
+        DEC R4
+        JNZ copy
+
+; --- tile map: black, colour bars in rows 6 .. 11, white lines at 5 and 12 --
+        LDI R2, MAP             ; cell address
+        LDI R3, 0               ; row
+mrow:   LDI R4, 0               ; column
+mcol:   LDI R0, 27              ; tile 27 = white (colour 13)
+        LDI R5, BAR_TOP - 1
+        CMP R3, R5
+        JZ put                  ; the line above the bars
+        LDI R5, BAR_END
+        CMP R3, R5
+        JZ put                  ; the line below the bars
+        LDI R0, 1               ; tile 1 = black (colour -13)
+        LDI R5, BAR_TOP
+        CMP R3, R5
+        JN put                  ; above the bars
+        LDI R5, BAR_END
+        CMP R3, R5
+        JGE put                 ; below the bars
+        MOV R0, R4
+        INC R0                  ; a bar: tile = column + 1, colours -13 .. 13
+put:    ST R0, [R2]
+        INC R2
+        INC R4
+        LDI R5, 27
+        CMP R4, R5
+        JN mcol
+        INC R3
+        LDI R5, 18
+        CMP R3, R5
+        JN mrow
+
+; --- sprite 0 is the ball ---------------------------------------------------
+        LDI R2, SPRITES
+        LDI R3, 20              ; x
+        LDI R4, 10              ; y
+        LDI R6, 1               ; dx
+        LDI R7, 1               ; dy
+        LDI R0, BALL
+        ST R0, [R2+2]           ; TILE: moving right, not mirrored
+        LDI R0, -1
+        ST R0, [R2+3]           ; FLAGS: visible, flipped (moving down)
+
+; --- main loop: one step per frame -----------------------------------------
+frame:  ST R3, [R2+0]           ; X
+        ST R4, [R2+1]           ; Y
+        WAIT
+        ADD R3, R6              ; move
+        ADD R4, R7
+
+        LDI R5, 208             ; right edge (216 - 8)?
+        CMP R3, R5
+        JLE notr
+        LDI R6, -1              ; bounce left ...
+        LDI R0, -BALL
+        ST R0, [R2+2]           ; ... and mirror the ball
+notr:   MOV R3, R3              ; left edge (x < 0)?
+        JGE notl
+        LDI R6, 1               ; bounce right, unmirrored
+        LDI R0, BALL
+        ST R0, [R2+2]
+
+notl:   LDI R5, 136             ; bottom edge (144 - 8)?
+        CMP R4, R5
+        JLE notb
+        LDI R7, -1              ; bounce up ...
+        LDI R0, 1
+        ST R0, [R2+3]           ; ... and show the ball upright
+notb:   MOV R4, R4              ; top edge (y < 0)?
+        JGE frame
+        LDI R7, 1               ; bounce down ...
+        LDI R0, -1
+        ST R0, [R2+3]           ; ... and flip the ball upside down
+        JMP frame
+
+; --- the ball: 8 x 8 pixels, two .pix words per row -------------------------
+;     0 = gray (transparent), 5 = red, 13 = white, -4 = dark red (trits 0--)
+ball:   .pix  0,  0,  5,  5
+        .pix  5,  5,  0,  0
+        .pix  0,  5,  5,  5
+        .pix 13, 13,  5,  0
+        .pix  5,  5,  5,  5
+        .pix  5, 13, 13,  5
+        .pix  5,  5,  5,  5
+        .pix  5,  5, 13,  5
+        .pix  5,  5,  5,  5
+        .pix  5,  5,  5,  5
+        .pix -4,  5,  5,  5
+        .pix  5,  5,  5,  5
+        .pix  0, -4, -4,  5
+        .pix  5,  5,  5,  0
+        .pix  0,  0, -4, -4
+        .pix -4, -4,  0,  0

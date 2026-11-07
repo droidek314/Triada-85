@@ -23,4 +23,6 @@ tasks.named<JavaExec>("run") {
 tasks.withType<Test>().configureEach {
     // Integration tests find programs/ and rom/ through this property.
     systemProperty("triada.root", rootProject.projectDir.absolutePath)
+    systemProperty("triada.diffDir", layout.buildDirectory.dir("golden-diff").get().asFile.absolutePath)
+    systemProperty("triada.updateGolden", System.getProperty("triada.updateGolden") ?: "false")
 }

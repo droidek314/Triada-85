@@ -192,7 +192,7 @@ Source registers are read before anything is written (D-009). So `PUSH R8` pushe
 ## 4. Video chip
 
 ### 4.1 Screen
-**216 × 144 pixels.** That's 27 × 18 tiles of 8 × 8 pixels, with a border area around it in the BORDER color. The frontend scales by integer factors.
+**216 × 144 pixels.** That's 27 × 18 tiles of 8 × 8 pixels, with a border area around it in the BORDER color. The border is 12 pixels wide on every side, so the whole picture is 240 × 168 pixels (D-020). The frontend scales by integer factors.
 
 ### 4.2 Colors: ternary RGB, 27 colors
 A pixel value is a 3-trit number from −13 to +13. Its trits **are** its color: high trit = Red, middle = Green, low = Blue. Each channel trit maps to an intensity: −1 → 0, 0 → 128, +1 → 255.
@@ -230,7 +230,7 @@ There are 27 sprites. Sprite `i` is 4 words at `44,600 + 4i`:
 | 2 | TILE | tile index; negative = mirrored horizontally |
 | 3 | FLAGS | 0 = hidden, +1 = visible, −1 = visible and flipped vertically |
 
-Sprites are drawn after the background, in order 0 → 26, so higher numbers end up on top. Pixel value 0 is transparent. They're clipped to the screen.
+Sprites are drawn after the background, in order 0 → 26, so higher numbers end up on top. Pixel value 0 is transparent. They're clipped to the screen. Sprites are not affected by scrolling. FLAGS values other than +1 and −1 mean hidden, and a TILE with |v| > 242 draws tile 0, as in the tile map (D-021).
 
 ### 4.8 Characters
 The ROM copies an 8×8 font into tiles **32–126** at boot, so tile index = ASCII code for printable characters. Text is just tiles in the tile map.
@@ -252,7 +252,7 @@ Register `k` lives at address `IO_BASE + k`, where **IO_BASE = −20,412**. All 
 | 6 | −20,406 | KEY | R | Next key from the keyboard queue (ASCII), or 0. **Reading removes it** |
 | 7 | −20,405 | SCROLL_X | R/W | Background scroll x |
 | 8 | −20,404 | SCROLL_Y | R/W | Background scroll y |
-| 9 | −20,403 | BORDER | R/W | Border color (pixel value) |
+| 9 | −20,403 | BORDER | R/W | Border color (pixel value; only the lowest 3 trits are used, D-021) |
 | 10–12 | −20,402…−20,400 | V1_FREQ, V1_VOL, V1_WAVE | R/W | Sound voice 1 (§7) |
 | 13–15 | −20,399…−20,397 | V2_… | R/W | Voice 2 |
 | 16–18 | −20,396…−20,394 | V3_… | R/W | Voice 3 |

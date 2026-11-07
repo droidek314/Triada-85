@@ -170,3 +170,46 @@ Format: see CLAUDE.md §5.4.
 **Decision:** C. `triada run … --dump-screen x.png` exits with code 2 and says the option needs the video chip, which arrives in M6. M6 implements it.
 **Why:** CLAUDE.md §1 rule 7: never fake progress. A blank PNG would look like a working feature and make the first M6 golden-image tests misleading.
 **Consequences:** The option is parsed and documented now, and a test checks that no file is written. M6 replaces the rejection with real output.
+
+## D-020 — A 12-pixel border: the picture is 240 × 168   (Milestone M06, 2026-11-07)
+**Situation:** SPEC §4.1 says the 216 × 144 screen has "a border area around it in the BORDER color", but not how wide.
+**Options:** No border in the picture (the frontend draws it), or a fixed width in the picture: 8, 12 or 16 pixels.
+**Decision:** The video chip's output includes a 12-pixel border on every side, so a picture is 240 × 168 pixels (`VideoChip.FRAME_WIDTH`, `FRAME_HEIGHT`). The desktop window opens at 4× (960 × 672).
+**Why:** The border belongs to the machine (a program sets its colour), so it belongs in the chip's output, in screen dumps and in golden images. 12 pixels looks like the generous borders of 1980s home computers on a TV, and 240 × 168 keeps the 10 : 7 shape. At 4× it fits a 1080p screen.
+**Consequences:** Screen coordinates inside the picture are offset by 12: screen pixel (x, y) is picture pixel (x + 12, y + 12). Golden images and `--dump-screen` PNGs are 240 × 168. SPEC §4.1 now says so.
+
+## D-021 — Video values outside the defined range   (Milestone M06, 2026-11-07)
+**Situation:** Registers and table entries hold whole words, but SPEC §4 only defines some values: pixel values −13 … 13 for BORDER, FLAGS ∈ {−1, 0, +1}, and (for the tile map only) what a TILE beyond ±242 means.
+**Decision:**
+- **BORDER** keeps the whole word written to it (it reads back unchanged), but the chip uses only its lowest three trits (`Palette.fold`): 32 shows as 5 (red).
+- **Sprite FLAGS** other than +1 and −1 mean hidden, just like 0.
+- **Sprite TILE** beyond ±242 draws tile 0, the same rule as the tile map.
+
+**Why:** A chip with three colour wires *can* only see three trits, so folding is what hardware would do. "Only +1 and −1 show" means a sprite table full of junk stays invisible instead of spraying sprites everywhere. Using the map's rule for sprite tiles keeps one rule for both.
+**Consequences:** All three are tested in `VideoChipTest`. SPEC §4.7 and §5 note them.
+
+## D-022 — Web spike: TeaVM compiles triada-core and the assembler   (Milestone M06, 2026-11-07)
+**Situation:** CLAUDE.md asks for an early check that a current libGDX web backend can compile `triada-core`, so problems surface now rather than at the end.
+**Options:** libGDX has two web routes:
+- The official **GWT** backend (`gdx-backend-gwt` 1.14.2, built on GWT 2.11). GWT compiles Java *source code* and supports only part of the newest Java language and library.
+- The community **TeaVM** backend (`gdx-teavm` 1.4.0, November 2025, built on TeaVM 0.13.0). TeaVM compiles *bytecode*, so the Java language version matters much less.
+
+**What we did:** A throwaway build (`docs/spikes/m06-teavm/`) compiles the project's real `triada-core` and `triada-assembler` sources with TeaVM 0.13.0 into one JavaScript file. A small main program then:
+- assembles a "hello" program;
+- runs it on a `Machine`;
+- renders a frame;
+- times 60 frames of a trit-heavy loop.
+
+We ran the result in Node.js 22.
+
+**Result:**
+- It works, with Java 25 bytecode, after one fix. TeaVM's class library lacks `Integer.toUnsignedLong`, which `SystemDevice` used for RAND. It was replaced by the equivalent `x & 0xFFFFFFFFL`.
+- Output: `HELLO FROM TERNARY JS`, exit code 0, red border pixel.
+- 60 frames (3.5 million instructions, mostly MIN/ROT, plus 60 renders) took about 0.7 s, roughly 1.3–1.4× real time.
+
+**Decision:** The planned web build (a stretch goal) will use the TeaVM route. GWT was not tried: TeaVM already answers the question, and GWT's source-level compiler would need checking against records, sealed interfaces and pattern matching, which `triada-assembler` uses.
+**Why:** CLAUDE.md asked whether it *can* work, early. It can, and the one incompatibility was trivial to fix.
+**Consequences:**
+- Keep `triada-core` and `triada-assembler` to plain JDK APIs. Re-run the spike (`./gradlew -p docs/spikes/m06-teavm teavm`) after milestones that add core code, to catch new incompatibilities early.
+- Browser speed is enough but not lavish (about 1.3× real time in the worst case, measured in Node). If the web build needs headroom, the trit-wise operations are the first candidates for lookup tables (M1/M3 notes).
+- The libGDX side of gdx-teavm (window, textures, sound) was **not** tested; that belongs to the web build itself.

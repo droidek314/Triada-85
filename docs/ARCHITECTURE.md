@@ -36,7 +36,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
 
-## Current state (after M5)
+## Current state (after M6)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -50,8 +50,11 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `triada-assembler`: `Lexer` → `Parser` → `Assembler` (two passes; `.include` through the `SourceLoader` interface, so no file I/O) → `AssemblyResult` (image, listing, symbols). `Disassembler` turns words back into text. Errors are `AssemblyError` records with file, line and column.
 - `triada-core` also has `DebugDevice` (registers 20–22: DEBUG_CHAR, DEBUG_NUM, HOST_EXIT), which buffers output for the host and ends the frame on HOST_EXIT via `Cpu.endFrame()`.
 - `triada-cli` is the `triada` tool: `Main` (commands, exit codes), `TasmCommand` (`tasm`), `RunCommand` (`run`: headless frames, debug output to stdout), `FileSourceLoader` (disk access for the assembler).
-- `programs/` has `hello.tasm`, `countdown.tasm` and `ternary.tasm`.
-- `triada-desktop` opens a 960 × 672 window titled "TRIADA-85" and clears it to a dark color every frame.
+- `org.triada.core.video`: `Palette` (27 colours) and `VideoChip` (registers SCROLL_X, SCROLL_Y, BORDER; `render()` turns tile map, tiles and sprites into a 240 × 168 RGB `int[]`). `Machine.runFrame()` renders after the CPU; `Machine.loadProgram()` loads a `TriImage` and starts it.
+- `triada-cli` can save the picture: `run --dump-screen out.png` (`ScreenDump`, javax.imageio).
+- `triada-desktop`: `DesktopLauncher` (optional program argument), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step).
+- `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm` and `colors.tasm`.
+- `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
 
 ## Inside triada-core: the bus
 
@@ -66,6 +69,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
                        (CPU writes ignored)     |
                                                 +- k = 0, 19    SystemDevice (FRAME, RAND)
                                                 +- k = 1 ... 6  InputDevice (joystick, buttons, KEY)
+                                                +- k = 7 ... 9  VideoChip (SCROLL_X, SCROLL_Y, BORDER)
                                                 +- k = 20 ... 22 DebugDevice (DEBUG_CHAR, DEBUG_NUM, HOST_EXIT)
                                                 +- others       not attached yet -> read 0
 ```
@@ -92,10 +96,10 @@ The `Disassembler` goes the other way (words -> text) and will be used by the de
 
 ## Data flow (planned; filled in as milestones land)
 
-Each frame (1/60 s) works like this. Steps 2 and 5 exist since M3 (`Machine.runFrame()`); the others arrive with M6 and M7.
+Each frame (1/60 s) works like this. Steps 2, 3 and 5 exist (`Machine.runFrame()`); the desktop does step 4's picture part; input (1) and sound arrive with M7.
 
 1. The frontend passes input (keys, joystick) into the machine's I/O registers.
 2. The CPU runs up to 59,049 cycles, stopping early on WAIT or a halt (SPEC §6).
-3. The video chip turns memory into an `int[]` of RGB pixels.
+3. The video chip reads the tile map, tiles and sprite table through `Bus.peek()` and turns them into an `int[]` of RGB pixels (`VideoChip.render()`).
 4. The frontend uploads those pixels to a texture and draws it, and sends the sound chip's samples to the audio device.
 5. FRAME increases by 1.

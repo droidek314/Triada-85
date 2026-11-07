@@ -85,6 +85,8 @@ public final class SystemDevice implements IoDevice {
         x ^= x >>> 17;
         x ^= x << 5;
         randomState = x;
-        return (int) (Integer.toUnsignedLong(x) % Word.COUNT) - Word.MAX;
+        // (x & 0xFFFFFFFFL) reads the 32 bits as an unsigned number. It is the same as
+        // Integer.toUnsignedLong(x), which the TeaVM web compiler lacks (D-022).
+        return (int) ((x & 0xFFFFFFFFL) % Word.COUNT) - Word.MAX;
     }
 }
