@@ -10,6 +10,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Assembly language**: The thinnest layer above machine code: one line per instruction, written with mnemonics and names instead of numbers. First seen: M4.
 
+**Audio thread**: A separate worker inside a program that does nothing but feed the sound card. *In TRIADA:* `SoundOutput`'s thread `triada-audio` (D-025). First seen: M7.
+
 **Balanced ternary**: Base 3 with the digits −1, 0 and +1 instead of 0, 1 and 2. Negative numbers need no minus sign, and flipping every digit negates a number. *In TRIADA:* how every number is stored (SPEC §1.1). First seen: M1.
 
 **Benchmark**: A program that measures how fast something runs. *In TRIADA:* `./gradlew :triada-core:benchmark` (M3). First seen: M3.
@@ -39,6 +41,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **CLI (command-line interface)**: A program you control by typing commands in a terminal instead of clicking. *In TRIADA:* the `triada` tool in `triada-cli`. First seen: M0.
 
 **Clipping**: Cutting off the parts of a picture that fall outside the visible area. *In TRIADA:* sprites are clipped to the 216 × 144 screen. First seen: M6.
+
+**Clipping (audio)**: Distortion when a sound's samples exceed the allowed range and get squashed flat. *In TRIADA:* impossible by design: three voices peak at ±30,000. First seen: M7.
 
 **Commit**: A saved snapshot of the whole project in version control (git), with a message saying what changed. *In TRIADA:* at least one commit per milestone. First seen: M0.
 
@@ -72,6 +76,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Enum**: A Java type with a fixed list of named values, such as `Region` with UNMAPPED, IO, ROM and RAM. First seen: M2.
 
+**Envelope**: How a note's volume changes over time, e.g. loud at the start, then fading. *In TRIADA:* `piano.tasm` fades each note over 52 frames. First seen: M7.
+
 **Environment variable**: A named setting the operating system gives every program, such as `JAVA_HOME`. First seen: M5.
 
 **Escape sequence**: A backslash code for a special character inside quotes, such as `\n` for a new line. First seen: M4.
@@ -100,6 +106,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Frame buffer**: The block of memory that holds a finished picture. *In TRIADA:* `VideoChip.frame()`, 240 × 168 RGB values. First seen: M6.
 
+**Frequency**: How many times per second a pattern repeats, measured in hertz (Hz). 440 Hz is the note A. First seen: M7.
+
 **Frontend**: The part of a program that faces the person: window, sound, keyboard. *In TRIADA:* `triada-desktop`, built with libGDX. The machine itself (`triada-core`) knows nothing about it. First seen: M0.
 
 **Garbage collector**: The part of Java that finds objects no longer used and frees their memory. It costs time, so fast code creates few objects. First seen: M1.
@@ -126,6 +134,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Immediate**: A small number built into the instruction itself instead of coming from a register. *In TRIADA:* the imm5 field, −121 … +121. First seen: M3.
 
+**Input focus**: Which window currently receives the keyboard. *In TRIADA:* losing it releases all joystick directions and buttons. First seen: M7.
+
 **Instruction**: One command for the CPU, such as "add R2 to R1". *In TRIADA:* one to four words. First seen: M3.
 
 **Integer scaling**: Enlarging a picture by a whole number (2×, 3×, 4× …) so every pixel stays exactly the same size. First seen: M6.
@@ -149,6 +159,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Kernel**: The core built-in software of a computer. *In TRIADA:* lives in ROM, written in TRIADA assembly (M8). First seen: M2.
 
 **Label**: A name for an address in a program, written `name:` at the start of a line. First seen: M4.
+
+**Latency**: The delay between a cause and its effect, e.g. pressing a key and hearing the note. First seen: M7.
 
 **Launcher script**: A small script that starts a Java program with the right settings. *In TRIADA:* `triada` / `triada.bat`, made by `./gradlew :triada-cli:installDist`. First seen: M5.
 
@@ -176,6 +188,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Mirroring**: Reversing a picture left to right. *In TRIADA:* a negative tile number in the tile map or a sprite's TILE. First seen: M6.
 
+**Mixing**: Adding several sounds together into one stream of samples. First seen: M7.
+
 **Mnemonic**: The short name of an instruction, such as `ADD` or `JSR`. First seen: M3.
 
 **Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-cli` and `triada-desktop`. First seen: M0.
@@ -189,6 +203,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Nearest-neighbour filtering**: Enlarging a picture by copying the nearest original pixel, with no smoothing, so pixel art stays crisp. First seen: M6.
 
 **Node.js**: A program that runs JavaScript outside a web browser. Used for the M6 web spike. First seen: M6.
+
+**Noise (audio)**: A random, hissing sound. *In TRIADA:* random trits (−1, 0, +1), a new one every quarter period (D-023). First seen: M7.
 
 **Opcode**: The number that says which instruction it is. *In TRIADA:* 3 trits, −13 … +13, all 27 used. First seen: M3.
 
@@ -204,7 +220,11 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Parser**: The part of a translator that recognises the structure of the tokens (label, instruction, operands …). First seen: M4.
 
+**PCM (pulse-code modulation)**: Sound stored as a plain list of samples. *In TRIADA:* 16-bit mono, 44,100 per second. First seen: M7.
+
 **Peek**: Looking at a memory address without any side effect. *In TRIADA:* `Bus.peek()`, used by the debugger; also a monitor command (M8). First seen: M2.
+
+**Phase**: Where in its repeating pattern a wave currently is. *In TRIADA:* an exact integer 0 … 44,099 per voice. First seen: M7.
 
 **Pixel**: One dot of a picture. *In TRIADA:* a 3-trit value from −13 to 13; four pixels fit in one word. First seen: M6.
 
@@ -242,6 +262,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Round trip**: Converting something there and back and getting exactly what you started with. *In TRIADA:* assemble → disassemble → assemble. First seen: M4.
 
+**Sample (audio)**: One number giving the loudspeaker's position at one instant. *In TRIADA:* −32,768 … 32,767, 735 per frame. First seen: M7.
+
+**Sample rate**: How many samples per second a sound has. *In TRIADA:* 44,100 (the CD rate). First seen: M7.
+
 **Scrolling**: Sliding the whole background so a different part of it is visible. *In TRIADA:* SCROLL_X/SCROLL_Y; what slides out comes back on the other side. First seen: M6.
 
 **Seed**: The starting value of a pseudo-random number generator. The same seed always gives the same sequence. First seen: M3.
@@ -278,9 +302,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Ternary**: Counting with three digits. *Balanced* ternary uses −1, 0 and +1 (written `-`, `0`, `+`). *In TRIADA:* everything. First seen: M0.
 
+**Ternary square**: TRIADA's signature waveform: three levels, +1, 0, −1, 0, in four equal quarters of each period (SPEC §7). First seen: M7.
+
 **Test (automatic test)**: A small program that checks whether another piece of code does what it should, and complains loudly if not. First seen: M0.
 
 **Texture**: A picture uploaded to the graphics card so it can be drawn quickly. First seen: M6.
+
+**Thread**: An independent line of work inside a program; several threads run at the same time. First seen: M7.
+
+**Thread-safe**: Safe to use from several threads at once without mixing up data. *In TRIADA:* `SampleRing`. First seen: M7.
 
 **Tile**: A small fixed picture (8×8 pixels) used as a building block for the screen. *In TRIADA:* 243 tiles at RAM 40,000 (SPEC §4.4). First seen: M2.
 
@@ -306,6 +336,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Two-pass assembler**: An assembler that first lays out all addresses (pass 1) and then encodes everything (pass 2), so labels can be used before they are defined. First seen: M4.
 
+**Underrun / Overrun**: The sound card running out of samples (a gap) / more samples waiting than allowed (delay). *In TRIADA:* `SampleRing` holds the last value on underrun and drops the oldest on overrun. First seen: M7.
+
 **Unmapped**: An address with nothing behind it: reads 0, writes have no effect. First seen: M2.
 
 **Version catalog**: One file (`gradle/libs.versions.toml`) that lists every external library and its version, so they aren't scattered across build files. First seen: M0.
@@ -314,7 +346,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Video chip**: The part of a computer that turns memory contents into a picture, many times per second. *In TRIADA:* `VideoChip`, once per frame (SPEC §4). First seen: M6.
 
+**Voice**: One independent sound generator with its own pitch, volume and waveform. *In TRIADA:* three (V1–V3). First seen: M7.
+
 **Vsync**: Waiting for the monitor to finish showing one picture before handing it the next, so the image never tears halfway. First seen: M0.
+
+**WAV**: A common sound file format: a short header followed by PCM samples. *In TRIADA:* `triada run … --dump-audio`. First seen: M7.
+
+**Waveform**: The shape of a sound's repeating pattern. *In TRIADA:* ternary square, triangle or noise. First seen: M7.
 
 **Word**: The amount of data a computer handles in one piece. *In TRIADA:* 12 trits, −265,720 … +265,720; every register and memory cell holds one word. First seen: M1.
 

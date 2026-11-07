@@ -17,7 +17,8 @@ import org.triada.core.cpu.Cpu;
  *
  * <p>The program is copied into RAM at its load address; the CPU starts there
  * with SP = 59,049, as if the ROM had started it (the real ROM arrives in M8).
- * With {@code --dump-screen}, the last picture is saved as a PNG when the run ends.
+ * With {@code --dump-screen}, the last picture is saved as a PNG when the run ends;
+ * with {@code --dump-audio}, everything the sound chip played is saved as a WAV file.
  * Then the runner runs frames, and after each one prints whatever the
  * program wrote to DEBUG_CHAR and DEBUG_NUM. It stops when
  * <ul>
@@ -45,6 +46,7 @@ final class RunCommand {
         String program = null;
         Integer frames = null;
         String dumpScreen = null;
+        String dumpAudio = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--frames": {
@@ -61,6 +63,9 @@ final class RunCommand {
                 }
                 case "--dump-screen":
                     dumpScreen = TasmCommand.value(args, ++i, "--dump-screen");
+                    break;
+                case "--dump-audio":
+                    dumpAudio = TasmCommand.value(args, ++i, "--dump-audio");
                     break;
                 default:
                     if (args[i].startsWith("-")) {
@@ -89,7 +94,16 @@ final class RunCommand {
             err.println("triada: " + program + ": " + e.getMessage());
             return Main.EXIT_USAGE;
         }
-        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null);
+        WavRecorder audio = dumpAudio != null ? new WavRecorder() : null;
+        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null, audio);
+        if (audio != null) {
+            try {
+                audio.write(Path.of(dumpAudio));
+            } catch (IOException e) {
+                err.println("triada: can't write " + dumpAudio + ": " + e.getMessage());
+                return Main.EXIT_USAGE;
+            }
+        }
         if (dumpScreen != null) {
             try {
                 ScreenDump.writePng(machine.video(), Path.of(dumpScreen));
@@ -101,10 +115,13 @@ final class RunCommand {
         return code;
     }
 
-    private int execute(Machine machine, int limit, boolean explicitLimit) {
+    private int execute(Machine machine, int limit, boolean explicitLimit, WavRecorder audio) {
         Cpu cpu = machine.cpu();
         for (int frame = 1; frame <= limit; frame++) {
             machine.runFrame();
+            if (audio != null) {
+                audio.add(machine.sound().frameSamples());
+            }
             String text = machine.debug().takeOutput();
             if (!text.isEmpty()) {
                 out.print(text);

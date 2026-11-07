@@ -2,12 +2,14 @@ package org.triada.desktop;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import java.nio.ByteBuffer;
 import org.triada.core.Machine;
+import org.triada.core.sound.SoundChip;
 import org.triada.core.video.VideoChip;
 
 /**
@@ -23,6 +25,9 @@ import org.triada.core.video.VideoChip;
  * triada-core). This class only copies it into a {@link Pixmap}, uploads that
  * to a {@link Texture} with nearest-neighbour filtering (crisp pixels, no
  * blur), and draws it at the largest whole-number scale that fits the window.
+ *
+ * <p>Since M7 it also forwards keyboard events to an {@link InputMapper} and
+ * each frame's samples to a {@link SoundOutput}.
  */
 public class TriadaApp extends ApplicationAdapter {
 
@@ -36,6 +41,8 @@ public class TriadaApp extends ApplicationAdapter {
     private Pixmap pixmap;
     private Texture texture;
     private final FrameClock clock = new FrameClock(Machine.FRAMES_PER_SECOND, MAX_CATCH_UP);
+    private InputMapper inputMapper;
+    private SoundOutput sound;      // null if no audio device could be opened
     private int viewWidth;
     private int viewHeight;
 
@@ -53,6 +60,39 @@ public class TriadaApp extends ApplicationAdapter {
         texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
         Gdx.graphics.setTitle(title);
         resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
+        inputMapper = new InputMapper(machine.input());
+        Gdx.input.setInputProcessor(new InputAdapter() {
+            @Override
+            public boolean keyDown(int keycode) {
+                return inputMapper.keyDown(keycode);
+            }
+
+            @Override
+            public boolean keyUp(int keycode) {
+                return inputMapper.keyUp(keycode);
+            }
+
+            @Override
+            public boolean keyTyped(char character) {
+                return inputMapper.keyTyped(character);
+            }
+        });
+
+        try {
+            sound = new SoundOutput(Gdx.audio.newAudioDevice(SoundChip.SAMPLE_RATE, true));
+        } catch (RuntimeException e) {
+            // No sound card, or audio disabled: the machine still runs, silently.
+            Gdx.app.error("triada", "no audio output: " + e.getMessage());
+            sound = null;
+        }
+    }
+
+    /** The window lost focus: key-up events would be missed, so let go of every key. */
+    void focusLost() {
+        if (inputMapper != null) {
+            inputMapper.releaseAll();
+        }
     }
 
     @Override
@@ -70,6 +110,9 @@ public class TriadaApp extends ApplicationAdapter {
         int due = clock.advance(Gdx.graphics.getDeltaTime());
         for (int i = 0; i < due; i++) {
             machine.runFrame();
+            if (sound != null) {
+                sound.submit(machine.sound().frameSamples());
+            }
         }
         if (due > 0) {
             upload(machine.video().frame());
@@ -81,9 +124,10 @@ public class TriadaApp extends ApplicationAdapter {
         int w = VideoChip.FRAME_WIDTH * scale;
         int h = VideoChip.FRAME_HEIGHT * scale;
         batch.begin();
-        // Centred; the texture's row 0 is the top of the picture, so flip it vertically.
+        // Centred. No flip: libGDX shows a Pixmap upright (its row 0 at the top),
+        // even though OpenGL counts y from the bottom (M7 fixed a wrong flip here).
         batch.draw(texture, (viewWidth - w) / 2f, (viewHeight - h) / 2f, w, h, 0, 0,
-                VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT, false, true);
+                VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT, false, false);
         batch.end();
     }
 
@@ -109,6 +153,9 @@ public class TriadaApp extends ApplicationAdapter {
 
     @Override
     public void dispose() {
+        if (sound != null) {
+            sound.dispose();
+        }
         texture.dispose();
         pixmap.dispose();
         batch.dispose();

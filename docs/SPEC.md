@@ -249,7 +249,7 @@ Register `k` lives at address `IO_BASE + k`, where **IO_BASE = −20,412**. All 
 | 3 | −20,409 | BTN_A | R | 0 / 1 |
 | 4 | −20,408 | BTN_B | R | 0 / 1 |
 | 5 | −20,407 | BTN_C | R | 0 / 1 |
-| 6 | −20,406 | KEY | R | Next key from the keyboard queue (ASCII), or 0. **Reading removes it** |
+| 6 | −20,406 | KEY | R | Next key from the keyboard queue (ASCII), or 0. **Reading removes it**. Enter = 10, Backspace = 8, Tab = 9, Escape = 27 (D-024) |
 | 7 | −20,405 | SCROLL_X | R/W | Background scroll x |
 | 8 | −20,404 | SCROLL_Y | R/W | Background scroll y |
 | 9 | −20,403 | BORDER | R/W | Border color (pixel value; only the lowest 3 trits are used, D-021) |
@@ -280,6 +280,8 @@ There are three voices, mixed together.
 - **FREQ:** frequency in Hz (0 = silent).
 - **VOL:** 0…13 (values outside are clamped).
 - **WAVE:** −1 = noise, 0 = triangle, +1 = **ternary square**. The ternary square is a three-level wave that steps +1, 0, −1, 0 over each period, in four equal quarters. It's the machine's signature sound.
+
+Details (D-023): output is 44,100 samples per second, 16-bit mono, 735 per frame. One voice at volume 13 peaks at ±10,000, and three voices together stay within ±30,000. The triangle goes 0 → +1 → 0 → −1 → 0 over a period. Noise holds a random trit (−1, 0, +1) for each quarter period, so FREQ sets how grainy it is. FREQ ≤ 0 is silent, and WAVE uses only its lowest trit. The chip reads its registers once per frame, after the CPU's turn.
 
 ---
 

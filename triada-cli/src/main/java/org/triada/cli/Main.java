@@ -77,7 +77,7 @@ public final class Main {
                 + "usage:\n"
                 + "  triada tasm source.tasm [-o out.tri] [--listing out.lst]\n"
                 + "      Assemble a source file. Without -o the output is source.tri.\n"
-                + "  triada run program.tri [--frames N] [--dump-screen out.png]\n"
+                + "  triada run program.tri [--frames N] [--dump-screen out.png] [--dump-audio out.wav]\n"
                 + "      Run a program without a window, printing what it writes to\n"
                 + "      DEBUG_CHAR and DEBUG_NUM. A .tasm file is assembled first.\n"
                 + "      Stops on HOST_EXIT, HLT, a fault, or after N frames\n"

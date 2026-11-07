@@ -1,0 +1,262 @@
+; ============================================================================
+;  PIANO.TASM -- play the TRIADA-85 like a piano
+;
+;  Keys:     A S D F G H J K   = white keys C D E F G A B C (C4 .. C5)
+;            W E   T Y U       = black keys C# D#  F# G# A#
+;  Joystick: LEFT  = noise      (border turns white)
+;            UP    = triangle   (border turns blue)
+;            RIGHT = ternary square, the machine's signature sound (red border)
+;
+;  Each note goes to the next of the three voices in turn, so up to three
+;  notes ring at once. A note starts at full volume (13) and fades to silence
+;  over 52 frames (0.87 s). A red marker shows the last key played.
+;
+;  Window:   ./gradlew :triada-desktop:run --args="programs/piano.tasm"
+;  Listen:   triada run programs/piano.tasm --frames 60 --dump-audio piano.wav
+;            (without a keyboard nothing plays, so that file is silent)
+; ============================================================================
+
+        .org 243
+
+TILE_WHITE = 1
+TILE_BLACK = 2
+TILE_BG    = 3
+TILE_EDGE  = 4                  ; white with a black line on its right
+TILE_MARK  = 5
+KEY_TOP    = 7                  ; first tile-map row of the keyboard
+KEY_END    = 16                 ; first row after the white keys
+BLACK_END  = 12                 ; first row after the black keys
+FADE       = 52                 ; envelope length in frames; volume = counter / 4
+
+start:  LDI R1, IO_BASE         ; R1 stays IO_BASE for the whole program
+
+; --- tiles -------------------------------------------------------------------
+        LDI R0, TILE_WHITE
+        LDI R5, 265720          ; .pix 13, 13, 13, 13   (13 * 20440)
+        JSR solid
+        LDI R0, TILE_BLACK
+        LDI R5, -265720         ; .pix -13, -13, -13, -13
+        JSR solid
+        LDI R0, TILE_BG
+        LDI R5, -245280         ; .pix -12, -12, -12, -12: dark blue
+        JSR solid
+
+        LDI R6, TILES + 64      ; tile 4 = TILE_EDGE: 8 rows of (white x4, white x3 + black)
+        LDI R7, 8
+edge:   LDI R5, 265720
+        ST R5, [R6]
+        LDI R5, 265694          ; .pix 13, 13, 13, -13
+        ST R5, [R6+1]
+        ADDI R6, 2
+        DEC R7
+        JNZ edge
+
+        LDI R2, marker          ; tile 5 = TILE_MARK: copy 16 words
+        LDI R6, TILES + 80
+        LDI R7, 16
+mcopy:  LD R5, [R2]
+        ST R5, [R6]
+        INC R2
+        INC R6
+        DEC R7
+        JNZ mcopy
+
+; --- tile map: background, then white keys, then black keys -----------------
+        LDI R6, MAP
+        LDI R7, 486             ; 27 x 18 cells
+        LDI R0, TILE_BG
+mfill:  ST R0, [R6]
+        INC R6
+        DEC R7
+        JNZ mfill
+
+        LDI R4, KEY_TOP         ; row
+wrow:   LDI R3, 1               ; column: 8 keys x 3 columns, from column 1
+wcol:   LDI R0, TILE_WHITE
+        JSR setcell
+        INC R3
+        JSR setcell
+        INC R3
+        LDI R0, TILE_EDGE
+        JSR setcell
+        INC R3
+        LDI R5, 25
+        CMP R3, R5
+        JN wcol
+        INC R4
+        LDI R5, KEY_END
+        CMP R4, R5
+        JN wrow
+
+        LDI R2, blacks          ; a black key sits after white key i, for i in this list
+bkey:   LD R5, [R2]
+        JN bdone                ; -1 ends the list
+        MOV R3, R5
+        LDI R6, 3
+        MUL R3, R6
+        ADDI R3, 3              ; column 3 + 3i: the last column of white key i
+        LDI R4, KEY_TOP
+brow:   LDI R0, TILE_BLACK
+        JSR setcell             ; two columns wide,
+        INC R3
+        JSR setcell             ; straddling the gap between two white keys
+        ADDI R3, -1
+        INC R4
+        LDI R5, BLACK_END
+        CMP R4, R5
+        JN brow
+        INC R2
+        JMP bkey
+bdone:
+
+; --- main loop: one pass per frame ------------------------------------------
+main:   ; joystick: LEFT/RIGHT pick noise/square (JOY_X is -1 or +1), UP picks triangle
+        LD R0, [R1+JOY_X]
+        JZ joyy
+        LDI R5, wave
+        ST R0, [R5]
+joyy:   LD R0, [R1+JOY_Y]
+        JN tri
+        JMP show
+tri:    LDI R5, wave
+        LDI R0, 0
+        ST R0, [R5]
+show:   LDI R5, wave            ; border colour = colours[wave + 1]
+        LD R0, [R5]
+        LDI R5, colours + 1
+        ADD R5, R0
+        LD R0, [R5]
+        ST R0, [R1+BORDER]
+
+        ; envelopes: each voice's counter counts down; its volume is counter / 4
+        LDI R3, 0               ; voice
+        LDI R2, counters
+env:    LD R5, [R2]
+        JLE envnxt              ; finished (LD sets S)
+        DEC R5
+        ST R5, [R2]
+        LDI R7, 4
+        DIV R5, R7              ; rounding division: 52 -> 13 ... 2 -> 0
+        MOV R6, R3
+        LDI R7, 3
+        MUL R6, R7
+        ADD R6, R1              ; IO_BASE + 3 * voice
+        ST R5, [R6+V1_VOL]
+envnxt: INC R2
+        INC R3
+        LDI R7, 3
+        CMP R3, R7
+        JN env
+
+        ; keys: play every key waiting in the queue
+keys:   LD R0, [R1+KEY]         ; reading KEY removes the key
+        JZ frame                ; queue empty
+        LDI R5, 'a'
+        CMP R0, R5
+        JN upper
+        ADDI R0, -32            ; lower case -> upper case
+upper:  LDI R2, notes
+find:   LD R5, [R2]
+        JZ keys                 ; end of table: not a piano key, ignore it
+        CMP R0, R5
+        JZ found
+        ADDI R2, 3
+        JMP find
+
+found:  LDI R6, nextv           ; voice = nextv; nextv = (nextv + 1) mod 3
+        LD R3, [R6]
+        MOV R7, R3
+        INC R7
+        LDI R5, 3
+        CMP R7, R5
+        JN nowrap
+        LDI R7, 0
+nowrap: ST R7, [R6]
+
+        MOV R6, R3
+        LDI R5, 3
+        MUL R6, R5
+        ADD R6, R1              ; IO_BASE + 3 * voice
+        LD R5, [R2+1]
+        ST R5, [R6+V1_FREQ]     ; the note's frequency
+        LDI R5, wave
+        LD R5, [R5]
+        ST R5, [R6+V1_WAVE]     ; the chosen waveform
+        LDI R5, 13
+        ST R5, [R6+V1_VOL]      ; full volume ...
+        LDI R7, counters
+        ADD R7, R3
+        LDI R5, FADE
+        ST R5, [R7]             ; ... and start the fade
+
+        LDI R7, SPRITES         ; sprite 0: the marker above the key
+        LD R5, [R2+2]
+        ST R5, [R7+0]
+        LDI R5, 50
+        ST R5, [R7+1]
+        LDI R5, TILE_MARK
+        ST R5, [R7+2]
+        LDI R5, 1
+        ST R5, [R7+3]
+        JMP keys
+
+frame:  WAIT
+        JMP main
+
+; --- subroutines -------------------------------------------------------------
+; solid: fill tile R0 with the pixel word R5 (16 words). Uses R6, R7.
+solid:  MOV R6, R0
+        LDI R7, 16
+        MUL R6, R7
+        LDI R7, TILES
+        ADD R6, R7
+        LDI R7, 16
+sloop:  ST R5, [R6]
+        INC R6
+        DEC R7
+        JNZ sloop
+        RET
+
+; setcell: tile map cell (column R3, row R4) = R0. Uses R6, R7.
+setcell: MOV R6, R4
+        LDI R7, 27
+        MUL R6, R7
+        ADD R6, R3
+        LDI R7, MAP
+        ADD R6, R7
+        ST R0, [R6]
+        RET
+
+; --- data --------------------------------------------------------------------
+wave:     .word 1               ; current waveform: start with the ternary square
+nextv:    .word 0               ; voice for the next note
+counters: .word 0, 0, 0         ; fade counters of voices 1..3
+colours:  .word 13, -11, 5      ; border for noise (white), triangle (blue), square (red)
+blacks:   .word 0, 1, 3, 4, 5, -1
+
+;           key  Hz   marker x
+notes:    .word 'A', 262, 16    ; C4
+          .word 'W', 277, 28    ; C#4
+          .word 'S', 294, 40    ; D4
+          .word 'E', 311, 52    ; D#4
+          .word 'D', 330, 64    ; E4
+          .word 'F', 349, 88    ; F4
+          .word 'T', 370, 100   ; F#4
+          .word 'G', 392, 112   ; G4
+          .word 'Y', 415, 124   ; G#4
+          .word 'H', 440, 136   ; A4
+          .word 'U', 466, 148   ; A#4
+          .word 'J', 494, 160   ; B4
+          .word 'K', 523, 184   ; C5
+          .word 0
+
+; the marker: a red arrow pointing down at the key (0 = transparent)
+marker:   .pix 5, 5, 5, 5
+          .pix 5, 5, 5, 5
+          .pix 0, 5, 5, 5
+          .pix 5, 5, 5, 0
+          .pix 0, 0, 5, 5
+          .pix 5, 5, 0, 0
+          .pix 0, 0, 0, 5
+          .pix 5, 0, 0, 0
+          .fill 8, 0

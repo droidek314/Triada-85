@@ -36,7 +36,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
 
-## Current state (after M6)
+## Current state (after M7)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -51,9 +51,10 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `triada-core` also has `DebugDevice` (registers 20–22: DEBUG_CHAR, DEBUG_NUM, HOST_EXIT), which buffers output for the host and ends the frame on HOST_EXIT via `Cpu.endFrame()`.
 - `triada-cli` is the `triada` tool: `Main` (commands, exit codes), `TasmCommand` (`tasm`), `RunCommand` (`run`: headless frames, debug output to stdout), `FileSourceLoader` (disk access for the assembler).
 - `org.triada.core.video`: `Palette` (27 colours) and `VideoChip` (registers SCROLL_X, SCROLL_Y, BORDER; `render()` turns tile map, tiles and sprites into a 240 × 168 RGB `int[]`). `Machine.runFrame()` renders after the CPU; `Machine.loadProgram()` loads a `TriImage` and starts it.
-- `triada-cli` can save the picture: `run --dump-screen out.png` (`ScreenDump`, javax.imageio).
-- `triada-desktop`: `DesktopLauncher` (optional program argument), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step).
-- `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm` and `colors.tasm`.
+- `org.triada.core.sound.SoundChip`: registers V1–V3 FREQ/VOL/WAVE; 735 samples per frame at 44,100 Hz (`renderFrame()`, `frameSamples()`).
+- `triada-cli` can save the picture and the sound: `run --dump-screen out.png` (`ScreenDump`, javax.imageio) and `--dump-audio out.wav` (`WavRecorder`).
+- `triada-desktop`: `DesktopLauncher` (optional program argument, window focus listener), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons), `SoundOutput` + `SampleRing` (audio thread, D-025).
+- `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm` and `piano.tasm`.
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
 
 ## Inside triada-core: the bus
@@ -70,6 +71,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
                                                 +- k = 0, 19    SystemDevice (FRAME, RAND)
                                                 +- k = 1 ... 6  InputDevice (joystick, buttons, KEY)
                                                 +- k = 7 ... 9  VideoChip (SCROLL_X, SCROLL_Y, BORDER)
+                                                +- k = 10 ... 18 SoundChip (V1..V3 FREQ, VOL, WAVE)
                                                 +- k = 20 ... 22 DebugDevice (DEBUG_CHAR, DEBUG_NUM, HOST_EXIT)
                                                 +- others       not attached yet -> read 0
 ```
@@ -96,10 +98,11 @@ The `Disassembler` goes the other way (words -> text) and will be used by the de
 
 ## Data flow (planned; filled in as milestones land)
 
-Each frame (1/60 s) works like this. Steps 2, 3 and 5 exist (`Machine.runFrame()`); the desktop does step 4's picture part; input (1) and sound arrive with M7.
+Each frame (1/60 s) works like this (`Machine.runFrame()` does steps 2–3 and 5; the desktop does 1 and 4):
 
-1. The frontend passes input (keys, joystick) into the machine's I/O registers.
+1. The frontend passes input into the machine's I/O registers (`InputMapper` → `InputDevice`), on the render thread.
 2. The CPU runs up to 59,049 cycles, stopping early on WAIT or a halt (SPEC §6).
 3. The video chip reads the tile map, tiles and sprite table through `Bus.peek()` and turns them into an `int[]` of RGB pixels (`VideoChip.render()`).
-4. The frontend uploads those pixels to a texture and draws it, and sends the sound chip's samples to the audio device.
+   The sound chip turns its registers into 735 samples (`SoundChip.renderFrame()`).
+4. The frontend uploads the pixels to a texture and draws it, and drops the samples into `SampleRing`; the audio thread carries them to the sound card (`AudioDevice`).
 5. FRAME increases by 1.

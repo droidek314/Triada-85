@@ -213,3 +213,40 @@ We ran the result in Node.js 22.
 - Keep `triada-core` and `triada-assembler` to plain JDK APIs. Re-run the spike (`./gradlew -p docs/spikes/m06-teavm teavm`) after milestones that add core code, to catch new incompatibilities early.
 - Browser speed is enough but not lavish (about 1.3× real time in the worst case, measured in Node). If the web build needs headroom, the trit-wise operations are the first candidates for lookup tables (M1/M3 notes).
 - The libGDX side of gdx-teavm (window, textures, sound) was **not** tested; that belongs to the web build itself.
+
+## D-023 — Sound: 44,100 Hz, exact phase, levels, noise, once per frame   (Milestone M07, 2026-11-07)
+**Situation:** SPEC §7 names the three registers and waveforms. It leaves open the sample rate, the loudness levels, what "noise" exactly is, what odd WAVE values do, and *when* a register change is heard.
+**Decision:**
+- **Sample rate** 44,100 Hz, 16-bit mono: exactly 735 samples per frame.
+- **Exact phase:** each voice counts `phase += FREQ` per sample, wrapping at 44,100. Its position is exactly phase / 44,100 of a period, so pitches never drift.
+- **Levels:** one voice at volume 13 swings ±10,000, and the sum of three voices stays within ±30,000, so it never clips. Volume scales linearly.
+- **Triangle:** 0 → +1 → 0 → −1 → 0, aligned with the ternary square's quarters.
+- **Noise:** a new random trit (−1, 0, +1) at every quarter period, from a seeded xorshift generator. So FREQ sets how "grainy" the noise is, and runs repeat exactly.
+- **Odd values:** FREQ ≤ 0 is silent; VOL is clamped to 0 … 13 (as the spec says); WAVE uses its lowest trit, like BORDER (D-021).
+- **Timing:** the chip reads its registers once per frame, after the CPU's turn. Every change within a frame is heard from the start of that frame's 735 samples.
+
+**Why:** 44,100 Hz is the CD standard and divides evenly into 60 frames. Exact integer phase makes the sound testable sample by sample (a 441 Hz tone is exactly 100 samples per period). Noise made of trits fits a ternary machine, and tying its rate to FREQ makes the register mean something for noise too. Once-per-frame timing is simple and matches how most programs drive sound (from their frame loop). The alternative, timing each register write to the exact CPU cycle, would couple the chip to the CPU's cycle counter.
+**Consequences:** A program can't make sound effects shorter than a frame (16.7 ms), or change pitch mid-frame for vibrato-like tricks. If that's ever needed, the chip could generate samples "up to now" whenever a register is written. SPEC §7 now lists these details.
+
+## D-024 — Keys, joystick and buttons on a PC keyboard   (Milestone M07, 2026-11-07)
+**Situation:** CLAUDE.md maps arrows to the joystick and Z/X/C to the buttons, and keyboard to the KEY queue "(ASCII)". It doesn't say which codes non-printing keys produce, or what happens when one key means two things.
+**Decision:**
+- **Typed printable ASCII** (32–126) enters the KEY queue as itself, upper or lower case as typed.
+- **Special keys:** Enter is 10 (newline, the same code DEBUG_CHAR prints as a line break; Windows' `\r` is translated), Backspace is 8, Tab 9, Escape 27. Anything else, such as Delete or accented letters, is ignored.
+- **Arrow keys** give JOY_X = right − left and JOY_Y = down − up, so both directions at once cancel out.
+- **Z/X/C** press BTN_A/B/C *and* type their letters into the KEY queue; a program uses whichever it wants.
+- **Focus:** when the window loses focus, all keys and buttons are released, because their key-up events would be missed.
+
+**Why:** These are the plain-ASCII codes a 1985 machine would use. Making Enter equal to the newline means a program can print what it reads without translating. Feeding a letter to both places costs nothing and keeps the mapping simple.
+**Consequences:** The monitor (M8) ends a command line on key 10 and deletes on key 8. A program that only wants joystick and buttons simply ignores the KEY queue; the queue just fills up and then drops keys (D-007). Remapping keys is not implemented; CLAUDE.md marks it optional.
+
+## D-025 — Desktop audio: an audio thread fed through a ring buffer   (Milestone M07, 2026-11-07)
+**Situation:** CLAUDE.md asks for samples to be streamed through libGDX's `AudioDevice` on its own thread, without stutter. `AudioDevice.writeSamples` blocks until the sound card has room. Two clocks are involved, the screen refresh and the sound card, and they never agree exactly.
+**Options:**
+- A) Write samples from the render thread: every wait would stall the picture.
+- B) Run the whole emulation on the audio thread, so the sound card is the master clock: video and input would then need locking between threads.
+- C) Emulate on the render thread (as in M6), and pass samples through a thread-safe buffer to an audio thread that only feeds the device.
+
+**Decision:** C. `SampleRing` holds at most 4 frames (2,940 samples, 67 ms). When it is full, the oldest samples are dropped; when it is empty, the last sample value is repeated. The audio thread `SoundOutput` writes 512-sample blocks. OpenAL is configured with 6 buffers of 512 samples.
+**Why:** C keeps the machine single-threaded (CLAUDE.md wants triada-core free of threads), and only one tiny, well-tested class is shared between threads. Dropping the *oldest* samples keeps the delay between key and sound short. Holding the last value instead of jumping to 0 avoids a click on an underrun.
+**Consequences:** Total delay from key to sound is roughly one frame plus up to 67 ms of ring plus about 70 ms of device buffers. Fine for a piano demo, though a rhythm game might want it smaller. If the machine runs slower than real time, the sound has gaps (held values) rather than slowing down. "No stutter" has been verified by tests of the buffer logic and by checking that the audio device opens and the program runs. It has **not** been verified by a person listening.

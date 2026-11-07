@@ -2,6 +2,7 @@ package org.triada.desktop;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3WindowAdapter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -52,7 +53,16 @@ public final class DesktopLauncher {
         config.setWindowedMode(WINDOW_WIDTH, WINDOW_HEIGHT);
         config.setForegroundFPS(0);   // no cap: render() keeps the machine at 60 Hz itself
         config.useVsync(true);
-        new Lwjgl3Application(new TriadaApp(machine, title), config);
+        // OpenAL: 16 sources (libGDX default), 512-sample buffers, 6 of them: about 70 ms of sound queued.
+        config.setAudioConfig(16, 512, 6);
+        TriadaApp app = new TriadaApp(machine, title);
+        config.setWindowListener(new Lwjgl3WindowAdapter() {
+            @Override
+            public void focusLost() {
+                app.focusLost();
+            }
+        });
+        new Lwjgl3Application(app, config);
     }
 
     private static TriImage load(String file) throws IOException, AssemblyException {

@@ -19,6 +19,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M4 | [Assembler and disassembler](milestones/M04-assembler.md) | How text like `JMP loop` becomes machine words: tokens, parsing, two passes, error messages that point at the column, the listing, the `.tri` file, and the way back. |
 | M5 | [Headless runner and first program](milestones/M05-headless-runner.md) | The debug port, the `triada` command-line tool (`tasm`, `run`), exit codes, and HELLO, WORLD. |
 | M6 | [Video chip and frontend display](milestones/M06-video.md) | 27 colours from three trits, tiles, scrolling, sprites, the border; the desktop window at integer scale; golden-image tests; and an early check that the machine can run in a browser. |
+| M7 | [Input and sound](milestones/M07-input-and-sound.md) | Keyboard, joystick and buttons; a three-voice sound chip with the ternary square wave; exact pitch; an audio thread fed through a ring buffer; and a playable piano. |
 
 ## Reference documents
 

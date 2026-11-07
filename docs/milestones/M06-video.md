@@ -137,7 +137,7 @@ System.arraycopy(bg, bgRow, screen, out + first, sx);
 [`TriadaApp.java`](../../triada-desktop/src/main/java/org/triada/desktop/TriadaApp.java):
 - `create()` makes a `Pixmap` (RGBA8888), a `Texture` with `TextureFilter.Nearest`, and a `SpriteBatch`.
 - `resize()` works in back-buffer pixels, the real screen pixels, so integer scaling stays exact when Windows scales windows to 125 %.
-- `render()` asks the `FrameClock` how many machine frames are due, runs them, uploads the newest picture (`upload()` writes R, G, B, 255 bytes into the pixmap and calls `texture.draw`), and draws it centred at `TriadaApp.scaleFor()` scale. The texture is drawn flipped, because image row 0 is the top while OpenGL counts from the bottom.
+- `render()` asks the `FrameClock` how many machine frames are due, runs them, uploads the newest picture (`upload()` writes R, G, B, 255 bytes into the pixmap and calls `texture.draw`), and draws it centred at `TriadaApp.scaleFor()` scale. The texture is drawn as is: libGDX shows a `Pixmap` upright. (The first M6 version flipped it vertically, and the picture was upside down. M7 found and fixed this; see its "Problems" section.)
 
 [`FrameClock.java`](../../triada-desktop/src/main/java/org/triada/desktop/FrameClock.java): `FrameClock.advance(seconds)` adds the elapsed time (capped at 4 frames' worth) to an accumulator and returns the number of whole frames it now holds.
 
@@ -218,6 +218,8 @@ exit=0 border=ff0000
 - **Floating-point time.** The first `FrameClock` test expected exactly 600 frames in 10 seconds at 144 Hz and got 599: 1,440 additions of 1/144 land a hair below 10.0. The real requirement is *no drift*, so the test now allows ±1 frame and checks a whole hour.
 - **The web spike needed several attempts.** TeaVM 0.13.0 crashed with a `NullPointerException` even on a trivial program. Changing the bytecode level, the JDK and the path style didn't help. The tool's own help text showed the real cause: its `-p` option is only an extra classpath for "wait" mode, and classes must be on the tool's own classpath. After that, the only real incompatibility was `Integer.toUnsignedLong`, now replaced in `SystemDevice`.
 - **A benchmark scare.** After M6 the benchmark was much slower than M3's numbers. Rendering alone takes only 0.15 ms, and M3's exact code turned out to be just as slow on that afternoon's (busier, hotter) PC.
+
+- **Found later (in M7): the window showed the picture upside down.** M6's window check used `colors.tasm`, whose bars look the same either way up, so the wrong flip went unnoticed. It is fixed in M7.
 
 ## Limitations and what comes next
 - **No font yet.** The ROM copies a font into tiles 32–126 at boot (M8). Until then programs bring their own tiles.
