@@ -68,3 +68,24 @@ Format: see CLAUDE.md §5.4.
 **Decision:** Devices receive the spec's register number `k` (0 … 728), with names in `IoRegisters`. `IoDevice` has `read(k)` (may have side effects), `peek(k)` (must not; the default calls `read`) and `write(k, value)`. The bus has a matching `Bus.peek()`.
 **Why:** `k` is how SPEC §5 names registers, so device code reads like the spec table (`case IoRegisters.KEY:`). A debugger that eats the key you just typed whenever its memory viewer refreshes would be a nasty, confusing bug. The split costs one method, and most devices don't need to write it at all.
 **Consequences:** The debugger (M9) must use `Bus.peek()`, never `Bus.read()`. A device attached to several registers checks `k` with a `switch`.
+
+## D-009 — Source registers are read first: `PUSH R8` and `POP R8`   (Milestone M03, 2026-11-07)
+**Situation:** SPEC §3.4 defines PUSH as "R8 ← R8 − 1; mem[R8] ← rd" and POP as "rd ← mem[R8]; R8 ← R8 + 1". Read literally, step by step, `PUSH R8` would store the *already decremented* R8, and `POP R8` would end with the popped value **plus one**.
+**Options:** A) Follow the steps literally. B) Read every source register before writing anything: `PUSH R8` stores R8's old value, `POP R8` leaves exactly the popped value in R8.
+**Decision:** B, and SPEC §3.4 now says so.
+**Why:** B is what a programmer expects. "Push R8, later pop R8" saves and restores the stack pointer. Under A, that round trip silently changes SP by one, which is exactly the kind of bug nobody finds. It is also how most real processors behave (for example x86's `POP SP`).
+**Consequences:** In `Cpu.step()`, PUSH evaluates `r[rd]` before calling `push()`, and POP writes `rd` after the stack pointer was incremented. Both cases are tested.
+
+## D-010 — After a fault, PC points at the faulting instruction; fault codes are numbered   (Milestone M03, 2026-11-07)
+**Situation:** SPEC §3.9 says a fault halts the CPU and records "the fault reason and PC", and §3.8 mentions a "fault code", but neither says which PC or which codes.
+**Options:** For the PC: the address of the faulting instruction, or the address after it (where PC already points once the extra words are read). For the reason: free text or a numbered list.
+**Decision:** The recorded fault PC *and* the PC register both hold the address of the faulting instruction. Reasons are the enum `Fault`, each with a stable number: 1 = invalid JIF condition. New faults get new numbers; old numbers never change meaning.
+**Why:** When the debugger (M9) stops on a fault, the disassembly should highlight the guilty instruction, not the one after it. Numbers are what a 1985 machine would print ("FAULT 1 AT 300").
+**Consequences:** The headless runner (M5) and the debugger can report "fault 1 (invalid JIF condition) at address N".
+
+## D-011 — FRAME and RAND live in a `SystemDevice`; RAND is a seeded xorshift generator   (Milestone M03, 2026-11-07)
+**Situation:** SPEC §6 says FRAME increases after every frame, and §5 says RAND reads "a random word". Neither register belongs to a device CLAUDE.md names for a later milestone, and M3's frame budget needs FRAME.
+**Options:** For RAND: Java's `java.util.Random`, the operating system's secure random source, or a tiny generator written here. Its start value (seed) can be fixed or taken from the clock.
+**Decision:** One `SystemDevice` owns FRAME (k = 0) and RAND (k = 19). RAND uses xorshift32 with a fixed default seed (`DEFAULT_SEED`), folded into the word range with `mod 3^12`. Its next value is computed ahead, so `peek` can show it without consuming it. `SystemDevice.seed()` lets a frontend choose another seed.
+**Why:** A fixed seed makes every run of a program identical, so tests of games (M10) can compare screens exactly. xorshift is three lines of code, allocation-free, and has no platform dependencies (good for a later web build). The bias from the `mod` is about 1 part in 8,000 between the most and least likely values, which is irrelevant for games.
+**Consequences:** Without a call to `seed()`, every game starts with the same "random" sequence, just like many real 1980s machines. The desktop frontend may seed from the clock; the test runner should not.

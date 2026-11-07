@@ -152,6 +152,8 @@ Some instructions are followed by extra words (an immediate value or addresses).
 
 Effective addresses (`rs + imm5`) wrap like any other word.
 
+Source registers are read before anything is written (D-009). So `PUSH R8` pushes the value R8 had *before* the push, and after `POP R8`, R8 holds the popped value. SP (R8) and PC wrap like any other word when they pass the ends of the address range.
+
 ### 3.5 Division
 - `round` = round to nearest; **ties round toward zero**. Examples: 7÷2 → 3 (3.5 → 3), −7÷2 → −3, 8÷3 → 3, 5÷3 → 2.
 - So `MOD` results always satisfy |r| ≤ |rs|/2. Example: 8 MOD 3 = −1.
@@ -178,7 +180,7 @@ Effective addresses (`rs + imm5`) wrap like any other word.
 ### 3.9 Execution loop
 1. Fetch the word at PC. Decode it, and read any extra words, advancing PC past the whole instruction.
 2. Execute. Every instruction costs **1 cycle**, whatever its length.
-3. Faults (invalid JIF condition) halt the CPU and record the fault reason and PC.
+3. Faults (invalid JIF condition) halt the CPU and record the fault reason and PC. The recorded PC is the address of the faulting instruction, and the PC register is left pointing at it. Fault codes: 1 = invalid JIF condition (D-010).
 
 ### 3.10 Idioms worth documenting
 - Indirect jump: `PUSH Rn` then `RET` jumps to the address held in Rn.
