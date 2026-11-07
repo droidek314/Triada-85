@@ -10,7 +10,7 @@ This project builds that whole machine as a program you can run on a normal PC: 
 
 ## Status
 
-Milestones **M0 to M7** are done: project setup, ternary math, memory, the processor, the assembler, a command-line tool that runs programs without a window, the video chip (27 colours, tiles, scrolling, sprites), and now keyboard, joystick and a three-voice sound chip. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. `programs/colors.tasm` shows all 27 colours and a bouncing ball; `programs/piano.tasm` turns your keyboard into a piano (A–K and W, E, T, Y, U play notes; the arrow keys change the sound). The machine's own built-in software, with its boot screen and monitor, comes next (M8). See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
+Milestones **M0 to M8** are done: project setup, ternary math, memory, the processor, the assembler, a command-line tool that runs programs without a window, the video chip (27 colours, tiles, scrolling, sprites), keyboard, joystick and a three-voice sound chip, and now its own built-in software: switched on, it plays a chime, shows its boot screen and waits for commands. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. `programs/colors.tasm` shows all 27 colours and a bouncing ball; `programs/piano.tasm` turns your keyboard into a piano (A–K and W, E, T, Y, U play notes; the arrow keys change the sound). The built-in software (the "ROM") is itself written in TRIADA assembly; a built-in debugger comes next (M9). See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
 
 ## Where to start reading
 
@@ -43,7 +43,13 @@ Or install the `triada` command once and use it directly. Its launcher uses the 
 triada-cli/build/install/triada/bin/triada run programs/ternary.tasm
 ```
 
-`triada help` lists all commands and exit codes. To see a program in a window:
+`triada help` lists all commands and exit codes. Switch the machine on and type commands at its `READY.` prompt (try `HELP`, `TERN 42`, `PEEK 243 3`):
+
+```bash
+./gradlew :triada-desktop:run
+```
+
+To see a program in a window:
 
 ```bash
 ./gradlew :triada-desktop:run --args="programs/colors.tasm"

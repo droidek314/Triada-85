@@ -13,14 +13,17 @@ import org.triada.core.Machine;
 import org.triada.core.MachineInfo;
 import org.triada.core.TriImage;
 import org.triada.core.video.VideoChip;
+import org.triada.rom.Rom;
 
 /**
- * Starts the desktop frontend: builds a machine, optionally loads a program,
- * opens a window and hands control to libGDX.
+ * Starts the desktop frontend: builds a machine with its ROM, optionally hands
+ * it a program, opens a window and hands control to libGDX. The machine boots
+ * like the real one: font, chime, boot screen, then the monitor, or the given
+ * program, started through AUTORUN (D-028).
  *
  * <pre>
- *   ./gradlew :triada-desktop:run                                   (empty machine)
- *   ./gradlew :triada-desktop:run --args="programs/colors.tasm"     (with a program)
+ *   ./gradlew :triada-desktop:run                                   (boots to the monitor)
+ *   ./gradlew :triada-desktop:run --args="programs/colors.tasm"     (boots, then runs it)
  * </pre>
  *
  * A {@code .tasm} file is assembled first; a {@code .tri} file is loaded as is.
@@ -36,11 +39,11 @@ public final class DesktopLauncher {
     }
 
     public static void main(String[] args) {
-        Machine machine = new Machine();
+        Machine machine = Rom.newMachine();
         String title = MachineInfo.NAME;
         if (args.length > 0) {
             try {
-                machine.loadProgram(load(args[0]));
+                Rom.autorun(machine, load(args[0]));
                 title = MachineInfo.NAME + " - " + Path.of(args[0]).getFileName();
             } catch (IOException | AssemblyException | IllegalArgumentException e) {
                 System.err.println("triada: can't load " + args[0] + ":\n" + e.getMessage());

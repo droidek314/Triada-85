@@ -6,6 +6,7 @@ rootProject.name = "triada-85"
 include(
     "triada-core",       // ternary math, memory, CPU, video, sound, I/O (pure Java, no UI)
     "triada-assembler",  // assembler + disassembler library
+    "triada-rom",        // the ROM, assembled from rom/*.tasm during the build
     "triada-cli",        // command-line tools: tasm (assemble), run (headless)
     "triada-desktop",    // libGDX desktop frontend
 )

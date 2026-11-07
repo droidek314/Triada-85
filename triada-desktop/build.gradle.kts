@@ -8,6 +8,7 @@ plugins {
 dependencies {
     implementation(project(":triada-core"))
     implementation(project(":triada-assembler"))
+    implementation(project(":triada-rom"))
     implementation(libs.gdx.core)
     implementation(libs.gdx.backend.lwjgl3)
     // Native libraries (OpenGL, OpenAL, GLFW glue) for Windows, Linux and macOS.

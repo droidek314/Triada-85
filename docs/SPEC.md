@@ -310,12 +310,14 @@ The jump table sits at the start of ROM, and each entry is a 2-word `JMP routine
 3. Clear the screen and play a short three-voice boot chime.
 4. Print the boot screen:
    ```
-   TRIADA-85   NPO "TRIADA" 1985
+   TRIADA-85 NPO "TRIADA" 1985
    39757 WORDS FREE
    READY.
    >
    ```
-5. Enter the monitor.
+5. Enter the monitor. (If the host has put a program's address into the system variable AUTORUN, the ROM first clears it and runs that program as if `RUN` had been typed; D-028.)
+
+The first line has single spaces so that it is exactly 27 characters, one full screen line (D-027).
 
 ### 8.3 Monitor commands
 Numbers can be decimal (`123`, `-5`) or ternary (`0t+-0`).
@@ -330,6 +332,13 @@ Numbers can be decimal (`123`, `-5`) or ternary (`0t+-0`).
 | `TERN n` | Show n in balanced ternary (fun and educational) |
 
 Unknown command → `?SYNTAX ERROR`.
+
+### 8.4 Details settled while building the ROM
+These follow from D-026 … D-028 in `docs/DECISIONS.md`.
+- **Font:** font8x8 (public domain), light cyan (4) on dark blue (−12); blue border (−11).
+- **System variables:** AUTORUN = 0, CURSOR_X = 1, CURSOR_Y = 2, RUN_DONE = 3 (programs finished by RUN/AUTORUN), LINEBUF = 162 … 242.
+- **PUTCHAR:** 10 = newline, 8 = backspace. A full line wraps only when the next character arrives ("pending wrap"). The screen scrolls at the bottom. LOCATE clamps to the screen.
+- **Monitor:** prompt `> `; at most 24 characters per line; letters made upper case; blinking `_` cursor. `PEEK` prints `ADDR: VALUE 0tTRITS` per word, `TERN` prints `N = 0tTRITS`, and trits are shown without leading zeros. Missing or extra arguments, counts below 1 and out-of-range numbers are `?SYNTAX ERROR`.
 
 ---
 

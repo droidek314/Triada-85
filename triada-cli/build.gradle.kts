@@ -8,6 +8,7 @@ plugins {
 dependencies {
     implementation(project(":triada-core"))
     implementation(project(":triada-assembler"))
+    implementation(project(":triada-rom"))
 }
 
 application {

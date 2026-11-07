@@ -1,0 +1,417 @@
+; ============================================================================
+;  MONITOR.TASM -- the command line you see after boot (SPEC 8.3)
+;
+;     READY.
+;     > PEEK 243 3
+;
+;  Commands: HELP, PEEK addr [count], POKE addr value, RUN [addr], CLS, TERN n.
+;  Numbers: decimal (123, -5) or balanced ternary (0T+-0). Letters may be typed
+;  in lower case; the monitor works in upper case. Anything it doesn't
+;  understand gets the classic answer: ?SYNTAX ERROR
+;
+;  The monitor is the top level: it may use every register. It calls the
+;  public routines, which keep R3 ... R8.
+; ============================================================================
+
+monitor: LDI R0, ready
+        JSR print
+mn_prompt: LDI R0, prompt
+        JSR print
+        JSR readline                    ; the line, upper case, in LINEBUF
+        JSR execute                     ; do it
+        JMP mn_prompt
+
+ready:  .str "READY.\n"
+prompt: .str "> "
+
+; ---------------------------------------------------------------------------
+; readline: reads one line into LINEBUF (0-terminated, letters made upper
+; case), with echo, a blinking cursor and Backspace. Enter ends the line.
+; R3 = number of characters so far.
+; ---------------------------------------------------------------------------
+readline: LDI R3, 0
+rl_wait: LDI R1, IO_BASE                ; cursor: '_' or ' ', switching every 27 frames
+        LD R0, [R1+FRAME]
+        SHT R0, -3                      ; FRAME / 27 (rounded)
+        LDI R2, 2
+        MOD R0, R2                      ; 0 or 1: which half of the blink
+        JSR celladdr                    ; R1 = cursor cell (keeps R0)
+        LDI R2, '_'
+        MOV R0, R0
+        JNZ rl_show
+        LDI R2, ' '
+rl_show: ST R2, [R1]
+        LDI R1, IO_BASE
+        LD R0, [R1+KEY]
+        JNZ rl_got
+        WAIT                            ; nothing typed: sleep until the next frame
+        JMP rl_wait
+
+rl_got: PUSH R0
+        JSR celladdr                    ; take the cursor away first
+        LDI R2, ' '
+        ST R2, [R1]
+        POP R0
+        LDI R2, 10
+        CMP R0, R2
+        JZ rl_enter
+        LDI R2, 8
+        CMP R0, R2
+        JZ rl_back
+        LDI R2, ' '                     ; only printable characters 32 ... 126
+        CMP R0, R2
+        JN rl_wait
+        LDI R2, 126
+        CMP R0, R2
+        JP rl_wait
+        LDI R2, LINE_MAX
+        CMP R3, R2
+        JGE rl_wait                     ; line full: ignore the key
+        LDI R2, 'a'                     ; a ... z -> A ... Z
+        CMP R0, R2
+        JN rl_store
+        LDI R2, 'z'
+        CMP R0, R2
+        JP rl_store
+        ADDI R0, -32
+rl_store: LDI R2, LINEBUF
+        ADD R2, R3
+        ST R0, [R2]
+        INC R3
+        JSR putchar                     ; echo (keeps R3)
+        JMP rl_wait
+rl_back: MOV R3, R3
+        JZ rl_wait                      ; nothing to delete
+        DEC R3
+        LDI R0, 8
+        JSR putchar
+        JMP rl_wait
+rl_enter: LDI R2, LINEBUF
+        ADD R2, R3
+        LDI R0, 0
+        ST R0, [R2]                     ; end of line marker
+        LDI R0, 10
+        JMP putchar                     ; to the next line, and return
+
+; ---------------------------------------------------------------------------
+; execute: finds the command at the start of LINEBUF and jumps to it.
+; R7 walks along the line for all the parsing helpers below.
+; ---------------------------------------------------------------------------
+execute: LDI R7, LINEBUF
+        JSR skipsp
+        LD R0, [R7]
+        JZ ex_ret                       ; empty line: nothing to do
+        LDI R4, commands
+ex_try: LD R6, [R4]                     ; next command name
+        JZ syntax                       ; none left: not a command
+        JSR matchword
+        MOV R0, R0
+        JNZ ex_found
+        ADDI R4, 2
+        JMP ex_try
+ex_found: LD R0, [R4+1]                 ; the handler's address ...
+        PUSH R0
+        RET                             ; ... jumped to with PUSH + RET (SPEC 3.10)
+ex_ret: RET
+
+; The handlers are reached by a jump from execute, so their RET (or a jump to
+; syntax, or a tail call) returns straight to the monitor loop.
+
+syntax: LDI R0, msg_syntax
+        JMP print
+
+commands: .word name_help, cmd_help
+          .word name_peek, cmd_peek
+          .word name_poke, cmd_poke
+          .word name_run, cmd_run
+          .word name_cls, cmd_cls
+          .word name_tern, cmd_tern
+          .word 0
+name_help: .str "HELP"
+name_peek: .str "PEEK"
+name_poke: .str "POKE"
+name_run:  .str "RUN"
+name_cls:  .str "CLS"
+name_tern: .str "TERN"
+
+; --- HELP --------------------------------------------------------------------
+cmd_help: JSR atend
+        JNZ syntax
+        LDI R0, msg_help
+        JMP print
+
+; --- CLS ---------------------------------------------------------------------
+cmd_cls: JSR atend
+        JNZ syntax
+        JMP cls
+
+; --- PEEK addr [count]: one line per word, "ADDR: VALUE 0tTRITS" -------------
+cmd_peek: JSR parsenum
+        MOV R1, R1
+        JZ syntax
+        MOV R3, R0                      ; address
+        LDI R4, 1                       ; count
+        JSR skipsp
+        LD R0, [R7]
+        JZ pk_line                      ; no count given
+        JSR parsenum
+        MOV R1, R1
+        JZ syntax
+        MOV R4, R0
+        JSR atend
+        JNZ syntax
+        MOV R4, R4
+        JLE syntax                      ; the count must be at least 1
+pk_line: MOV R0, R3
+        JSR printnum
+        LDI R0, msg_colon
+        JSR print
+        LD R5, [R3]                     ; (an I/O register really is read)
+        MOV R0, R5
+        JSR printnum
+        LDI R0, msg_0t
+        JSR print
+        MOV R0, R5
+        JSR printtern
+        LDI R0, 10
+        JSR putchar
+        INC R3                          ; next address (wraps like any word)
+        DEC R4
+        JNZ pk_line
+        RET
+
+; --- POKE addr value ------------------------------------------------------------
+cmd_poke: JSR parsenum
+        MOV R1, R1
+        JZ syntax
+        MOV R3, R0
+        JSR parsenum
+        MOV R1, R1
+        JZ syntax
+        MOV R4, R0
+        JSR atend
+        JNZ syntax
+        ST R4, [R3]                     ; ROM and unmapped addresses ignore it
+        RET
+
+; --- RUN [addr] ------------------------------------------------------------------
+cmd_run: LDI R3, PROGRAM_START
+        JSR skipsp
+        LD R0, [R7]
+        JZ rn_go
+        JSR parsenum
+        MOV R1, R1
+        JZ syntax
+        MOV R3, R0
+        JSR atend
+        JNZ syntax
+rn_go:  MOV R0, R3
+        JMP runprog
+
+; runprog: calls the program at R0 like JSR would, and prints READY. when it
+; RETurns. JSR needs a fixed address, so: push the return address, push the
+; target, RET -- the RET "returns" into the program, and the program's own RET
+; comes back to rp_back.
+runprog: LDI R1, rp_back
+        PUSH R1
+        PUSH R0
+        RET
+rp_back: LDI R2, RUN_DONE                ; count the finished program (the host may watch)
+        LD R0, [R2]
+        INC R0
+        ST R0, [R2]
+        LDI R0, ready
+        JMP print
+
+; --- TERN n: "6 = 0t+-0" ---------------------------------------------------------
+cmd_tern: JSR parsenum
+        MOV R1, R1
+        JZ syntax
+        MOV R3, R0
+        JSR atend
+        JNZ syntax
+        MOV R0, R3
+        JSR printnum
+        LDI R0, msg_eq0t
+        JSR print
+        MOV R0, R3
+        JSR printtern
+        LDI R0, 10
+        JMP putchar
+
+; ---------------------------------------------------------------------------
+; Parsing helpers. They all work on R7, the position in LINEBUF.
+; ---------------------------------------------------------------------------
+
+; skipsp: moves R7 past spaces. Changes R0, R2.
+skipsp: LD R0, [R7]
+        LDI R2, ' '
+        CMP R0, R2
+        JNZ ss_ret
+        INC R7
+        JMP skipsp
+ss_ret: RET
+
+; atend: skips spaces; then S = 0 (and R0 = 0) only if the line has ended.
+; Use: JSR atend / JNZ syntax. (RET doesn't change the flags.)
+atend:  JSR skipsp
+        LD R0, [R7]
+        RET
+
+; matchword: does the line at R7 start with the word whose name is at R6,
+; followed by a space or the end? Then R0 = 1 and R7 moves past it;
+; otherwise R0 = 0 and R7 stays. Changes R0 ... R2, R5, R6.
+matchword: MOV R5, R7
+mw_loop: LD R1, [R6]
+        JZ mw_end                       ; the whole name matched ...
+        LD R2, [R5]
+        CMP R1, R2
+        JNZ mw_no
+        INC R5
+        INC R6
+        JMP mw_loop
+mw_end: LD R2, [R5]                     ; ... and the word ends here?
+        JZ mw_yes
+        LDI R1, ' '
+        CMP R2, R1
+        JZ mw_yes
+mw_no:  LDI R0, 0
+        RET
+mw_yes: MOV R7, R5
+        LDI R0, 1
+        RET
+
+; parsenum: reads a number at R7 (after spaces): decimal "123", "-5" or
+; balanced ternary "0T+-0". On success R0 = the value and R1 = 1; otherwise
+; R1 = 0 (no digits, too large, more than 12 trits, or junk glued to it).
+; Changes R0 ... R2, R5, R6; moves R7 past the number.
+parsenum: JSR skipsp
+        LD R0, [R7]
+        LDI R2, '0'
+        CMP R0, R2
+        JNZ pa_dec
+        LD R0, [R7+1]
+        LDI R2, 'T'
+        CMP R0, R2
+        JZ pa_tern
+pa_dec: LDI R6, 1                       ; sign
+        LD R0, [R7]
+        LDI R2, '-'
+        CMP R0, R2
+        JNZ pa_first
+        LDI R6, -1
+        INC R7
+pa_first: LDI R5, 0                     ; value so far
+        LDI R1, 0                       ; digits so far
+pa_digit: LD R0, [R7]
+        ADDI R0, -48                    ; '0' ... '9' -> 0 ... 9
+        JN pa_enddec
+        LDI R2, 9
+        CMP R0, R2
+        JP pa_enddec
+        LDI R2, 26572                   ; would value * 10 + digit pass 265,720?
+        CMP R5, R2
+        JP pa_fail
+        JN pa_ok
+        MOV R0, R0                      ; value is exactly 26,572: only digit 0 fits
+        JNZ pa_fail
+pa_ok:  LDI R2, 10
+        MUL R5, R2
+        ADD R5, R0
+        INC R1
+        INC R7
+        JMP pa_digit
+pa_enddec: MOV R1, R1
+        JZ pa_fail                      ; not a single digit
+        MUL R5, R6                      ; the sign
+        JMP pa_check
+
+pa_tern: ADDI R7, 2                     ; skip "0T"
+        LDI R5, 0
+        LDI R1, 0                       ; trits so far
+pa_trit: LD R0, [R7]
+        LDI R2, '+'
+        CMP R0, R2
+        JZ pa_plus
+        LDI R2, '-'
+        CMP R0, R2
+        JZ pa_minus
+        LDI R2, '0'
+        CMP R0, R2
+        JNZ pa_endtern
+        LDI R0, 0
+        JMP pa_add
+pa_plus: LDI R0, 1
+        JMP pa_add
+pa_minus: LDI R0, -1
+pa_add: LDI R2, 12
+        CMP R1, R2
+        JGE pa_fail                     ; a word has only 12 trits
+        SHT R5, 1                       ; shift one trit up (x 3) ...
+        ADD R5, R0                      ; ... and add the new trit
+        INC R1
+        INC R7
+        JMP pa_trit
+pa_endtern: MOV R1, R1
+        JZ pa_fail                      ; "0T" with no trits
+
+pa_check: LD R0, [R7]                   ; the number must end here
+        JZ pa_good
+        LDI R2, ' '
+        CMP R0, R2
+        JZ pa_good
+pa_fail: LDI R1, 0
+        RET
+pa_good: MOV R0, R5
+        LDI R1, 1
+        RET
+
+; ---------------------------------------------------------------------------
+; printtern: prints R0 in balanced ternary, without leading zeros (0 -> "0").
+; In balanced ternary n MOD 3 is already the lowest trit (-1, 0 or +1) and
+; n DIV 3 (rounding) removes it. Keeps R3 ... R8.
+; ---------------------------------------------------------------------------
+printtern: PUSH R3
+        PUSH R4
+        PUSH R5
+        LDI R4, 3
+        LDI R3, 12                      ; take all 12 trits, lowest first
+tt_take: MOV R5, R0
+        MOD R5, R4
+        PUSH R5
+        DIV R0, R4
+        DEC R3
+        JNZ tt_take
+        LDI R3, 12                      ; pop them back, highest first
+        LDI R4, 0                       ; becomes 1 at the first non-zero trit
+tt_show: POP R5
+        MOV R5, R5
+        JNZ tt_print
+        MOV R4, R4
+        JNZ tt_print                    ; a zero after the start: print it
+        LDI R0, 1
+        CMP R3, R0
+        JZ tt_print                     ; the very last trit: print even a zero
+        JMP tt_next                     ; a leading zero: skip it
+tt_print: LDI R4, 1
+        MOV R5, R5
+        BR3 tt_minus, tt_zero, tt_plus
+tt_minus: LDI R0, '-'
+        JMP tt_put
+tt_zero: LDI R0, '0'
+        JMP tt_put
+tt_plus: LDI R0, '+'
+tt_put: JSR putchar
+tt_next: DEC R3
+        JNZ tt_show
+        POP R5
+        POP R4
+        POP R3
+        RET
+
+; --- texts ---------------------------------------------------------------------
+msg_syntax: .str "?SYNTAX ERROR\n"
+msg_colon:  .str ": "
+msg_0t:     .str " 0t"
+msg_eq0t:   .str " = 0t"
+msg_help:   .str "COMMANDS:\n PEEK ADDR [COUNT]\n POKE ADDR VALUE\n RUN [ADDR]\n CLS\n TERN N\n HELP\nNUMBERS: 123  -5  0T+-0\n"

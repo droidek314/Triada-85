@@ -250,3 +250,72 @@ We ran the result in Node.js 22.
 **Decision:** C. `SampleRing` holds at most 4 frames (2,940 samples, 67 ms). When it is full, the oldest samples are dropped; when it is empty, the last sample value is repeated. The audio thread `SoundOutput` writes 512-sample blocks. OpenAL is configured with 6 buffers of 512 samples.
 **Why:** C keeps the machine single-threaded (CLAUDE.md wants triada-core free of threads), and only one tiny, well-tested class is shared between threads. Dropping the *oldest* samples keeps the delay between key and sound short. Holding the last value instead of jumping to 0 avoids a click on an underrun.
 **Consequences:** Total delay from key to sound is roughly one frame plus up to 67 ms of ring plus about 70 ms of device buffers. Fine for a piano demo, though a rhythm game might want it smaller. If the machine runs slower than real time, the sound has gaps (held values) rather than slowing down. "No stutter" has been verified by tests of the buffer logic and by checking that the audio device opens and the program runs. It has **not** been verified by a person listening.
+
+## D-026 — The font: font8x8 (public domain), stored as bits, expanded at boot   (Milestone M08, 2026-11-07)
+**Situation:** CLAUDE.md asks for a public-domain 8×8 font (it suggests font8x8 by Daniel Hepper) or our own, and for its source and licence to be recorded here.
+**Decision:**
+- **Source:** `font8x8_basic.h` from https://github.com/dhepper/font8x8, by Daniel Hepper. Its header and README both say "License: Public Domain". It is based on Marcel Sondaar's font8x8, itself based on IBM's public-domain VGA fonts. A copy of the file and its README is kept in `rom/third_party/font8x8/`.
+- **Characters:** only printable ASCII 32–126 is used.
+- **Conversion:** `rom/tools/FontToTasm.java` (JDK only, run once by hand) writes `rom/font.tasm` as 8 row values (0–255) per character, bit 0 = leftmost pixel, exactly as in the original. That is 760 words.
+- **Expansion:** at boot, `loadfont` in the kernel turns the bits into tile pixels, using `MOD 2` and `DIV 2` (for numbers ≥ 0, TRIADA's rounding division acts exactly like a binary shift).
+- **Colours:** text is light cyan (4, trits `0++`) on dark blue (−12, `--0`), with a blue border (−11).
+
+**Why:** A well-known, legible font with an unambiguous licence. Storing bits (760 words) instead of finished tiles (1,520 words) keeps the ROM small, keeps the colours in one place, and shows the ternary-machine trick of extracting bits.
+**Consequences:**
+- The font's colours are fixed at boot. A program that wants other text colours redefines tiles 32–126 itself.
+- `font.tasm` is generated: edit the converter, not the file.
+- `KernelTest.fontTilesMatchTheOriginalFontBitForBit` compares every pixel with the original header file.
+
+## D-027 — Text output and the monitor: the details   (Milestone M08, 2026-11-07)
+**Situation:** SPEC §8 describes the kernel routines and monitor commands in one line each. Several details had to be decided, and one line of the spec doesn't fit the screen.
+**Decision:**
+- **The boot banner** is `TRIADA-85 NPO "TRIADA" 1985`, with single spaces: exactly 27 characters. The spec's version with three spaces is 29 characters and would wrap on a 27-column screen. SPEC §8.2 now shows the new line.
+- **"Pending wrap":** PUTCHAR moves to the next line only when a character arrives *after* the 27th column is filled. So a full line followed by a newline makes no blank line.
+- **PUTCHAR control codes:** 10 is a newline; 8 is a backspace (one column back, erasing; never past column 0). Every other value is written as a tile number, and 32–126 are the font. Below the last row the screen scrolls up by one row.
+- **LOCATE** clamps the column to 0–26 and the row to 0–17.
+- **CLS** fills the map with spaces and homes the cursor; it does not touch scroll registers or sprites.
+- **The monitor's prompt** is `> `. Input lines hold at most 24 characters. Letters are made upper case. Only printable ASCII, Enter (10) and Backspace (8) are accepted. The cursor is a `_` that blinks about every 27 frames (FRAME / 27, rounded, MOD 2).
+- **Output formats:**
+  - `PEEK` prints `ADDR: VALUE 0tTRITS`, one line per word. Trits are shown without leading zeros. Long lines wrap; for example ROM addresses with large values take 30 characters.
+  - `TERN` prints `N = 0tTRITS`.
+  - `RUN` prints `READY.` when the program returns.
+- **`?SYNTAX ERROR`** covers unknown commands, missing or extra arguments, a count below 1, numbers outside the word range, more than 12 trits, and characters glued to a number.
+
+**Why:** Each choice is either what 1980s home computers did (pending wrap, upper-case monitor, `?SYNTAX ERROR`) or the simplest rule that keeps output readable on 27 columns.
+**Consequences:** All of these are covered by `KernelTest` and `MonitorTest`. Programs can rely on them, and the manual (M11) will describe them.
+
+## D-028 — System variables, and how the host starts a program (AUTORUN)   (Milestone M08, 2026-11-07)
+**Situation:** The ROM needs a few RAM variables (in 0–242, SPEC §2.3). Separately, once the machine boots its ROM, the host (CLI, desktop) still has to start a given program. The real ROM sets up the stack, the font and the screen, so simply jumping into the program would skip all that.
+**Options:** For starting programs:
+- A) Keep jumping straight to the program: the font would be missing and the stack would not be set up by the ROM.
+- B) Boot, then let the host "type" `RUN 243` into the KEY queue: fragile, and slow.
+- C) A system variable the host writes before the first frame, read by the ROM at the end of boot.
+
+**Decision:** C.
+- **System variables:** AUTORUN = 0, CURSOR_X = 1, CURSOR_Y = 2, RUN_DONE = 3, LINEBUF = 162–242 (see `rom/sysvars.tasm`).
+- **Starting a program:** the host loads the program into RAM and puts its address into AUTORUN (`Rom.autorun()`). After the boot screen the ROM clears AUTORUN and calls the program exactly as `RUN` would. When the program returns, the ROM prints `READY.` and shows the prompt.
+- **Noticing the end:** the ROM increments RUN_DONE each time a RUN/AUTORUN program returns. That is how `triada run` notices that a program has finished (exit code 0, with a note on stderr). It is a counter rather than an "is running" flag, so a program that returns within the same frame it started is still noticed.
+- **CLI default:** `triada run` now boots by default. `--no-boot` keeps M5's direct start (PC = load address, SP = 59,049), which tests use when they count frames or check SP.
+- **Desktop:** boots to the monitor, or autoruns a program given as an argument.
+
+**Why:** C is how cartridges with auto-start worked on real machines. It costs one word of RAM and four instructions, and the program gets exactly the environment it would get from `RUN`.
+**Consequences:**
+- A booted run takes about 48 frames (0.8 s) before the program starts: the font plus the chime.
+- Boot sets up tiles 32–126 and the tile map. A program whose `.tri` image *contains* data for those areas has it overwritten by boot, so programs should set up graphics at run time, as `colors.tasm` and `piano.tasm` do.
+- `RET` at the top level of a program now returns to the monitor instead of halting.
+
+## D-029 — The ROM is assembled during the build into a Java class   (Milestone M08, 2026-11-07)
+**Situation:** CLAUDE.md: "The ROM is assembled during the build and embedded in the emulator." `triada-core` can't depend on the assembler, and core does no file I/O.
+**Options:**
+- A) Commit a pre-assembled `.tri` file and load it at run time: it can go stale, and needs file or resource access.
+- B) Assemble at build time into a resource file.
+- C) Assemble at build time into Java source.
+
+**Decision:** C, in a new module `triada-rom`.
+- Its Gradle task `generateRom` runs `RomGenerator`, which lives in a separate `generator` source set that may use the assembler. It assembles `rom/rom.tasm` and writes `RomData.java` and `build/rom/rom.lst`.
+- The words are stored as strings, 4 characters per word from a 27-letter alphabet. 27⁴ = 3¹², so each character holds exactly three trits. The strings are split into chunks below Java's 64 KB limit for one constant.
+- The ROM's symbols are included, so tests and tools can ask for `Rom.address("AUTORUN")` instead of hard-coding numbers.
+- `Rom.newMachine()` and `Rom.autorun()` are the public entry points. The CLI and desktop depend on `triada-rom`.
+
+**Why:** Any change to `rom/*.tasm` is assembled by the next build, so the emulator can't run an old ROM by mistake. The ROM needs no file or resource loading at run time, which suits the web build (D-022). Strings avoid the method-size limit that a 19,683-entry `int[]` literal would hit.
+**Consequences:** An assembly error in the ROM fails the build with the usual `file:line:column` messages. `triada-core`'s own tests keep using a machine with an empty ROM, as before.

@@ -28,7 +28,7 @@ class ColorsProgramTest {
     private BufferedImage screenAfter(int frames) throws Exception {
         Path png = dir.resolve("colors-" + frames + ".png");
         Cli.Result r = Cli.run("run", Cli.root().resolve("programs/colors.tasm").toString(),
-                "--frames", Integer.toString(frames), "--dump-screen", png.toString());
+                "--frames", Integer.toString(frames), "--dump-screen", png.toString(), "--no-boot");
         assertEquals(0, r.code(), r.toString());
         return ImageIO.read(png.toFile());
     }

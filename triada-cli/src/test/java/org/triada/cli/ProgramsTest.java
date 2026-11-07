@@ -50,7 +50,7 @@ class ProgramsTest {
         assertEquals("", r.err());
 
         // One WAIT per number: in exactly 10 frames, exactly 10 numbers appear.
-        Cli.Result tenFrames = Cli.run("run", program("countdown.tasm"), "--frames", "10");
+        Cli.Result tenFrames = Cli.run("run", program("countdown.tasm"), "--frames", "10", "--no-boot");
         assertEquals(0, tenFrames.code());
         assertEquals("10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n", tenFrames.out());
     }

@@ -1,0 +1,34 @@
+; ============================================================================
+;  SYSVARS.TASM -- the ROM's system variables and constants
+;
+;  RAM 0 ... 242 belongs to the ROM (SPEC 2.3). Programs may read these
+;  variables (and include this file to get the names), but should not
+;  write them, except AUTORUN, which is meant for the host (DECISIONS.md D-028).
+;
+;  This file only defines names; it produces no words.
+; ============================================================================
+
+; --- system variables (RAM) -------------------------------------------------
+AUTORUN     = 0         ; address of a program to start after boot; 0 = none.
+                        ; The HOST sets it (e.g. "triada run prog.tri") before
+                        ; the CPU starts; the ROM clears it and runs the program
+                        ; as if RUN had been typed.
+CURSOR_X    = 1         ; text cursor column, 0 ... 26 (27 = "line full, wrap on
+                        ; the next character")
+CURSOR_Y    = 2         ; text cursor row, 0 ... 17
+RUN_DONE    = 3         ; how many programs started by RUN or AUTORUN have
+                        ; returned (RET) to the monitor; the headless runner
+                        ; watches it to know a program has finished
+LINEBUF     = 162       ; monitor input line, up to 81 words (162 ... 242)
+LINE_MAX    = 24        ; longest command line: 27 columns minus "> " minus cursor
+
+; --- constants --------------------------------------------------------------
+COLS        = 27        ; text columns = tile map columns
+ROWS        = 18        ; text rows
+MAP_CELLS   = 486       ; 27 x 18
+TEXT_FG     = 4         ; light cyan, trits 0++  (R 128, G 255, B 255)
+TEXT_BG     = -12       ; dark blue,  trits --0  (R 0, G 0, B 128)
+FRAME_COLOUR = -11      ; blue border, trits --+
+STACK_TOP   = 59049     ; SP after boot: the stack grows down from the top of RAM
+PROGRAM_START = 243     ; where programs load, and the default of RUN
+FREE_WORDS  = 39757     ; 243 ... 39,999: shown on the boot screen

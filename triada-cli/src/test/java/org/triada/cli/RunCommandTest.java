@@ -68,7 +68,7 @@ class RunCommandTest {
                         ST R0, [R1+DEBUG_NUM]
                         WAIT
                         JMP loop
-                """, "--frames", "5");
+                """, "--frames", "5", "--no-boot");
         assertEquals(0, r.code(), "reaching an explicit frame limit is normal");
         assertEquals("0\n1\n2\n3\n4\n", r.out());
         assertEquals("", r.err());
@@ -76,16 +76,42 @@ class RunCommandTest {
 
     @Test
     void hltEndsWithExitCode0AndANote() throws Exception {
-        Cli.Result r = runSource("NOP\nHLT\n");
+        Cli.Result r = runSource("NOP\nHLT\n", "--no-boot");
         assertEquals(0, r.code());
         assertTrue(r.err().contains("CPU halted (HLT) in frame 1, PC = 245"), r.err());
+    }
+
+    @Test
+    void byDefaultTheRomBootsAndThenStartsTheProgram() throws Exception {
+        // PRINT and the font only work after boot: the text must be on the screen.
+        Cli.Result r = runSource("""
+                        JSR CLS
+                        LDI R0, msg
+                        JSR PRINT
+                        WAIT
+                        LDI R1, IO_BASE
+                        ST R0, [R1+HOST_EXIT]
+                msg:    .str "TERNARY!"
+                """, "--dump-screen", dir.resolve("p.png").toString());
+        assertEquals(0, r.code(), r.toString());
+        java.awt.image.BufferedImage png = javax.imageio.ImageIO.read(dir.resolve("p.png").toFile());
+        // The 'T' at text position (0, 0): font row 0 of 'T' is 0x3F = pixels 0..5 in the text colour.
+        assertEquals(org.triada.core.video.Palette.rgb(4), png.getRGB(12, 12) & 0xFFFFFF, "text colour");
+        assertEquals(org.triada.core.video.Palette.rgb(-12), png.getRGB(12 + 7, 12) & 0xFFFFFF, "background");
+    }
+
+    @Test
+    void aProgramThatReturnsToTheMonitorEndsTheRun() throws Exception {
+        Cli.Result r = runSource("LDI R0, 5\nRET\n");
+        assertEquals(0, r.code(), r.toString());
+        assertTrue(r.err().contains("the program returned to the monitor (RET)"), r.err());
     }
 
     @Test
     void aFaultGivesExitCode3() throws Exception {
         // JIF with condition 4 can't be assembled (D-013), so build the word by hand:
         // opcode -11, rd field 4 = -11*19683 + 4*2187.
-        Cli.Result r = runSource(".word " + (-11 * 19_683 + 4 * 2_187) + ", 0\n");
+        Cli.Result r = runSource(".word " + (-11 * 19_683 + 4 * 2_187) + ", 0\n", "--no-boot");
         assertEquals(Main.EXIT_FAULT, r.code(), r.toString());
         assertTrue(r.err().contains("FAULT 1 (invalid JIF condition) at address 243 in frame 1"), r.err());
     }
@@ -107,7 +133,7 @@ class RunCommandTest {
 
     @Test
     void theStackPointerIsSetUpLikeTheRomWillDoIt() throws Exception {
-        Cli.Result r = runSource("LDI R1, IO_BASE\nST SP, [R1+DEBUG_NUM]\nST R0, [R1+HOST_EXIT]\n");
+        Cli.Result r = runSource("LDI R1, IO_BASE\nST SP, [R1+DEBUG_NUM]\nST R0, [R1+HOST_EXIT]\n", "--no-boot");
         assertEquals("59049\n", r.out());
     }
 

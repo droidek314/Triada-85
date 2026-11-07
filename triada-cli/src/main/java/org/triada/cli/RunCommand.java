@@ -10,13 +10,17 @@ import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
+import org.triada.rom.Rom;
 
 /**
  * {@code triada run program.tri [--frames N] [--dump-screen out.png]}: runs a
  * program on a machine without window, sound or keyboard ("headless").
  *
- * <p>The program is copied into RAM at its load address; the CPU starts there
- * with SP = 59,049, as if the ROM had started it (the real ROM arrives in M8).
+ * <p>Since M8 the machine has its ROM and boots as usual; the program is
+ * copied into RAM and started by the ROM through AUTORUN, as if RUN had been
+ * typed (DECISIONS.md D-028). With {@code --no-boot} the CPU starts directly at
+ * the program's load address with SP = 59,049 instead (M5's behaviour; the
+ * ROM's routines are there, but the font and screen are not set up).
  * With {@code --dump-screen}, the last picture is saved as a PNG when the run ends;
  * with {@code --dump-audio}, everything the sound chip played is saved as a WAV file.
  * Then the runner runs frames, and after each one prints whatever the
@@ -24,6 +28,7 @@ import org.triada.core.cpu.Cpu;
  * <ul>
  * <li>the program writes HOST_EXIT: the exit code is that value;</li>
  * <li>the CPU halts with HLT: exit code 0;</li>
+ * <li>(when booted) the program returns to the monitor with RET: exit code 0;</li>
  * <li>the CPU faults: exit code 3, with the fault on stderr;</li>
  * <li>the frame limit is reached: exit code 0 if {@code --frames} was given,
  *     otherwise 4 (time-out), because a program meant to finish didn't.</li>
@@ -47,6 +52,7 @@ final class RunCommand {
         Integer frames = null;
         String dumpScreen = null;
         String dumpAudio = null;
+        boolean boot = true;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--frames": {
@@ -63,6 +69,9 @@ final class RunCommand {
                 }
                 case "--dump-screen":
                     dumpScreen = TasmCommand.value(args, ++i, "--dump-screen");
+                    break;
+                case "--no-boot":
+                    boot = false;
                     break;
                 case "--dump-audio":
                     dumpAudio = TasmCommand.value(args, ++i, "--dump-audio");
@@ -87,15 +96,19 @@ final class RunCommand {
         } catch (LoadFailure f) {
             return f.exitCode;
         }
-        Machine machine = new Machine();
+        Machine machine = Rom.newMachine();
         try {
-            machine.loadProgram(image);
+            if (boot) {
+                Rom.autorun(machine, image);
+            } else {
+                machine.loadProgram(image);
+            }
         } catch (IllegalArgumentException e) {
             err.println("triada: " + program + ": " + e.getMessage());
             return Main.EXIT_USAGE;
         }
         WavRecorder audio = dumpAudio != null ? new WavRecorder() : null;
-        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null, audio);
+        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null, audio, boot);
         if (audio != null) {
             try {
                 audio.write(Path.of(dumpAudio));
@@ -115,8 +128,9 @@ final class RunCommand {
         return code;
     }
 
-    private int execute(Machine machine, int limit, boolean explicitLimit, WavRecorder audio) {
+    private int execute(Machine machine, int limit, boolean explicitLimit, WavRecorder audio, boolean booted) {
         Cpu cpu = machine.cpu();
+        int runDone = Rom.address("RUN_DONE");
         for (int frame = 1; frame <= limit; frame++) {
             machine.runFrame();
             if (audio != null) {
@@ -129,6 +143,10 @@ final class RunCommand {
             }
             if (machine.debug().exitRequested()) {
                 return machine.debug().exitCode();
+            }
+            if (booted && machine.bus().peek(runDone) > 0) {
+                err.println("triada: the program returned to the monitor (RET) in frame " + frame);
+                return Main.EXIT_OK;
             }
             if (cpu.isHalted()) {
                 if (cpu.fault() != null) {

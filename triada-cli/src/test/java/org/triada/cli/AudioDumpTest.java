@@ -23,7 +23,8 @@ class AudioDumpTest {
     private Path dump(String source, int frames) throws Exception {
         String src = Cli.write(dir, "snd.tasm", source);
         Path wav = dir.resolve("out.wav");
-        Cli.Result r = Cli.run("run", src, "--frames", Integer.toString(frames), "--dump-audio", wav.toString());
+        Cli.Result r = Cli.run("run", src, "--frames", Integer.toString(frames), "--dump-audio", wav.toString(),
+                "--no-boot");
         assertEquals(0, r.code(), r.toString());
         return wav;
     }

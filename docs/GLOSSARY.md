@@ -12,13 +12,19 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Audio thread**: A separate worker inside a program that does nothing but feed the sound card. *In TRIADA:* `SoundOutput`'s thread `triada-audio` (D-025). First seen: M7.
 
+**Auto-start (AUTORUN)**: A program started by the ROM right after boot. *In TRIADA:* the host writes the program's address into the system variable AUTORUN (D-028). First seen: M8.
+
 **Balanced ternary**: Base 3 with the digits −1, 0 and +1 instead of 0, 1 and 2. Negative numbers need no minus sign, and flipping every digit negates a number. *In TRIADA:* how every number is stored (SPEC §1.1). First seen: M1.
 
 **Benchmark**: A program that measures how fast something runs. *In TRIADA:* `./gradlew :triada-core:benchmark` (M3). First seen: M3.
 
 **Binary**: Counting with two digits, 0 and 1. Almost every real computer works this way, because a switch is easily either off or on. *In TRIADA:* the road not taken; TRIADA uses ternary instead. First seen: M0.
 
+**Bit**: One binary digit, 0 or 1. *In TRIADA:* the font is stored as bits and turned into trit pixels at boot. First seen: M8.
+
 **BOM (bill of materials)**: A list that pins every part of a library family to versions that work together. *In TRIADA:* the JUnit BOM. First seen: M0.
+
+**Boot**: Starting a computer up: from power-on to the point where it waits for you. *In TRIADA:* about 48 frames: font, chime, boot screen, monitor. First seen: M8.
 
 **Border (video)**: The frame of one colour around the screen. *In TRIADA:* 12 pixels wide, colour from the BORDER register (D-020). First seen: M6.
 
@@ -32,6 +38,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Bus**: The path that carries every read and write between the processor and memory or devices. *In TRIADA:* the `Bus` class. First seen: M2.
 
+**Calling convention**: The agreement on which registers carry a routine's arguments and result, and which it must keep unchanged. *In TRIADA:* in R0–R2, out R0, R3–R8 preserved (SPEC §8.1). First seen: M8.
+
 **Canonical form**: The one standard way of writing something. *In TRIADA:* an instruction word whose unused fields are all 0. First seen: M4.
 
 **Carry**: The digit that falls off the top when a result is too big for its space. *In TRIADA:* a trit (−1, 0 or +1), stored in flag O by ADD, SUB and ADDI. First seen: M1.
@@ -43,6 +51,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Clipping**: Cutting off the parts of a picture that fall outside the visible area. *In TRIADA:* sprites are clipped to the 216 × 144 screen. First seen: M6.
 
 **Clipping (audio)**: Distortion when a sound's samples exceed the allowed range and get squashed flat. *In TRIADA:* impossible by design: three voices peak at ±30,000. First seen: M7.
+
+**Code generation**: A build step that writes source code from other files. *In TRIADA:* `generateRom` turns the assembled ROM into a Java class (D-029). First seen: M8.
 
 **Commit**: A saved snapshot of the whole project in version control (git), with a message saying what changed. *In TRIADA:* at least one commit per milestone. First seen: M0.
 
@@ -100,6 +110,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Flipping**: Turning a picture upside down. *In TRIADA:* sprite FLAGS = −1. First seen: M6.
 
+**Font**: A set of character pictures. *In TRIADA:* font8x8 (public domain), in tiles 32–126 (D-026). First seen: M8.
+
 **Forward reference**: Using a label before the line that defines it, e.g. `JMP end` above `end:`. Two passes make it possible. First seen: M4.
 
 **Frame**: One complete picture on the screen. Showing many frames per second makes movement. *In TRIADA:* 60 frames per second (SPEC §6). First seen: M0.
@@ -111,6 +123,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Frontend**: The part of a program that faces the person: window, sound, keyboard. *In TRIADA:* `triada-desktop`, built with libGDX. The machine itself (`triada-core`) knows nothing about it. First seen: M0.
 
 **Garbage collector**: The part of Java that finds objects no longer used and frees their memory. It costs time, so fast code creates few objects. First seen: M1.
+
+**Glyph**: The picture of one character in a font. First seen: M8.
 
 **Golden image**: A stored, checked-by-a-person picture that new output is compared with pixel by pixel; any difference fails the test. First seen: M6.
 
@@ -151,6 +165,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **JDK (Java Development Kit)**: The tools needed to compile and run Java programs. *In TRIADA:* JDK 25. First seen: M0.
 
 **JIT compiler (just-in-time)**: The part of Java that translates frequently used code into fast machine code while the program runs. That is why benchmarks warm up first. First seen: M3.
+
+**Jump table**: A list of jump instructions at fixed addresses, so the routines they lead to can move without breaking the programs that call them. *In TRIADA:* the first 14 ROM words (SPEC §8.1). First seen: M8.
 
 **JUnit**: The standard Java library for writing automatic tests. *In TRIADA:* JUnit 5. First seen: M0.
 
@@ -194,6 +210,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-cli` and `triada-desktop`. First seen: M0.
 
+**Monitor (program)**: A tiny built-in command line for looking at and changing memory and running programs. *In TRIADA:* HELP, PEEK, POKE, RUN, CLS, TERN (SPEC §8.3). First seen: M8.
+
 **Most significant trit**: The leftmost trit, with the biggest place value. *In TRIADA:* t11, worth 3^11 = 177,147. First seen: M1.
 
 **Mutation check**: Breaking the code on purpose to confirm that the tests notice. If they don't, the tests are too weak. First seen: M1.
@@ -224,6 +242,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Peek**: Looking at a memory address without any side effect. *In TRIADA:* `Bus.peek()`, used by the debugger; also a monitor command (M8). First seen: M2.
 
+**Pending wrap**: Moving to the next line only when another character arrives after a full line, so a full line plus a newline gives no empty line. First seen: M8.
+
 **Phase**: Where in its repeating pattern a wave currently is. *In TRIADA:* an exact integer 0 … 44,099 per voice. First seen: M7.
 
 **Pixel**: One dot of a picture. *In TRIADA:* a 3-trit value from −13 to 13; four pixels fit in one word. First seen: M6.
@@ -237,6 +257,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Pseudo-instruction**: A convenient spelling the assembler translates into a real instruction, e.g. `INC R0` → `ADDI R0, 1`. First seen: M4.
 
 **Pseudo-random number generator**: A formula that produces numbers that look random but are completely determined by the starting value. *In TRIADA:* xorshift32 behind the RAND register (D-011). First seen: M3.
+
+**Public domain**: Free of copyright: anyone may use, change and share it for any purpose. First seen: M8.
 
 **Queue (FIFO)**: A waiting line: first in, first out. *In TRIADA:* the KEY queue. First seen: M2.
 
@@ -296,7 +318,11 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Symbol**: A name the assembler knows the value of: a label, a constant or a built-in name like `PUTCHAR`. First seen: M4.
 
+**System variable**: A RAM word the built-in software uses for its own state. *In TRIADA:* AUTORUN, CURSOR_X, CURSOR_Y, RUN_DONE, LINEBUF (in RAM 0 … 242). First seen: M8.
+
 **System variables**: RAM cells where the built-in software keeps its own notes. *In TRIADA:* addresses 0 … 242. First seen: M2.
+
+**Tail call**: Ending a routine by jumping to another one, whose RET then returns directly to the original caller. First seen: M8.
 
 **TeaVM**: A tool that translates Java bytecode into JavaScript (or WebAssembly). The libGDX community web backend gdx-teavm is built on it. First seen: M6.
 

@@ -1,0 +1,313 @@
+; ============================================================================
+;  KERNEL.TASM -- boot sequence and the public kernel routines
+;
+;  Calling convention for every public routine (SPEC 8.1): arguments in
+;  R0 ... R2, result in R0. A routine may change R0 ... R2 and keeps R3 ... R8
+;  as they were (it PUSHes and POPs any of them it needs).
+; ============================================================================
+
+; ---------------------------------------------------------------------------
+; boot (RESET): where the CPU starts after power-on (SPEC 8.2)
+; ---------------------------------------------------------------------------
+boot:   LDI SP, STACK_TOP               ; 1. the stack
+        LDI R1, IO_BASE
+        LDI R0, 0
+        ST R0, [R1+SCROLL_X]
+        ST R0, [R1+SCROLL_Y]
+        LDI R0, FRAME_COLOUR
+        ST R0, [R1+BORDER]
+        JSR loadfont                    ; 2. the font into tiles 32 ... 126
+        JSR cls                         ; 3. a clear screen ...
+        JSR chime                       ;    ... and the chime
+        LDI R0, banner                  ; 4. the boot screen
+        JSR print
+        LDI R0, FREE_WORDS
+        JSR printnum
+        LDI R0, wordsfree
+        JSR print
+
+        LDI R2, AUTORUN                 ; did the host leave a program to start?
+        LD R0, [R2]
+        JZ monitor                      ; no: 5. enter the monitor
+        LDI R1, 0
+        ST R1, [R2]                     ; yes: forget it (so it runs only once) ...
+        JSR runprog                     ; ... run it like RUN (prints READY. after)
+        JMP mn_prompt                   ; then the monitor's prompt
+
+banner:    .str "TRIADA-85 NPO \"TRIADA\" 1985"    ; exactly 27 characters (D-027)
+wordsfree: .str " WORDS FREE\n"
+
+; ---------------------------------------------------------------------------
+; loadfont: turn the 1-bit font rows into tiles 32 ... 126 (boot only)
+;
+; Each font row is a number 0 ... 255 whose bit 0 is the leftmost pixel. A
+; ternary machine has no bit instructions, but for a number n >= 0,
+; n MOD 2 is its lowest bit and n DIV 2 drops it (TRIADA's division rounds
+; ties toward zero, so 7 DIV 2 = 3, just like a binary shift).
+; Uses all registers; only called during boot.
+; ---------------------------------------------------------------------------
+loadfont: LDI R3, font                  ; next font row
+        LDI R4, TILES + 512             ; tile 32 = TILES + 16 * 32
+        LDI R7, 760                     ; 95 characters x 8 rows
+lf_row: LD R5, [R3]                     ; the row's bits
+        JSR lf_half                     ; pixels 0 ... 3 -> R0
+        ST R0, [R4]
+        JSR lf_half                     ; pixels 4 ... 7 -> R0
+        ST R0, [R4+1]
+        INC R3
+        ADDI R4, 2
+        DEC R7
+        JNZ lf_row
+        RET
+
+; lf_half: makes one tile word (4 pixels) from the next 4 bits of R5, lowest
+; bit first. Pixel 0 must end up in the highest trits (SPEC 4.3), so the word
+; is built Horner-style: word = word * 27 + pixel, and SHT 3 multiplies by 27.
+lf_half: LDI R0, 0
+        LDI R6, 4                       ; pixels to make
+        LDI R2, 2
+lh_bit: MOV R1, R5
+        MOD R1, R2                      ; lowest bit: 0 or 1
+        DIV R5, R2                      ; drop it
+        MOV R1, R1
+        JZ lh_bg
+        LDI R1, TEXT_FG
+        JMP lh_add
+lh_bg:  LDI R1, TEXT_BG
+lh_add: SHT R0, 3                       ; word * 27
+        ADD R0, R1                      ; + pixel
+        DEC R6
+        JNZ lh_bit
+        RET
+
+; ---------------------------------------------------------------------------
+; chime: the boot sound -- C, E, G in ternary squares, one after the other,
+; held, then faded out (about 0.8 s). Boot only; uses R0 ... R2.
+; ---------------------------------------------------------------------------
+chime:  LDI R1, IO_BASE
+        LDI R0, 1                       ; WAVE +1: the ternary square
+        ST R0, [R1+V1_WAVE]
+        ST R0, [R1+V2_WAVE]
+        ST R0, [R1+V3_WAVE]
+        LDI R0, 523                     ; C5
+        ST R0, [R1+V1_FREQ]
+        LDI R0, 659                     ; E5
+        ST R0, [R1+V2_FREQ]
+        LDI R0, 784                     ; G5
+        ST R0, [R1+V3_FREQ]
+        LDI R0, 13
+        ST R0, [R1+V1_VOL]              ; C ...
+        LDI R2, 5
+        JSR waitn
+        ST R0, [R1+V2_VOL]              ; ... E ...
+        LDI R2, 5
+        JSR waitn
+        ST R0, [R1+V3_VOL]              ; ... G
+        LDI R2, 10
+        JSR waitn
+ch_fade: DEC R0                         ; fade: volume 12 ... 0, two frames each
+        ST R0, [R1+V1_VOL]
+        ST R0, [R1+V2_VOL]
+        ST R0, [R1+V3_VOL]
+        LDI R2, 2
+        JSR waitn
+        MOV R0, R0
+        JNZ ch_fade
+        ST R0, [R1+V1_FREQ]             ; R0 = 0: all voices off
+        ST R0, [R1+V2_FREQ]
+        ST R0, [R1+V3_FREQ]
+        RET
+
+; waitn: waits R2 frames (R2 >= 1). Changes only R2.
+waitn:  WAIT
+        DEC R2
+        JNZ waitn
+        RET
+
+; ---------------------------------------------------------------------------
+; PUTCHAR: R0 = character. Prints it at the cursor and moves the cursor on.
+;   10 (newline): to the start of the next line
+;    8 (backspace): one column back, erasing that character (not past column 0)
+;   anything else: written to the tile map as a tile number; 32 ... 126 are
+;   the font's characters
+; A full line wraps when the NEXT character arrives ("pending wrap", D-027),
+; so a 27-character line followed by a newline makes no empty line.
+; Writing below the last row scrolls the screen up.
+; ---------------------------------------------------------------------------
+putchar: LDI R1, 10
+        CMP R0, R1
+        JZ newline                      ; (newline returns to our caller)
+        LDI R1, 8
+        CMP R0, R1
+        JZ pc_bs
+        LDI R2, CURSOR_X                ; a character: is the line full?
+        LD R1, [R2]
+        LDI R2, COLS
+        CMP R1, R2
+        JN pc_put
+        PUSH R0
+        JSR newline
+        POP R0
+pc_put: JSR celladdr                    ; R1 = the cursor's map cell
+        ST R0, [R1]
+        LDI R2, CURSOR_X
+        LD R1, [R2]
+        INC R1
+        ST R1, [R2]
+        RET
+pc_bs:  LDI R2, CURSOR_X
+        LD R1, [R2]
+        JLE pc_ret                      ; column 0: nothing to erase
+        DEC R1
+        ST R1, [R2]
+        JSR celladdr
+        LDI R0, ' '
+        ST R0, [R1]
+pc_ret: RET
+
+; newline: cursor to column 0 of the next row; scrolls at the bottom.
+; Changes R0 ... R2.
+newline: LDI R2, CURSOR_X
+        LDI R1, 0
+        ST R1, [R2]
+        LDI R2, CURSOR_Y
+        LD R1, [R2]
+        INC R1
+        ST R1, [R2]
+        LDI R2, ROWS
+        CMP R1, R2
+        JN nl_ret                       ; still on the screen
+        LDI R1, ROWS - 1                ; below the bottom: stay on the last row ...
+        LDI R2, CURSOR_Y
+        ST R1, [R2]
+        LDI R1, MAP                     ; ... and move rows 1 ... 17 up by one
+nl_move: LD R0, [R1+COLS]
+        ST R0, [R1]
+        INC R1
+        LDI R2, MAP + 459               ; 17 rows x 27
+        CMP R1, R2
+        JN nl_move
+        LDI R0, ' '                     ; the new bottom row is empty
+nl_clear: ST R0, [R1]
+        INC R1
+        LDI R2, MAP + MAP_CELLS
+        CMP R1, R2
+        JN nl_clear
+nl_ret: RET
+
+; celladdr: R1 = address of the tile map cell under the cursor
+; (MAP + row * 27 + column). Changes R1, R2; keeps R0.
+celladdr: LDI R2, CURSOR_Y
+        LD R1, [R2]
+        LDI R2, COLS
+        MUL R1, R2
+        LDI R2, CURSOR_X
+        LD R2, [R2]
+        ADD R1, R2
+        LDI R2, MAP
+        ADD R1, R2
+        RET
+
+; ---------------------------------------------------------------------------
+; PRINT: R0 = address of a string (one character per word, ending with 0).
+; ---------------------------------------------------------------------------
+print:  PUSH R3
+        MOV R3, R0                      ; R3 survives PUTCHAR
+pr_loop: LD R0, [R3]
+        JZ pr_end
+        JSR putchar
+        INC R3
+        JMP pr_loop
+pr_end: POP R3
+        RET
+
+; ---------------------------------------------------------------------------
+; PRINTNUM: R0 = number. Prints it in decimal, with '-' if negative.
+;
+; Digits come out lowest first, so they wait on the stack. TRIADA's MOD
+; rounds, so n MOD 10 can be negative (7 MOD 10 = -3, because 7 / 10 = 0.7
+; rounds to 1): adding 10 then gives the real digit 7.
+; ---------------------------------------------------------------------------
+printnum: PUSH R3
+        PUSH R4
+        PUSH R5
+        MOV R0, R0
+        JGE pn_pos
+        PUSH R0
+        LDI R0, '-'
+        JSR putchar
+        POP R0
+        NEG R0                          ; never overflows: -265,720 -> 265,720
+pn_pos: LDI R4, 10
+        LDI R3, 0                       ; digits on the stack
+pn_dig: MOV R5, R0
+        MOD R5, R4
+        JGE pn_ok
+        ADD R5, R4                      ; -3 -> 7
+pn_ok:  SUB R0, R5                      ; now an exact multiple of 10
+        DIV R0, R4
+        ADDI R5, '0'
+        PUSH R5
+        INC R3
+        MOV R0, R0
+        JNZ pn_dig
+pn_out: POP R0
+        JSR putchar
+        DEC R3
+        JNZ pn_out
+        POP R5
+        POP R4
+        POP R3
+        RET
+
+; ---------------------------------------------------------------------------
+; CLS: fills the screen with spaces and puts the cursor in the top-left corner.
+; ---------------------------------------------------------------------------
+cls:    LDI R1, MAP
+        LDI R0, ' '
+cl_loop: ST R0, [R1]
+        INC R1
+        LDI R2, MAP + MAP_CELLS
+        CMP R1, R2
+        JN cl_loop
+        LDI R0, 0
+        LDI R2, CURSOR_X
+        ST R0, [R2]
+        LDI R2, CURSOR_Y
+        ST R0, [R2]
+        RET
+
+; ---------------------------------------------------------------------------
+; GETKEY: waits for a key and returns it in R0. While no key is waiting, it
+; sleeps frame by frame (WAIT), so it costs almost no CPU time.
+; ---------------------------------------------------------------------------
+getkey: LDI R1, IO_BASE
+gk_loop: LD R0, [R1+KEY]                ; reading KEY removes the key
+        JZ gk_wait
+        RET
+gk_wait: WAIT
+        JMP gk_loop
+
+; ---------------------------------------------------------------------------
+; LOCATE: R0 = column (0 ... 26), R1 = row (0 ... 17). Moves the cursor;
+; values outside the screen are clamped to the nearest edge.
+; ---------------------------------------------------------------------------
+locate: MOV R0, R0
+        JGE lo_x1
+        LDI R0, 0
+lo_x1:  LDI R2, COLS - 1
+        CMP R0, R2
+        JLE lo_x2
+        MOV R0, R2
+lo_x2:  MOV R1, R1
+        JGE lo_y1
+        LDI R1, 0
+lo_y1:  LDI R2, ROWS - 1
+        CMP R1, R2
+        JLE lo_y2
+        MOV R1, R2
+lo_y2:  LDI R2, CURSOR_X
+        ST R0, [R2]
+        LDI R2, CURSOR_Y
+        ST R1, [R2]
+        RET

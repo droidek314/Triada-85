@@ -14,15 +14,19 @@ Think of a real 1985 home computer. Inside the box is the *machine*: processor, 
                  +-------^-----------------------^----------+
                          | uses                  | uses
           +--------------+---------+   +---------+----------------+
-          | triada-assembler        |   | triada-desktop  (libGDX) |
-          | text <-> machine words  |   | window, sound, keys,     |
-          +--------------^---------+   | debugger UI              |
-                         | uses        +--------------------------+
-          +--------------+---------+     (also uses triada-assembler)
-          | triada-cli              |
-          | tasm, headless run,     |
-          | end-to-end tests        |
-          +------------------------+
+          | triada-assembler        |   | triada-rom                |
+          | text <-> machine words  |   | the ROM (rom/*.tasm),     |
+          +---^----------^---------+   | assembled at BUILD time   |
+              |          |  build-time | by the assembler          |
+              |          +-------------+ -> Rom.newMachine()       |
+              |                        +----^-----------------^----+
+              |                             |                 |
+          +---+-----------------------------+---+   +---------+----------------+
+          | triada-cli                          |   | triada-desktop  (libGDX) |
+          | tasm, headless run, end-to-end tests|   | window, sound, keys,     |
+          +-------------------------------------+   | debugger UI              |
+                                                    +--------------------------+
+                                                     (also uses triada-assembler)
 ```
 
 Arrows point from a module to the module it *uses*. Nothing points into `triada-desktop` or `triada-cli`, because the machine never knows which frontend is driving it.
@@ -33,10 +37,11 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 |---|---|---|
 | `triada-core` | The machine itself. No UI, no threads, no file I/O and no reflection, so a future web build can compile it. | nothing |
 | `triada-assembler` | Assembler and disassembler (M4). It receives source text as strings. | `triada-core` |
-| `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
-| `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
+| `triada-rom` | The ROM (M8): kernel, monitor, font, written in TRIADA assembly in `rom/`. A build-time step assembles it into a generated Java class; `Rom.newMachine()` gives a machine that boots. Holds the ROM's integration tests. | core (and the assembler at build time only) |
+| `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
+| `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
 
-## Current state (after M7)
+## Current state (after M8)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -55,6 +60,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `triada-cli` can save the picture and the sound: `run --dump-screen out.png` (`ScreenDump`, javax.imageio) and `--dump-audio out.wav` (`WavRecorder`).
 - `triada-desktop`: `DesktopLauncher` (optional program argument, window focus listener), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons), `SoundOutput` + `SampleRing` (audio thread, D-025).
 - `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm` and `piano.tasm`.
+- `rom/` holds the ROM source (`rom.tasm`, `sysvars.tasm`, `kernel.tasm`, `monitor.tasm`, generated `font.tasm`), the public-domain font in `third_party/`, and the font converter in `tools/`. `triada-rom` assembles it at every build (D-029); the CLI and desktop boot through it and start programs via the AUTORUN system variable (D-028).
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
 
 ## Inside triada-core: the bus

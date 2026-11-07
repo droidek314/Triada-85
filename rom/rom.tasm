@@ -1,0 +1,34 @@
+; ============================================================================
+;  ROM.TASM -- the TRIADA-85 ROM: kernel, monitor and font
+;
+;  (C) 1985 NPO "TRIADA". Written in TRIADA assembly and assembled by tasm;
+;  the build embeds the result into the emulator (triada-rom module).
+;
+;  Layout (SPEC 2.2, 8.1): the ROM occupies -19,683 ... -1. It begins with a
+;  jump table: every entry is a 2-word "JMP routine", so the entry addresses
+;  never move, however the code behind them changes. Programs call them with
+;  JSR PUTCHAR, JSR PRINT ... (the assembler knows these names).
+;
+;  Files:  sysvars.tasm  system variables (RAM 0 ... 242)
+;          kernel.tasm   boot, screen output, keyboard
+;          monitor.tasm  the command line you see after boot
+;          font.tasm     the 8 x 8 character set (generated)
+; ============================================================================
+
+        .include "sysvars.tasm"
+
+        .org -19683                 ; first ROM word: the CPU starts here
+
+; --- jump table: fixed addresses, never reorder (SPEC 8.1) -----------------
+        JMP boot                    ; -19,683  RESET
+        JMP putchar                 ; -19,681  PUTCHAR   R0 = character
+        JMP print                   ; -19,679  PRINT     R0 = address of string
+        JMP printnum                ; -19,677  PRINTNUM  R0 = number
+        JMP cls                     ; -19,675  CLS
+        JMP getkey                  ; -19,673  GETKEY    -> R0 = key (waits)
+        JMP locate                  ; -19,671  LOCATE    R0 = column, R1 = row
+        ; -19,669 ... : reserved for future entries
+
+        .include "kernel.tasm"
+        .include "monitor.tasm"
+        .include "font.tasm"
