@@ -89,3 +89,43 @@ Format: see CLAUDE.md §5.4.
 **Decision:** One `SystemDevice` owns FRAME (k = 0) and RAND (k = 19). RAND uses xorshift32 with a fixed default seed (`DEFAULT_SEED`), folded into the word range with `mod 3^12`. Its next value is computed ahead, so `peek` can show it without consuming it. `SystemDevice.seed()` lets a frontend choose another seed.
 **Why:** A fixed seed makes every run of a program identical, so tests of games (M10) can compare screens exactly. xorshift is three lines of code, allocation-free, and has no platform dependencies (good for a later web build). The bias from the `mod` is about 1 part in 8,000 between the most and least likely values, which is irrelevant for games.
 **Consequences:** Without a call to `seed()`, every game starts with the same "random" sequence, just like many real 1980s machines. The desktop frontend may seed from the clock; the test runner should not.
+
+## D-012 — Program images: default origin 243, one block, gaps filled with 0   (Milestone M04, 2026-11-07)
+**Situation:** SPEC §9.5 defines a `.tri` file as *one* block (load address + N words), but a source can use several `.org` directives, and may have none at all.
+**Options:** For a missing `.org`: start at 0, or at 243 where programs load (SPEC §2.3). For several blocks: extend the file format with multiple segments, or write one block from the lowest to the highest address used, with zeros in the gaps.
+**Decision:** Without `.org`, code starts at 243 (`Assembler.DEFAULT_ORIGIN`). The image is one block from the lowest to the highest address any line produced; gaps are 0. Two lines producing the same address is an error.
+**Why:** 243 is where every user program belongs, so the most common case needs no `.org`. One block keeps the spec's file format unchanged, and the gaps are rarely large. An overlapping `.org` is almost always a mistake, so it must not silently overwrite code.
+**Consequences:** A program with blocks far apart, for example code at 243 and data at 40,000, produces a `.tri` that contains the whole stretch in between, as zeros. When the block includes the tile area, loading it also clears that area. A program that minds this can keep its blocks close, or set the tiles at run time.
+
+## D-013 — Assembler syntax details the spec leaves open   (Milestone M04, 2026-11-07)
+**Situation:** SPEC §9 describes the syntax in a few lines. Writing a real parser raised many small questions.
+**Decision:** Each answer is the simplest one consistent with the spec:
+- **`SP`** is accepted as another name for `R8`, in any case. Like `R0`–`R8`, it can't be a label or constant.
+- **Characters and strings** may contain printable ASCII (32–126) and the escapes `\n \t \0 \\ \' \"`. Other characters are errors, because the TRIADA font only has tiles 32–126 (SPEC §4.8).
+- **Unary `+` and `-`** are allowed anywhere in an expression (`-7`, `BASE - -5`). In a memory operand the sign belongs to the expression, so `[R1-3+1]` means `R1 + (-3 + 1)`.
+- **Labels may be used before they are defined** (two passes). So may constants, except in `.org` and the count of `.fill`, which decide addresses and must therefore be known in the first pass.
+- **A label on an `.org` line** gets the new address: `start: .org 500` makes `start` = 500.
+- **`.include` paths** are resolved relative to the folder of the including file. An include cycle is an error.
+- **`JIF` with a condition outside −2 … 3** is an assembly error, not a word that faults at run time, because "range errors are errors" (SPEC §9.3).
+- **Names** are case-sensitive (labels, constants, built-ins); mnemonics, registers and directives are not.
+**Why:** Each of these either follows a hint in the spec, or makes a common mistake impossible.
+**Consequences:** A faulting JIF can still be produced with `.word`, for testing the debugger.
+
+## D-014 — The disassembler prints `.word` for words without a canonical spelling   (Milestone M04, 2026-11-07)
+**Situation:** Not every word is a "proper" instruction. Unused fields may be non-zero (SPEC §3.3 says the CPU ignores them), a JIF condition may be invalid, and data such as string characters looks like instructions too. Printing these as instructions would lose information: `NOP` re-assembles with zero fields, not with the original junk.
+**Options:** A) Print them as instructions anyway (pretty, not exact). B) Invent syntax for every field (`NOP rd=2`). C) Print `.word N` whenever the instruction text wouldn't re-assemble to exactly the same word.
+**Decision:** C. `Disassembler.decode()` builds the text, re-encodes it in canonical form, and falls back to `.word` if the two differ.
+**Why:** It makes the round-trip promise (CLAUDE.md M4) true for *every* word, which we test exhaustively. Real programs almost never contain such words in their code, so the debugger's view stays readable.
+**Consequences:** Data shown in the debugger appears partly as `.word` lines, and partly as instructions that happen to be canonical. Telling code from data needs knowledge the disassembler doesn't have, such as the symbols from the assembler.
+
+## D-015 — Everything the programs print is plain ASCII   (Milestone M04, 2026-11-07)
+**Situation:** The first error messages used typographic characters such as `−`, `…` and `→`. On a Windows console they came out as `?` and `�`.
+**Decision:** All text in string literals that the tools may print (error messages, listings, exception messages) is ASCII: `-` for minus, `..` for ranges, `...` for an ellipsis, `->` for arrows. Documentation and code comments keep their typography.
+**Why:** The command-line tools (M5) print these messages straight to whatever terminal the person uses. ASCII is also what a 1985 machine would print.
+**Consequences:** Tests that check messages use ASCII too. A small script found and converted every literal; two test-only literals remain non-ASCII on purpose (`'é'` checks that non-ASCII is rejected, and one assertion text).
+
+## D-016 — Report many errors, but don't encode after a layout error   (Milestone M04, 2026-11-07)
+**Situation:** An assembler can stop at the first error, or report as many as possible.
+**Decision:** Every line is processed. A bad line is reported and skipped, up to `Assembler.MAX_ERRORS` (100) errors. If any error happens in pass 1 (layout), pass 2 (encoding) is skipped. Operand *counts* are checked in pass 1, so they appear alongside the other pass-1 errors. An error inside a constant's definition is reported once, at that definition. Lines that use the broken constant fail silently.
+**Why:** Fixing several mistakes per attempt is much nicer. But after a broken line in pass 1, every later address may be off, and pass 2 would then report confusing follow-on errors ("unknown name", "out of range") that disappear once the first error is fixed.
+**Consequences:** A program with both a pass-1 error and a pass-2 error (for example an unknown name) shows the second only after the first is fixed.

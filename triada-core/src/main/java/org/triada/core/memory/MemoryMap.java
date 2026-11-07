@@ -95,7 +95,7 @@ public final class MemoryMap {
     static void checkAddress(int address) {
         if (!Word.isValid(address)) {
             throw new IllegalArgumentException(
-                    "address " + address + " is not a word (range " + Word.MIN + " … " + Word.MAX + ")");
+                    "address " + address + " is not a word (range " + Word.MIN + " .. " + Word.MAX + ")");
         }
     }
 }

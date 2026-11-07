@@ -16,6 +16,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M1 | [Ternary math](milestones/M01-ternary-math.md) | Counting with −1, 0 and +1; wrapping, carry, rounding division, and the trit-by-trit operations of a ternary machine. |
 | M2 | [Memory and bus](milestones/M02-memory-and-bus.md) | The memory map with address 0 in the middle: RAM, ROM, I/O registers and empty space, the bus that routes every access, and the keyboard queue. |
 | M3 | [CPU core](milestones/M03-cpu-core.md) | How a processor reads and runs instructions: the 27 opcodes, flags, jumps, subroutines, faults, and the 60-frames-per-second rhythm. Plus how fast it is. |
+| M4 | [Assembler and disassembler](milestones/M04-assembler.md) | How text like `JMP loop` becomes machine words: tokens, parsing, two passes, error messages that point at the column, the listing, the `.tri` file, and the way back. |
 
 ## Reference documents
 

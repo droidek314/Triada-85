@@ -51,7 +51,7 @@ public final class Ternary {
         int max = maxValue(width);
         if (value < -max || value > max) {
             throw new IllegalArgumentException(
-                    value + " does not fit in " + width + " trits (range " + -max + " … " + max + ")");
+                    value + " does not fit in " + width + " trits (range " + -max + " .. " + max + ")");
         }
         char[] chars = new char[width];
         int v = value;
@@ -103,7 +103,7 @@ public final class Ternary {
 
     private static void checkWidth(int width) {
         if (width < 1 || width > MAX_WIDTH) {
-            throw new IllegalArgumentException("width must be 1 … 12 trits, was " + width);
+            throw new IllegalArgumentException("width must be 1 .. 12 trits, was " + width);
         }
     }
 }

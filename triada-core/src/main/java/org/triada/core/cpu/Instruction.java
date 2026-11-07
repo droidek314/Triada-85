@@ -94,7 +94,7 @@ public final class Instruction {
     /** The register field value for register Rn: {@code n − 4}. */
     public static int reg(int n) {
         if (n < 0 || n >= REGISTER_COUNT) {
-            throw new IllegalArgumentException("no register R" + n + " (R0 … R8)");
+            throw new IllegalArgumentException("no register R" + n + " (R0 .. R8)");
         }
         return n - 4;
     }
@@ -116,7 +116,7 @@ public final class Instruction {
 
     private static void check(String name, int value, int max) {
         if (value < -max || value > max) {
-            throw new IllegalArgumentException(name + " " + value + " is outside " + -max + " … " + max);
+            throw new IllegalArgumentException(name + " " + value + " is outside " + -max + " .. " + max);
         }
     }
 

@@ -376,3 +376,13 @@ int32 LE  : word count N
 N × int32 LE : word values
 ```
 The assembler can also write a **listing** (`.lst`) showing address, words in ternary, words in decimal and the source line.
+
+### 9.6 Details settled while building the assembler
+These follow from D-012 and D-013 in `docs/DECISIONS.md`.
+- Without `.org`, code starts at 243. A `.tri` image is one block from the lowest to the highest address used; gaps are 0, and two lines producing the same address is an error.
+- `SP` is another name for `R8`. Register names (`R0`–`R8`, `SP`) can't be labels or constants.
+- Character literals and strings may contain printable ASCII (32–126) and the escapes `\n \t \0 \\ \' \"`.
+- Unary `+` and `-` are allowed in expressions. In `[R1-3+1]` the sign belongs to the offset expression.
+- Labels and constants may be used before they are defined, except in `.org` and the count of `.fill`.
+- A label on an `.org` line gets the new address. `.include` paths are relative to the including file.
+- `JIF` with a condition outside −2 … 3 is an assembly error.

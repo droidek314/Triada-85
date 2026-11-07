@@ -36,7 +36,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
 
-## Current state (after M3)
+## Current state (after M4)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -46,7 +46,8 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `org.triada.core.io`: the `IoDevice` plug-in interface, the `IoRegisters` numbers, `InputDevice` (joystick, buttons, KEY queue) and `SystemDevice` (FRAME, RAND).
 - `org.triada.core.cpu`: `Instruction` (encoding, opcode tables), `Cpu` (registers, flags, `step()`, `runFrame()`) and `Fault`.
 - `org.triada.core.Machine`: bus + CPU + devices wired together; `runFrame()` is one 1/60-second frame.
-- `triada-assembler` is an empty library with a package description.
+- `triada-core` also has `TriImage`: a program image (load address + words) and the `.tri` byte format.
+- `triada-assembler`: `Lexer` → `Parser` → `Assembler` (two passes; `.include` through the `SourceLoader` interface, so no file I/O) → `AssemblyResult` (image, listing, symbols). `Disassembler` turns words back into text. Errors are `AssemblyError` records with file, line and column.
 - `triada-cli` prints a usage message.
 - `triada-desktop` opens a 960 × 672 window titled "TRIADA-85" and clears it to a dark color every frame.
 
@@ -67,6 +68,21 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 ```
 
 Host code (frontends, tests, the future debugger) also uses `Bus.peek()` (no side effects), `Bus.loadRom()`, `Bus.loadRam()` and `Bus.attach()`.
+
+## From source to running program
+
+```
+ hello.tasm --> SourceLoader --> Lexer --> Parser --> Assembler (pass 1: layout, pass 2: encode)
+                (CLI: disk)                                   |
+                                                              v
+                                       AssemblyResult: TriImage + listing + symbols
+                                                              |
+                         TriImage.toBytes() -> hello.tri      |  (M5: CLI writes the files)
+                                                              v
+                                 Bus.loadRam(loadAddress, words) -> Machine.runFrame() ...
+```
+
+The `Disassembler` goes the other way (words -> text) and will be used by the debugger (M9).
 
 ## Data flow (planned; filled in as milestones land)
 

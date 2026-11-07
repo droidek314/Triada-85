@@ -119,8 +119,8 @@ public final class Bus {
             throw new IllegalArgumentException("device must not be null");
         }
         if (count < 1 || firstK < 0 || firstK + count > IoRegisters.COUNT) {
-            throw new IllegalArgumentException("registers " + firstK + " … " + (firstK + count - 1)
-                    + " are outside 0 … " + (IoRegisters.COUNT - 1));
+            throw new IllegalArgumentException("registers " + firstK + " .. " + (firstK + count - 1)
+                    + " are outside 0 .. " + (IoRegisters.COUNT - 1));
         }
         for (int k = firstK; k < firstK + count; k++) {
             if (devices[k] != null) {
@@ -160,7 +160,7 @@ public final class Bus {
     public void loadRam(int address, int[] words) {
         if (address < RAM_START || (long) address + words.length - 1 > RAM_END) {
             throw new IllegalArgumentException("block of " + words.length + " words at " + address
-                    + " does not fit in RAM (" + RAM_START + " … " + RAM_END + ")");
+                    + " does not fit in RAM (" + RAM_START + " .. " + RAM_END + ")");
         }
         checkWords(words);
         System.arraycopy(words, 0, ram, address, words.length);

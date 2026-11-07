@@ -457,7 +457,7 @@ class CpuTest {
         assertEquals(Word.MAX, cpu.register(0), "all zeros rotate up to all +");
         assertEquals(1, cpu.flagS());
         cpu.step();
-        assertEquals(Word.MIN, cpu.register(1), "−1 = down once: all zeros become −");
+        assertEquals(Word.MIN, cpu.register(1), "-1 = down once: all zeros become -");
         cpu.step();
         assertEquals(77, cpu.register(2), "3 mod 3 = 0: unchanged");
     }
@@ -486,7 +486,7 @@ class CpuTest {
         cpu.setRegister(1, Word.MIN);
         cpu.setFlags(0, -1);
         cpu.step();
-        assertEquals(1, cpu.flagS(), "MAX > MIN, although MAX − MIN would wrap");
+        assertEquals(1, cpu.flagS(), "MAX > MIN, although MAX - MIN would wrap");
         assertEquals(Word.MAX, cpu.register(0), "no store");
         assertEquals(-1, cpu.flagO(), "O unchanged");
         cpu.step();
@@ -636,7 +636,7 @@ class CpuTest {
         // loop: ADDI R0, 1 ; JMP loop   (two instructions, three words, one cycle each)
         load(ins(ADDI, 0, 4, 1), ins(JMP), START);
         assertEquals(59_049, cpu.runFrame(Machine.CYCLES_PER_FRAME));
-        assertEquals(29_525, cpu.register(0), "ADDI runs on cycles 1, 3, 5 … 59,049");
+        assertEquals(29_525, cpu.register(0), "ADDI runs on cycles 1, 3, 5 .. 59,049");
         assertEquals(59_049, cpu.cycles());
     }
 

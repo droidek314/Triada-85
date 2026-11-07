@@ -6,6 +6,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Address**: The number of a memory cell, like a house number on a street. *In TRIADA:* a word, −265,720 … +265,720, with 0 in the middle (SPEC §2.1). First seen: M2.
 
+**Assembler**: A program that turns assembly language text into machine words. *In TRIADA:* `tasm`, the `Assembler` class (M4). First seen: M4.
+
+**Assembly language**: The thinnest layer above machine code: one line per instruction, written with mnemonics and names instead of numbers. First seen: M4.
+
 **Balanced ternary**: Base 3 with the digits −1, 0 and +1 instead of 0, 1 and 2. Negative numbers need no minus sign, and flipping every digit negates a number. *In TRIADA:* how every number is stored (SPEC §1.1). First seen: M1.
 
 **Benchmark**: A program that measures how fast something runs. *In TRIADA:* `./gradlew :triada-core:benchmark` (M3). First seen: M3.
@@ -24,6 +28,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Bus**: The path that carries every read and write between the processor and memory or devices. *In TRIADA:* the `Bus` class. First seen: M2.
 
+**Canonical form**: The one standard way of writing something. *In TRIADA:* an instruction word whose unused fields are all 0. First seen: M4.
+
 **Carry**: The digit that falls off the top when a result is too big for its space. *In TRIADA:* a trit (−1, 0 or +1), stored in flag O by ADD, SUB and ADDI. First seen: M1.
 
 **Cartridge**: A plug-in module that adds memory or software to a computer. *In TRIADA:* lore only; addresses 59,049 and up are reserved for them. First seen: M2.
@@ -35,6 +41,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Compile**: Translate source code that people write (here, Java) into a form the computer can run. First seen: M0.
 
 **Conditional jump**: A jump that only happens if a condition on the flags holds. *In TRIADA:* JIF and its aliases JN, JZ, JP, JNZ, JLE, JGE. First seen: M3.
+
+**Constant (assembler)**: A name for a number, defined with `NAME = value`. First seen: M4.
 
 **CPU (central processing unit)**: The part of a computer that reads instructions from memory and carries them out, one after another. *In TRIADA:* the `Cpu` class. First seen: M3.
 
@@ -48,19 +56,29 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Device**: A piece of hardware the processor talks to through I/O registers. *In TRIADA:* anything implementing `IoDevice`, such as `InputDevice`. First seen: M2.
 
+**Directive**: A line that tells the assembler what to do (`.org`, `.str`, `.include` …) rather than producing a CPU instruction. First seen: M4.
+
+**Disassembler**: A program that turns machine words back into assembly text. *In TRIADA:* the `Disassembler` class, used by the debugger. First seen: M4.
+
 **Emulator**: A program that imitates a different computer closely enough to run its programs. First seen: M3.
 
 **Enum**: A Java type with a fixed list of named values, such as `Region` with UNMAPPED, IO, ROM and RAM. First seen: M2.
 
+**Escape sequence**: A backslash code for a special character inside quotes, such as `\n` for a new line. First seen: M4.
+
 **Execute**: Carrying out an instruction. First seen: M3.
 
 **Exhaustive test**: A test that tries every possible input instead of a sample. *In TRIADA:* all 531,441 words in `WordTest`. First seen: M1.
+
+**Expression**: A small calculation in the source, such as `IO_BASE + KEY` or `end - start`. *In TRIADA:* numbers and names combined with + and −. First seen: M4.
 
 **Fault**: An error that stops the CPU, recorded with a code and the address of the guilty instruction. *In TRIADA:* fault 1 = invalid JIF condition (D-010). First seen: M3.
 
 **Fetch**: Reading the next instruction from memory at the address in PC. First seen: M3.
 
 **Flag**: A one-digit note the processor keeps about the last calculation, which later instructions can check. *In TRIADA:* S (sign) and O (overflow/carry), both trits. First seen: M1.
+
+**Forward reference**: Using a label before the line that defines it, e.g. `JMP end` above `end:`. Two passes make it possible. First seen: M4.
 
 **Frame**: One complete picture on the screen. Showing many frames per second makes movement. *In TRIADA:* 60 frames per second (SPEC §6). First seen: M0.
 
@@ -72,6 +90,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Gradle wrapper**: A tiny script (`gradlew`, `gradlew.bat`) plus a small jar, committed to the project, that downloads exactly the right Gradle version on first use. Nobody has to install Gradle by hand. First seen: M0.
 
+**Grammar**: The rules for what a valid line looks like. First seen: M4.
+
 **Halt**: Stop the CPU for good, until a reset. *In TRIADA:* HLT, or a fault. First seen: M3.
 
 **Headless**: Running without any window, sound or keyboard, which is useful for automatic tests. *In TRIADA:* the `triada run` command (M5). First seen: M0.
@@ -79,6 +99,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Horner's rule**: Building a number digit by digit: multiply what you have by the base, then add the next digit. `+-0` → 1, 1·3−1 = 2, 2·3+0 = 6. First seen: M1.
 
 **I/O register**: An address that isn't storage but a doorbell or window to hardware: reading or writing it talks to a device. *In TRIADA:* 729 slots from −20,412, 23 of them defined (SPEC §5). First seen: M2.
+
+**Image (program image)**: The block of words a program occupies, together with its load address. *In TRIADA:* `TriImage`, stored in a `.tri` file. First seen: M4.
 
 **Immediate**: A small number built into the instruction itself instead of coming from a register. *In TRIADA:* the imm5 field, −121 … +121. First seen: M3.
 
@@ -98,13 +120,25 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Kernel**: The core built-in software of a computer. *In TRIADA:* lives in ROM, written in TRIADA assembly (M8). First seen: M2.
 
+**Label**: A name for an address in a program, written `name:` at the start of a line. First seen: M4.
+
 **Least significant trit**: The rightmost trit, worth 1. *In TRIADA:* t0. First seen: M1.
 
+**Lexer**: The part of a translator that cuts text into tokens. First seen: M4.
+
 **libGDX**: A free Java library for games. It opens windows, draws pictures with the graphics card, plays sound and reads the keyboard. *In TRIADA:* used only by `triada-desktop`. First seen: M0.
+
+**Listing**: A printout of the source next to the address and words each line produced. *In TRIADA:* the `.lst` file. First seen: M4.
+
+**Little-endian**: Storing a multi-byte number with its least significant byte first. *In TRIADA:* the numbers in a `.tri` file. First seen: M4.
+
+**Load address**: The address where a program image is placed in memory. *In TRIADA:* usually 243. First seen: M4.
 
 **Lookup table**: A list of precomputed answers, so a calculation becomes a single array read. First seen: M1.
 
 **LWJGL**: "Lightweight Java Game Library", the layer libGDX uses on desktop computers to talk to the graphics card (OpenGL), the window system (GLFW) and sound (OpenAL). First seen: M0.
+
+**Magic number**: Fixed bytes at the start of a file that identify its format. *In TRIADA:* `TRIADA85`. First seen: M4.
 
 **Maven Central**: The big public warehouse of Java libraries that Gradle downloads dependencies from. First seen: M0.
 
@@ -128,6 +162,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Parameterized test**: One test method run once for every row of a table of inputs. First seen: M2.
 
+**Parser**: The part of a translator that recognises the structure of the tokens (label, instruction, operands …). First seen: M4.
+
 **Peek**: Looking at a memory address without any side effect. *In TRIADA:* `Bus.peek()`, used by the debugger; also a monitor command (M8). First seen: M2.
 
 **Plugin (Gradle)**: A ready-made bundle of build steps you switch on in a build file, for example `application`, which knows how to run a program. First seen: M0.
@@ -136,11 +172,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Program counter (PC)**: The register holding the address of the next instruction, like a bookmark. *In TRIADA:* starts at −19,683 (SPEC §2.4). First seen: M3.
 
+**Pseudo-instruction**: A convenient spelling the assembler translates into a real instruction, e.g. `INC R0` → `ADDI R0, 1`. First seen: M4.
+
 **Pseudo-random number generator**: A formula that produces numbers that look random but are completely determined by the starting value. *In TRIADA:* xorshift32 behind the RAND register (D-011). First seen: M3.
 
 **Queue (FIFO)**: A waiting line: first in, first out. *In TRIADA:* the KEY queue. First seen: M2.
 
 **RAM (random-access memory)**: Memory that can be read and written. *In TRIADA:* addresses 0 … 59,048. First seen: M2.
+
+**Recursive descent**: A way of writing a parser with one function per grammar rule; the functions call each other as the rules nest. First seen: M4.
 
 **Reference implementation**: A slow but obviously correct version of an algorithm, used only in tests to check the fast version. First seen: M1.
 
@@ -155,6 +195,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **ROM (read-only memory)**: Memory that can be read but not changed by programs. *In TRIADA:* addresses −19,683 … −1, holding the kernel. First seen: M2.
 
 **Rotate (ROT)**: *In TRIADA:* turn every trit one step around a three-hour clock: − → 0 → + → −. First seen: M1.
+
+**Round trip**: Converting something there and back and getting exactly what you started with. *In TRIADA:* assemble → disassemble → assemble. First seen: M4.
 
 **Seed**: The starting value of a pseudo-random number generator. The same seed always gives the same sequence. First seen: M3.
 
@@ -176,6 +218,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Subroutine**: A piece of program that can be called from anywhere and returns to where it was called from. *In TRIADA:* JSR calls, RET returns. First seen: M3.
 
+**Symbol**: A name the assembler knows the value of: a label, a constant or a built-in name like `PUTCHAR`. First seen: M4.
+
 **System variables**: RAM cells where the built-in software keeps its own notes. *In TRIADA:* addresses 0 … 242. First seen: M2.
 
 **Ternary**: Counting with three digits. *Balanced* ternary uses −1, 0 and +1 (written `-`, `0`, `+`). *In TRIADA:* everything. First seen: M0.
@@ -185,6 +229,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Tile**: A small fixed picture (8×8 pixels) used as a building block for the screen. *In TRIADA:* 243 tiles at RAM 40,000 (SPEC §4.4). First seen: M2.
 
 **Tile map**: The grid saying which tile goes in each square of the screen. *In TRIADA:* 27 × 18 cells at RAM 44,000. First seen: M2.
+
+**Token**: One piece of a source line after the lexer has cut it up: a name, a number, a comma … First seen: M4.
 
 **Toolchain (Gradle)**: Gradle's setting for "compile and test with exactly this Java version", even if a different one is installed as the default. First seen: M0.
 
@@ -197,6 +243,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Tryte**: Six trits, the ternary cousin of the byte. Range −364 … +364. First seen: M1.
 
 **Two's complement**: The usual way binary computers store negative numbers, using the top bit as a sign. Balanced ternary doesn't need it. First seen: M1.
+
+**Two-pass assembler**: An assembler that first lays out all addresses (pass 1) and then encodes everything (pass 2), so labels can be used before they are defined. First seen: M4.
 
 **Unmapped**: An address with nothing behind it: reads 0, writes have no effect. First seen: M2.
 

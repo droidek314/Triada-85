@@ -130,13 +130,13 @@ public final class Word {
 
     private static void checkPosition(int position) {
         if (position < 0 || position >= TRITS) {
-            throw new IllegalArgumentException("trit position must be 0 … 11, was " + position);
+            throw new IllegalArgumentException("trit position must be 0 .. 11, was " + position);
         }
     }
 
     static void checkWord(int word) {
         if (!isValid(word)) {
-            throw new IllegalArgumentException(word + " is not a word (range " + MIN + " … " + MAX + ")");
+            throw new IllegalArgumentException(word + " is not a word (range " + MIN + " .. " + MAX + ")");
         }
     }
 }
