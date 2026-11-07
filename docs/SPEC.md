@@ -155,7 +155,7 @@ Effective addresses (`rs + imm5`) wrap like any other word.
 ### 3.5 Division
 - `round` = round to nearest; **ties round toward zero**. Examples: 7÷2 → 3 (3.5 → 3), −7÷2 → −3, 8÷3 → 3, 5÷3 → 2.
 - So `MOD` results always satisfy |r| ≤ |rs|/2. Example: 8 MOD 3 = −1.
-- Division by zero: result 0, S = 0, **O = +1**. Otherwise DIV/MOD set O = 0.
+- Division by zero (in `DIV` **or** `MOD`): result 0, S = 0, **O = +1**. Otherwise DIV/MOD set O = 0. (Clarified in D-006.)
 
 ### 3.6 ROT (trit rotation)
 "Up" means −1 → 0 → +1 → −1, applied to every trit independently. `n = imm5 mod 3` (mathematical mod, so n ∈ {0,1,2}). For example, `ROT R0, -1` rotates down once (= up twice). The assembler default is n = 1 when imm5 is omitted.

@@ -13,6 +13,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | # | Document | What you learn |
 |---|---|---|
 | M0 | [Project setup](milestones/M00-project-setup.md) | How the project is organised, how it is built and tested, and how a window gets onto the screen. |
+| M1 | [Ternary math](milestones/M01-ternary-math.md) | Counting with −1, 0 and +1; wrapping, carry, rounding division, and the trit-by-trit operations of a ternary machine. |
 
 ## Reference documents
 

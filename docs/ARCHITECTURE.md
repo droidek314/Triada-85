@@ -36,9 +36,12 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
 
-## Current state (after M0)
+## Current state (after M1)
 
-- `triada-core` contains only `MachineInfo` (the machine's name and spec version).
+- `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
+  - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
+  - `Word`: the 12-trit word, stored as a plain `int` (D-004), with wrap, carry and trit access.
+  - `WordMath`: every arithmetic and trit-wise operation the CPU needs. Static and allocation-free.
 - `triada-assembler` is an empty library with a package description.
 - `triada-cli` prints a usage message.
 - `triada-desktop` opens a 960 × 672 window titled "TRIADA-85" and clears it to a dark color every frame.
