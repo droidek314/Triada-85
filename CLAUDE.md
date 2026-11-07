@@ -1,0 +1,251 @@
+# CLAUDE.md — TRIADA-85 Project Instructions
+
+You are building **TRIADA-85**, a fantasy home computer from an alternate 1985 where **ternary** (trits: −1, 0, +1) won instead of binary. You'll build the whole machine in software: ternary math, CPU emulator, assembler, video, sound, a ROM operating system written in the machine's own assembly, a debugger and games. You'll also document every step so that anyone can follow it.
+
+**Read `docs/SPEC.md` fully before writing any code.** It defines the machine exactly. This file defines *how you work*.
+
+---
+
+## 1. Golden rules
+
+1. **The spec is the law.** `docs/SPEC.md` decides behaviour. If you find a gap, a contradiction or a real problem in it, don't silently improvise:
+   - choose the simplest reasonable solution,
+   - update `docs/SPEC.md`,
+   - add an entry to `docs/DECISIONS.md` (see §5.4),
+   - mention it in the milestone document.
+2. **One milestone at a time, in order.** Don't start milestone N+1 until milestone N is done, meaning code, tests passing and documentation written and checked.
+3. **Tests are not optional.** Every behaviour in the spec gets a test. A milestone with failing or missing tests isn't finished.
+4. **Documentation is part of the deliverable, not an afterthought.** A milestone without its document is not finished (§5).
+5. **Small, readable code beats clever code.** This project is also a teaching project. Name things clearly and add comments that explain *why*, not *what*.
+6. **Commit at the end of every milestone** with a message like `M3: CPU core — all 27 opcodes`. Commit smaller steps inside a milestone too, if useful.
+7. **Never fake progress.** If something doesn't work, say so in the milestone doc under "Problems" or "Limitations".
+
+---
+
+## 2. Technology
+
+- **Language:** Java, on the newest LTS JDK (21 or later).
+- **Build:** Gradle (Kotlin DSL), multi-module, with the Gradle wrapper committed. `./gradlew build` must build and test everything.
+- **Frontend:** **libGDX** with the LWJGL3 desktop backend, for the window, pixel display, sound and input. Build the debugger UI with libGDX's scene2d.ui.
+- **Tests:** JUnit 5.
+- **Image output** (screen dumps, golden images): the JDK's built-in `javax.imageio`. No extra library.
+- **No other dependencies** unless clearly justified in `DECISIONS.md`.
+- **Java package root:** `org.triada` (e.g. `org.triada.core.cpu.Cpu`).
+
+### Repository layout
+```
+/CLAUDE.md                 ← this file
+/README.md                 ← project front page (you write it; update every milestone)
+/settings.gradle.kts, /build.gradle.kts, /gradlew …
+/docs/
+  SPEC.md                  ← machine specification (source of truth)
+  INDEX.md                 ← table of contents for all docs, read-in-order guide
+  ARCHITECTURE.md          ← how the parts fit together (kept up to date)
+  DECISIONS.md             ← decision log
+  GLOSSARY.md              ← every technical word, explained simply
+  PROGRESS.md              ← milestone checklist with status
+  milestones/
+    M00-project-setup.md
+    M01-ternary-math.md
+    ...
+  manual/                  ← in-universe TRIADA-85 user manual (M11)
+/triada-core/              ← ternary math, memory, CPU, video, sound, I/O. Plain Java, NO libGDX.
+/triada-assembler/         ← assembler + disassembler library (depends on core)
+/triada-cli/               ← command-line tool: `tasm` (assemble), `run` (headless run)
+/triada-desktop/           ← libGDX frontend (display, sound, input, debugger UI)
+/rom/                      ← ROM source in TRIADA assembly (*.tasm)
+/programs/                 ← example programs and games (*.tasm)
+```
+Each module uses the standard Gradle layout: `src/main/java`, `src/test/java`, `src/main/resources`. End-to-end tests (assemble and run whole programs, compare output and screens) live in `triada-cli/src/test/java`.
+
+**Important architecture rule:** `triada-core` and `triada-assembler` must be pure Java with **no** libGDX or other UI dependency, so tests, the headless runner and any future web or alternative frontend can all use them. Keep them free of reflection, threads and file I/O wherever reasonable, so a later web build (TeaVM/GWT) can compile them. File loading belongs in the CLI and frontend.
+
+### Implementation hint (performance)
+Store a word as a Java `int` in the range ±265,720. Use normal integer arithmetic plus the wrap formula from SPEC §1.3. Java's `%` can return negative values, so use `Math.floorMod`. Convert to trits only for trit-wise operations (MIN, MAX, TMUL, ROT) and for display. Lookup tables are allowed. RAM is a plain `int[]`. **Don't allocate objects in the CPU's per-instruction loop** (no boxing, no `new` per step), to keep the garbage collector quiet. The CPU must run 59,049 instructions per frame at 60 fps comfortably. Measure this (a simple timed benchmark is enough; JMH is optional) and report it in the M3 doc.
+
+---
+
+## 3. Milestones
+
+Each milestone lists **acceptance criteria**. All of them must be true before you move on.
+
+### M0 — Project setup
+- Gradle multi-module project created; `./gradlew build` succeeds, including an (empty) test run.
+- `./gradlew :triada-desktop:run` opens a blank libGDX window titled "TRIADA-85".
+- All `docs/` files created with their initial structure. `PROGRESS.md` lists M0–M11.
+- `README.md` explains what the project is in a few paragraphs, for a non-programmer.
+
+### M1 — Ternary math (`triada-core`)
+- Types for trit and word, including conversion between integers, trit arrays and the `-0+` string notation (both directions).
+- Wrapping, carry and all arithmetic and trit-wise operations needed by the CPU (add, sub, mul, the rounding division of SPEC §3.5, neg, min, max, tmul, rot, shift).
+- **An exhaustive test** that converts every one of the 531,441 word values to trits and back.
+- Tests for every edge case: maximum and minimum values, wrap in both directions, the division-by-zero rule, the rounding examples from the spec.
+
+### M2 — Memory and bus
+- The memory map from SPEC §2.2: RAM, ROM (read-only), I/O region, unmapped.
+- I/O registers implemented as a pluggable device interface (video, input, sound and debug will plug in later). KEY's read-removes behaviour is supported.
+- Tests for every region boundary (first and last address of each region, ±1).
+
+### M3 — CPU core
+- All 27 opcodes, both flags, all JIF conditions, BR3, the fault rule, the cycle budget and `WAIT` (SPEC §3, §6).
+- At least one test per opcode, plus flag tests. Tests may build instruction words by hand at this stage.
+- A performance measurement (instructions per second), recorded in the doc.
+
+### M4 — Assembler and disassembler
+- The full syntax, directives, built-in symbols and pseudo-instructions from SPEC §9.
+- Helpful error messages (file, line, column, expected or found), with tests for the error cases.
+- `.tri` output and `.lst` listing.
+- Disassembler: word(s) → readable text (used later by the debugger).
+- Round-trip test: assemble → disassemble → assemble gives identical words.
+- From now on, CPU tests should also be written in assembly where that's clearer.
+
+### M5 — Headless runner and first program
+- `triada run program.tri [--frames N] [--dump-screen out.png]` (plus `triada tasm source.tasm -o out.tri [--listing out.lst]`), with DEBUG_CHAR, DEBUG_NUM and HOST_EXIT supported (SPEC §5).
+- `programs/hello.tasm` prints "HELLO, WORLD" through DEBUG_CHAR and exits with HOST_EXIT 0.
+- Integration tests: run programs and check their debug output and exit code.
+- At this point the ROM may be a minimal stub. The runner can load a `.tri` and start at its load address.
+
+### M6 — Video chip and frontend display
+- The video chip renders exactly as SPEC §4 says: 27 colors, pixel packing, tiles, mirroring, tile map, scroll, sprites in order, transparency, border.
+- The renderer lives in `triada-core` and outputs an RGB pixel buffer (`int[]`). The frontend only uploads it to a libGDX `Pixmap`/`Texture` and draws it.
+- The libGDX window shows the screen at integer scale with nearest-neighbour filtering (no blur). Golden-image tests: render known memory contents and compare against stored expected images or hashes.
+- Demo program `programs/colors.tasm` shows all 27 colors plus a moving sprite.
+- **Early web check:** do a short spike (not a full build) to confirm that a current libGDX web backend can compile `triada-core`. Record the result in `DECISIONS.md` so problems are found now, not at the end.
+
+### M7 — Input and sound
+- Keyboard → KEY queue. Arrow keys → JOY_X/JOY_Y. Z/X/C → BTN_A/B/C. Remapping is optional.
+- Three-voice sound with all three waveforms (SPEC §7). Sample generation lives in `triada-core`. The frontend streams the samples through libGDX's `AudioDevice` (raw PCM) on its own audio thread, without stutter.
+- Demo `programs/piano.tasm`: keys play notes, and the joystick changes the waveform.
+
+### M8 — ROM: kernel and monitor (written in TRIADA assembly)
+- Font: use a public-domain 8×8 font (for example the public-domain *font8x8* by Daniel Hepper) or design your own. Record the source and licence in `DECISIONS.md`.
+- Jump table, all kernel routines, boot sequence, boot chime, boot screen and every monitor command from SPEC §8.
+- The ROM is assembled during the build and embedded in the emulator.
+- Integration tests: boot the machine headless, type commands into the KEY queue, check the screen contents (tile map) and results.
+
+### M9 — Debugger
+- In the desktop frontend (scene2d.ui), toggled with F1: pause/continue, single step, step over JSR, breakpoints, registers and flags (shown in decimal *and* ternary), disassembly around PC, memory viewer, fault display.
+- Loading a program: command-line `--load file.tri` and drag-and-drop of a `.tri` file onto the window ("insert triskette").
+
+### M10 — Games (written in TRIADA assembly)
+1. **TRIZMEYKA**, a snake game: tiles, joystick, score, sound.
+2. **A three-state puzzle game** whose mechanic is built on ternary itself. For example, every tile is −1/0/+1 and moves apply ROT or MIN/MAX rules. Design it yourself and explain the design in the doc.
+3. **One ambitious game**: a platformer or a shooter using scrolling and many sprites.
+Each game has an integration smoke test (it boots, runs N frames and doesn't fault).
+
+### M11 — Lore and presentation
+- `docs/manual/`: an in-universe user manual (styled as a 1985 manual), including a "type-in listing" page from the fictional magazine *Trit & Tryte*.
+- Optional CRT shader in the frontend (a libGDX `ShaderProgram`).
+- README finished, with screenshots or GIF, a "how to run" section and a link to `docs/INDEX.md`.
+- A final retrospective document: what went well, what was hard, what we'd do differently.
+
+### Stretch (only after M11)
+- A small high-level language (Pascal- or BASIC-like) compiling to TRIADA assembly.
+- A cassette-loading effect: screeching audio and stripes across the border while a program loads.
+- A web build using a libGDX web backend (TeaVM-based or GWT). First check which one is current and maintained and whether `triada-core` compiles with it, then write the choice up in `DECISIONS.md` before building.
+
+---
+
+## 4. Working loop for every milestone
+
+1. Re-read the relevant spec sections.
+2. Write a short plan at the top of the milestone doc ("Plan" section). You'll replace it later.
+3. Implement in small steps with tests.
+4. Run **all** tests, not only the new ones.
+5. Write the milestone document (§5), then do the **documentation checks** (§5.5).
+6. Update `PROGRESS.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, `INDEX.md` and `README.md` as needed.
+7. Commit.
+
+---
+
+## 5. Documentation rules (as important as the code)
+
+The documentation has **two audiences at the same time**:
+
+- **A person with no technical background.** They should understand *what* was built, *why*, and *how it works in principle*: the ideas, analogies and examples.
+- **A programmer with some experience.** Using only the docs, they should be able to rebuild the project from nothing, understanding every design decision and finding the exact code that implements each idea.
+
+Read in order, `docs/milestones/` should work like a book: **"How to build a computer that never existed."**
+
+### 5.1 Writing style
+- Plain language first, technical detail second. Every section starts with the simple explanation, then goes deeper.
+- **Explain every technical word the first time it appears in each document**, briefly and in place, and add it to `GLOSSARY.md`. Never assume the reader knows terms like "register", "opcode", "stack" or "two's complement".
+- Use **analogies** (a register is like a small notepad on the CPU's desk; memory is a long street of numbered mailboxes, with house number 0 in the middle) and **small worked examples** with real numbers.
+- Use **ASCII diagrams** or tables for layouts: instruction encoding, memory map, pixel packing.
+- Short paragraphs. No marketing tone. Be honest about trade-offs and problems.
+
+### 5.2 Code references
+Each "how it works" explanation must point to the real code:
+- Format: `` `triada-core/src/main/java/org/triada/core/cpu/Cpu.java` → `Cpu.step()` `` as a relative Markdown link to the file, plus the class or method name. Line numbers are optional. Symbol names are **mandatory**, because they survive edits.
+- Every important type or method introduced in a milestone must be referenced at least once in that milestone's doc.
+- Short code excerpts (up to about 15 lines) are welcome when they make an idea concrete. Always explain them line by line in plain words.
+
+### 5.3 Milestone document template (`docs/milestones/MNN-name.md`)
+```markdown
+# Milestone NN — <Title>
+
+## In one paragraph
+<What this milestone gives the machine, for someone who has never programmed.>
+
+## What was built
+<Bullet list of the concrete things that now exist.>
+
+## Why it was built this way
+<Each important decision: what we chose, what the alternatives were, why we
+picked this one. Link the matching DECISIONS.md entries.>
+
+## How it works — the plain-language version
+<Ideas, analogies, diagrams and worked examples with real numbers. No code needed.>
+
+## How it works — the programmer's version
+<A walkthrough of the implementation in the order a reader should study it,
+with code references (§5.2) and short explained excerpts.>
+
+## Build it yourself from scratch
+<Numbered steps that someone could follow to recreate this milestone WITHOUT
+our code: what to create first, what to test, what tends to go wrong.>
+
+## How we know it works
+<Which tests exist and what they prove, the exact commands to run them, and
+what you should see. Screenshots or output samples where useful.>
+
+## Problems we hit and how we solved them
+<Honest log of bugs, surprises and dead ends.>
+
+## Limitations and what comes next
+<What is missing or rough, and how the next milestone builds on this one.>
+
+## New words
+<Terms introduced here, each with a one-line explanation. They must also be
+added to GLOSSARY.md.>
+```
+
+### 5.4 `DECISIONS.md` entry format
+```markdown
+## D-NNN — <Short title>   (Milestone MNN, <date>)
+**Situation:** <What needed deciding.>
+**Options:** <A, B, C, with short pros/cons.>
+**Decision:** <What we chose.>
+**Why:** <Reasoning, in plain words.>
+**Consequences:** <What this makes easier or harder later.>
+```
+
+### 5.5 Documentation checks (do these before finishing each milestone)
+1. **Reference check:** every file and symbol referenced in the doc exists (verify with search). Fix broken references.
+2. **Command check:** every command in "How we know it works" was actually run and gives the output described.
+3. **Beginner pass:** re-read the doc as someone who has never programmed. Find every unexplained term and every jump in logic, and fix them.
+4. **Rebuild pass:** re-read "Build it yourself from scratch" as a programmer who can't see our code. Is any step missing? Fix it.
+5. **Glossary check:** every new term is in `GLOSSARY.md`.
+6. Update `INDEX.md` so the new doc is linked in reading order.
+
+### 5.6 Living documents
+- `ARCHITECTURE.md`: a current picture of all components and how data flows between them (CPU ↔ bus ↔ devices ↔ frontend), with a diagram. Update it whenever the architecture changes.
+- `PROGRESS.md`: a checklist of milestones with status and date.
+- `GLOSSARY.md`: alphabetical. Each entry has a simple explanation and, where relevant, "In TRIADA: …" plus the milestone where it first appears.
+
+---
+
+## 6. When stuck
+- If a test fails and you don't understand why, write a smaller test first.
+- If the spec seems wrong, follow §1 rule 1. Don't stop the whole project for a small question.
+- Stop and ask the human only for decisions that are hard to undo or that change the character of the machine, such as changing word size, the memory map or the instruction set beyond small fixes.

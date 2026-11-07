@@ -1,0 +1,6 @@
+# Keep shell scripts with LF and batch files with CRLF on every platform.
+gradlew      text eol=lf
+*.sh         text eol=lf
+*.bat        text eol=crlf
+*.jar        binary
+*.png        binary
