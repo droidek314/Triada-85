@@ -32,11 +32,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Branch**: Another word for a jump, especially a conditional one. *In TRIADA:* BR3 is a three-way branch. First seen: M3.
 
+**Breakpoint**: A mark on an instruction's address meaning "stop before executing this". *In TRIADA:* checked by `Cpu.run` before every instruction; set by clicking a line in the debugger (M9). First seen: M9.
+
 **Build**: Turning source code into something that runs, usually running the tests on the way. *In TRIADA:* `./gradlew build` builds and tests everything. First seen: M0.
 
 **Build tool**: A program that knows how to build a project: what to compile, in which order, and which libraries to download. *In TRIADA:* Gradle. First seen: M0.
 
 **Bus**: The path that carries every read and write between the processor and memory or devices. *In TRIADA:* the `Bus` class. First seen: M2.
+
+**Call depth**: How many subroutine calls deep a program currently is. *In TRIADA:* visible in SP, which is lower the deeper the calls go. First seen: M9.
 
 **Calling convention**: The agreement on which registers carry a routine's arguments and result, and which it must keep unchanged. *In TRIADA:* in R0–R2, out R0, R3–R8 preserved (SPEC §8.1). First seen: M8.
 
@@ -70,6 +74,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Debug port**: I/O registers through which a program sends text and numbers to the host instead of the screen. *In TRIADA:* DEBUG_CHAR, DEBUG_NUM, HOST_EXIT (registers 20–22). First seen: M5.
 
+**Debugger**: A tool for stopping a program and looking inside the machine: registers, memory, the code around the current instruction. *In TRIADA:* F1 in the desktop window. First seen: M9.
+
 **Decode**: Splitting an instruction word into its fields (opcode, registers, immediate). First seen: M3.
 
 **Dependency**: A ready-made library your project uses instead of writing that code itself. *In TRIADA:* libGDX (window, sound, input) and JUnit (tests), and nothing else without a DECISIONS.md entry. First seen: M0.
@@ -79,6 +85,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Directive**: A line that tells the assembler what to do (`.org`, `.str`, `.include` …) rather than producing a CPU instruction. First seen: M4.
 
 **Disassembler**: A program that turns machine words back into assembly text. *In TRIADA:* the `Disassembler` class, used by the debugger. First seen: M4.
+
+**Drag and drop**: Moving a file onto a window with the mouse to open it there. *In TRIADA:* "inserting a triskette" (D-032). First seen: M9.
 
 **Emulator**: A program that imitates a different computer closely enough to run its programs. First seen: M3.
 
@@ -137,6 +145,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Halt**: Stop the CPU for good, until a reset. *In TRIADA:* HLT, or a fault. First seen: M3.
 
 **Headless**: Running without any window, sound or keyboard, which is useful for automatic tests. *In TRIADA:* the `triada run` command (M5). First seen: M0.
+
+**Heuristic**: A rule of thumb that usually, but not always, gives the right answer. *In TRIADA:* disassembling backwards from PC. First seen: M9.
 
 **Horner's rule**: Building a number digit by digit: multiply what you have by the base, then add the next digit. `+-0` → 1, 1·3−1 = 2, 2·3+0 = 6. First seen: M1.
 
@@ -211,6 +221,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-cli` and `triada-desktop`. First seen: M0.
 
 **Monitor (program)**: A tiny built-in command line for looking at and changing memory and running programs. *In TRIADA:* HELP, PEEK, POKE, RUN, CLS, TERN (SPEC §8.3). First seen: M8.
+
+**Monospace font**: A font whose characters are all equally wide, so text lines up in columns. First seen: M9.
 
 **Most significant trit**: The leftmost trit, with the biggest place value. *In TRIADA:* t11, worth 3^11 = 177,147. First seen: M1.
 
@@ -296,6 +308,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Side effect**: A change an operation makes beyond giving its answer. *In TRIADA:* reading KEY removes the key. First seen: M2.
 
+**Single step**: Executing exactly one instruction and stopping again. First seen: M9.
+
+**Skin**: The set of looks (fonts, colours, backgrounds) a user interface's widgets use. *In TRIADA:* built in code for the debugger (D-031). First seen: M9.
+
 **Smoke test**: A very small test that only checks "does it start at all?", like switching on a new appliance to see whether smoke comes out. First seen: M0.
 
 **Source code**: The text of a program as people write it. First seen: M0.
@@ -313,6 +329,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **stderr (standard error)**: A program's second output channel, for messages about the run (errors, notes), kept apart from its real output. First seen: M5.
 
 **stdout (standard output)**: A program's main output channel. *In TRIADA:* `triada run` prints the debug-port text there. First seen: M5.
+
+**Step over**: Executing a whole subroutine call as if it were one step, stopping at the instruction after the call. First seen: M9.
 
 **Subroutine**: A piece of program that can be called from anywhere and returns to where it was called from. *In TRIADA:* JSR calls, RET returns. First seen: M3.
 
@@ -379,6 +397,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **WAV**: A common sound file format: a short header followed by PCM samples. *In TRIADA:* `triada run … --dump-audio`. First seen: M7.
 
 **Waveform**: The shape of a sound's repeating pattern. *In TRIADA:* ternary square, triangle or noise. First seen: M7.
+
+**Widget**: One piece of a user interface: a label, a button, a text field … First seen: M9.
 
 **Word**: The amount of data a computer handles in one piece. *In TRIADA:* 12 trits, −265,720 … +265,720; every register and memory cell holds one word. First seen: M1.
 

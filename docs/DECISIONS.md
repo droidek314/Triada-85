@@ -319,3 +319,45 @@ We ran the result in Node.js 22.
 
 **Why:** Any change to `rom/*.tasm` is assembled by the next build, so the emulator can't run an old ROM by mistake. The ROM needs no file or resource loading at run time, which suits the web build (D-022). Strings avoid the method-size limit that a 19,683-entry `int[]` literal would hit.
 **Consequences:** An assembly error in the ROM fails the build with the usual `file:line:column` messages. `triada-core`'s own tests keep using a machine with an empty ROM, as before.
+
+## D-030 — Debugging support in the core: stop before the instruction, finish the frame later   (Milestone M09, 2026-11-07)
+**Situation:** A debugger must stop the machine *at an instruction*, in the middle of a frame, and later continue as if nothing had happened. Until M8, `Machine.runFrame()` always ran a whole frame.
+**Options:**
+- A) Let the frontend step the CPU itself and do its own frame bookkeeping, which would duplicate `runFrame()`'s logic.
+- B) Build stopping and resuming into `Cpu` and `Machine`.
+
+**Decision:** B.
+- `Cpu.run(budget, breakAt, ignoreFirst)` stops *before* an instruction whose address is a breakpoint, and reports why it stopped (`Cpu.Stop`: BUDGET, WAIT, HALT or BREAKPOINT).
+- `Machine` keeps `cyclesLeft` for the current frame. A breakpoint stop leaves the frame open: no render, no sound, no FRAME + 1. The next `runFrame()` continues the same frame and executes the instruction it stopped at first.
+- `Machine.step()` runs one instruction, and finishes the frame if that instruction was WAIT or the budget's last cycle.
+- Breakpoints live in a `boolean[]` over all 531,441 addresses, created only when the first breakpoint is set and dropped when the last is removed.
+- `ignoreBreakpointAtPc()` lets "continue" leave a spot the debugger paused on.
+
+**Why:** The rules for when a frame ends belong in exactly one place. Stopping and continuing must not change what a program computes or when its frames end; a test checks that a frame interrupted 100 times still gets exactly 59,049 cycles. Without breakpoints the CPU loop pays one null check per instruction; the benchmark shows no measurable change (12.2× real time).
+**Consequences:** The CLI and tests don't change: without breakpoints `runFrame()` always completes a frame. The picture and sound are produced only when a frame ends, so while stepping in the middle of a frame the screen doesn't change. That is authentic: the real chip draws once per frame too.
+
+## D-031 — The debugger's interface: scene2d with a code-built skin and the ROM font   (Milestone M09, 2026-11-07)
+**Situation:** CLAUDE.md asks for the debugger in scene2d.ui. scene2d needs a Skin and a font. libGDX's sample skin isn't part of the library, and its default font is proportional, which would put trits and registers out of line.
+**Decision:**
+- **Skin:** made in code from one white pixel, tinted per colour; no asset files.
+- **Font:** the TRIADA's own ROM font at 2×. Its 95 glyphs are drawn into a Pixmap, and libGDX reads an AngelCode BMFont description generated in memory (a `FileHandle` subclass whose `read()` returns the text), so libGDX's own parser handles the metrics.
+- **Layout:** with the debugger open, the screen moves to the top left at 2×, the memory viewer goes under it, and a 464-pixel panel on the right shows status, buttons, registers (decimal and 12 trits), the disassembly around PC and the breakpoints.
+- **Keys** (as in common PC debuggers): F1 shows/hides; F5 continue/pause; F11 step; F10 step over. They are only active while the panel is shown, except F1.
+- **Breakpoints:** click a disassembly line, or type an address (decimal or `0t…`).
+- **Automatic opening:** the panel opens by itself when a breakpoint or a fault pauses the machine.
+- **Step over** on a JSR runs to the instruction after it. That stop counts only when SP is back at its old value, so recursion works. A user breakpoint inside the subroutine wins.
+- **Pixel coordinates:** the window uses `HdpiMode.Pixels`, so layout and mouse coordinates are real pixels.
+
+**Why:** One font everywhere makes columns line up and makes the debugger look like part of the machine. A code-built skin keeps the project free of extra files and dependencies. All the debugger's *decisions* live in the plain class `Debugger`, which has 16 tests; `DebuggerView` only displays.
+**Consequences:** The panel needs a window of about 960 × 672 to show the screen at 2×; smaller windows fall back to 1×. Typing goes to the TRIADA unless a debugger text field has the keyboard. Enter in a field applies it and gives the keyboard back.
+
+## D-032 — Loading programs: `--load`, and dropping a triskette on the window   (Milestone M09, 2026-11-07)
+**Situation:** CLAUDE.md asks for `--load file.tri` and drag-and-drop ("insert triskette").
+**Decision:**
+- `--load FILE` on the desktop command line, or (as before) just a file name.
+- Dropping a file on the window powers the machine on (RAM cleared, ROM kept), boots, and starts the program through AUTORUN (D-028), exactly like switching on with a cartridge in. Only the first file of a multi-file drop is used.
+- Both `.tri` files and `.tasm` sources (assembled on the spot) are accepted.
+- Breakpoints survive a new triskette, so you can set them first and then drop the program. Errors appear in the debugger's status line and on stderr.
+
+**Why:** Power-on plus AUTORUN is what a real machine would do, and it reuses M8's tested path.
+**Consequences:** Dropping is wired to the same `Debugger.insertTriskette()` that the unit tests exercise. The drop *event* itself could not be simulated by our window-testing tools (see the M9 document).

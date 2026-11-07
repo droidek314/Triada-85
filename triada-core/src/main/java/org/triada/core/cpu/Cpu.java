@@ -63,6 +63,20 @@ public final class Cpu {
 
     // ---------------------------------------------------------------- running
 
+    /** Why {@link #run} returned. */
+    public enum Stop {
+        /** The cycle budget is used up. */
+        BUDGET,
+        /** A WAIT (or a device's {@link #endFrame()}) ended the frame. */
+        WAIT,
+        /** The CPU is halted (HLT or a fault). */
+        HALT,
+        /** The next instruction's address is a breakpoint; it has NOT been executed. */
+        BREAKPOINT
+    }
+
+    private Stop lastStop = Stop.BUDGET;
+
     /**
      * Runs one frame's worth of instructions (SPEC §6): until {@code budget}
      * cycles are used, a {@code WAIT} executes, or the CPU halts.
@@ -70,17 +84,50 @@ public final class Cpu {
      * @return the number of cycles actually used (0 if already halted)
      */
     public int runFrame(int budget) {
+        return run(budget, null, false);
+    }
+
+    /**
+     * Runs instructions until one of the {@link Stop} reasons happens; the
+     * debugger's way of running (M9).
+     *
+     * @param budget      the most cycles to use
+     * @param breakAt     breakpoints, indexed by {@code address + Word.MAX}, or null for none
+     * @param ignoreFirst true to execute the first instruction even if its address is a
+     *                    breakpoint: that is how execution resumes FROM a breakpoint
+     * @return the number of cycles used; {@link #lastStop()} says why it stopped
+     */
+    public int run(int budget, boolean[] breakAt, boolean ignoreFirst) {
         waitRequested = false;          // a WAIT single-stepped outside a frame doesn't carry over
         int used = 0;
-        while (used < budget && !halted) {
+        boolean first = true;
+        while (true) {
+            if (halted) {
+                lastStop = Stop.HALT;
+                return used;
+            }
+            if (used >= budget) {
+                lastStop = Stop.BUDGET;
+                return used;
+            }
+            if (breakAt != null && breakAt[pc + Word.MAX] && !(first && ignoreFirst)) {
+                lastStop = Stop.BREAKPOINT;
+                return used;
+            }
+            first = false;
             step();
             used++;
             if (waitRequested) {
                 waitRequested = false;
-                break;              // WAIT: the rest of this frame's cycles are skipped
+                lastStop = Stop.WAIT;   // the rest of this frame's cycles are skipped
+                return used;
             }
         }
-        return used;
+    }
+
+    /** Why the last {@link #run} (or {@link #runFrame}) returned. */
+    public Stop lastStop() {
+        return lastStop;
     }
 
     /**

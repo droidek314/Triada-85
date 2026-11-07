@@ -8,6 +8,7 @@ import org.triada.core.io.SystemDevice;
 import org.triada.core.memory.Bus;
 import org.triada.core.memory.MemoryMap;
 import org.triada.core.sound.SoundChip;
+import org.triada.core.ternary.Word;
 import org.triada.core.video.VideoChip;
 
 /**
@@ -49,17 +50,107 @@ public final class Machine {
         bus.attach(DebugDevice.FIRST_REGISTER, DebugDevice.REGISTER_COUNT, debug);
     }
 
+    /** Cycles the CPU may still use in the current frame (less than 59,049 after a breakpoint stop). */
+    private int cyclesLeft = CYCLES_PER_FRAME;
+    /** Breakpoints, indexed by address + Word.MAX; null while there are none (no cost then). */
+    private boolean[] breakAt;
+    private int breakpointCount;
+    /** The CPU stands ON a breakpoint: the next run executes that instruction first. */
+    private boolean atBreakpoint;
+
     /**
-     * Runs one frame.
+     * Runs the rest of the current frame (normally all of it): the CPU uses
+     * its remaining budget, or stops at WAIT or a halt; then the video chip
+     * draws, the sound chip plays, and FRAME counts up.
      *
-     * @return the CPU cycles used in this frame
+     * <p>If the CPU reaches a breakpoint first, it stops BEFORE that
+     * instruction and the frame stays unfinished ({@link #stoppedAtBreakpoint()});
+     * the next call continues the same frame from there.
+     *
+     * @return the CPU cycles used by this call
      */
     public int runFrame() {
-        int used = cpu.runFrame(CYCLES_PER_FRAME);
+        int used = cpu.run(cyclesLeft, breakAt, atBreakpoint);
+        atBreakpoint = false;
+        cyclesLeft -= used;
+        if (cpu.lastStop() == Cpu.Stop.BREAKPOINT) {
+            atBreakpoint = true;
+            return used;
+        }
+        finishFrame();
+        return used;
+    }
+
+    /**
+     * Executes exactly one instruction (the debugger's single step), ignoring a
+     * breakpoint on it. If that instruction ends the frame (a WAIT, or the last
+     * cycle of the budget), the frame is finished as in {@link #runFrame()}. A
+     * halted CPU executes nothing, so the step just finishes the frame.
+     */
+    public void step() {
+        int used = cpu.run(1, null, true);
+        atBreakpoint = false;
+        cyclesLeft -= used;
+        Cpu.Stop stop = cpu.lastStop();
+        if (stop == Cpu.Stop.WAIT || cyclesLeft <= 0 || (stop == Cpu.Stop.HALT && used == 0)) {
+            finishFrame();
+        }
+    }
+
+    /** End of a frame (SPEC §6): picture, sound, FRAME + 1, and a fresh cycle budget. */
+    private void finishFrame() {
         video.render();             // the picture shows memory as the CPU left it
         sound.renderFrame();        // and the sound plays the registers as the CPU left them
         system.advanceFrame();
-        return used;
+        cyclesLeft = CYCLES_PER_FRAME;
+    }
+
+    /** True if the last {@link #runFrame()} stopped at a breakpoint (the frame isn't finished). */
+    public boolean stoppedAtBreakpoint() {
+        return atBreakpoint;
+    }
+
+    /**
+     * Makes the next {@link #runFrame()} execute the instruction at PC even if
+     * it is a breakpoint. The debugger calls this when it continues from a
+     * position it paused at, so "continue" never stops at the same spot again.
+     */
+    public void ignoreBreakpointAtPc() {
+        atBreakpoint = true;
+    }
+
+    /** Cycles the CPU may still use in the current frame. */
+    public int cyclesLeftInFrame() {
+        return cyclesLeft;
+    }
+
+    /** Sets or clears a breakpoint: the CPU will stop before executing the instruction at {@code address}. */
+    public void setBreakpoint(int address, boolean on) {
+        if (!Word.isValid(address)) {
+            throw new IllegalArgumentException(address + " is not an address");
+        }
+        if (on && breakAt == null) {
+            breakAt = new boolean[Word.COUNT];
+        }
+        if (breakAt == null || breakAt[address + Word.MAX] == on) {
+            return;
+        }
+        breakAt[address + Word.MAX] = on;
+        breakpointCount += on ? 1 : -1;
+        if (breakpointCount == 0) {
+            breakAt = null;             // none left: back to zero cost
+        }
+    }
+
+    /** True if there is a breakpoint at {@code address}. */
+    public boolean isBreakpoint(int address) {
+        return breakAt != null && breakAt[address + Word.MAX];
+    }
+
+    /** Removes every breakpoint. */
+    public void clearBreakpoints() {
+        breakAt = null;
+        breakpointCount = 0;
     }
 
     /**
@@ -70,6 +161,8 @@ public final class Machine {
     public void powerOn() {
         bus.clearRam();
         cpu.reset();
+        cyclesLeft = CYCLES_PER_FRAME;
+        atBreakpoint = false;
         system.resetFrame();
         input.clearKeys();
         debug.reset();

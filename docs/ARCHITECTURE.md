@@ -41,7 +41,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
 
-## Current state (after M8)
+## Current state (after M9)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -50,7 +50,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `org.triada.core.memory`: `MemoryMap` (all address constants, `regionOf`) and `Bus` (routes every read and write to RAM, ROM, an I/O device or nowhere).
 - `org.triada.core.io`: the `IoDevice` plug-in interface, the `IoRegisters` numbers, `InputDevice` (joystick, buttons, KEY queue) and `SystemDevice` (FRAME, RAND).
 - `org.triada.core.cpu`: `Instruction` (encoding, opcode tables), `Cpu` (registers, flags, `step()`, `runFrame()`) and `Fault`.
-- `org.triada.core.Machine`: bus + CPU + devices wired together; `runFrame()` is one 1/60-second frame.
+- `org.triada.core.Machine`: bus + CPU + devices wired together; `runFrame()` is one 1/60-second frame. Since M9 it can stop at breakpoints in the middle of a frame and continue it later (`setBreakpoint`, `step`, `stoppedAtBreakpoint`; `Cpu.run` / `Cpu.Stop`, D-030).
 - `triada-core` also has `TriImage`: a program image (load address + words) and the `.tri` byte format.
 - `triada-assembler`: `Lexer` → `Parser` → `Assembler` (two passes; `.include` through the `SourceLoader` interface, so no file I/O) → `AssemblyResult` (image, listing, symbols). `Disassembler` turns words back into text. Errors are `AssemblyError` records with file, line and column.
 - `triada-core` also has `DebugDevice` (registers 20–22: DEBUG_CHAR, DEBUG_NUM, HOST_EXIT), which buffers output for the host and ends the frame on HOST_EXIT via `Cpu.endFrame()`.
@@ -58,7 +58,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `org.triada.core.video`: `Palette` (27 colours) and `VideoChip` (registers SCROLL_X, SCROLL_Y, BORDER; `render()` turns tile map, tiles and sprites into a 240 × 168 RGB `int[]`). `Machine.runFrame()` renders after the CPU; `Machine.loadProgram()` loads a `TriImage` and starts it.
 - `org.triada.core.sound.SoundChip`: registers V1–V3 FREQ/VOL/WAVE; 735 samples per frame at 44,100 Hz (`renderFrame()`, `frameSamples()`).
 - `triada-cli` can save the picture and the sound: `run --dump-screen out.png` (`ScreenDump`, javax.imageio) and `--dump-audio out.wav` (`WavRecorder`).
-- `triada-desktop`: `DesktopLauncher` (optional program argument, window focus listener), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons), `SoundOutput` + `SampleRing` (audio thread, D-025).
+- `triada-desktop`: `DesktopLauncher` (`--load`, drag-and-drop, window focus listener), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons), `SoundOutput` + `SampleRing` (audio thread, D-025). Package `debug`: `Debugger` (pause/step/step over/breakpoints, tested logic), `DebuggerView` (scene2d.ui panel, F1) and `TriadaFont` (the ROM font as a BitmapFont), D-031.
 - `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm` and `piano.tasm`.
 - `rom/` holds the ROM source (`rom.tasm`, `sysvars.tasm`, `kernel.tasm`, `monitor.tasm`, generated `font.tasm`), the public-domain font in `third_party/`, and the font converter in `tools/`. `triada-rom` assembles it at every build (D-029); the CLI and desktop boot through it and start programs via the AUTORUN system variable (D-028).
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
@@ -101,6 +101,21 @@ Host code (frontends, tests, the future debugger) also uses `Bus.peek()` (no sid
 ```
 
 The `Disassembler` goes the other way (words -> text) and will be used by the debugger (M9).
+
+## The desktop frontend, with the debugger
+
+```
+ render() (60, 75, 144 ... times per second)
+   FrameClock.advance(dt) -> frames due
+   Debugger.runFrames(due) -> Machine.runFrame() ... (not while paused)
+        | stopped at a breakpoint?  -> Debugger decides: pause, or continue (step over, deeper level)
+        | each finished frame       -> frame listener -> SoundOutput.submit(samples)
+   upload VideoChip.frame() -> Texture -> SpriteBatch (full size, or 2x beside the panel)
+   DebuggerView.refresh() + stage.draw()  (if F1)
+
+ input: F-keys -> debugger | panel (Stage) | InputMapper -> InputDevice (KEY queue, joystick, buttons)
+ drop a file -> TriadaApp.insertTriskette -> Debugger.insertTriskette -> powerOn + Rom.autorun
+```
 
 ## Data flow (planned; filled in as milestones land)
 

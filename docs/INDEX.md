@@ -21,6 +21,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M6 | [Video chip and frontend display](milestones/M06-video.md) | 27 colours from three trits, tiles, scrolling, sprites, the border; the desktop window at integer scale; golden-image tests; and an early check that the machine can run in a browser. |
 | M7 | [Input and sound](milestones/M07-input-and-sound.md) | Keyboard, joystick and buttons; a three-voice sound chip with the ternary square wave; exact pitch; an audio thread fed through a ring buffer; and a playable piano. |
 | M8 | [ROM: kernel and monitor](milestones/M08-rom.md) | The built-in software, written in TRIADA assembly: boot, font, chime, the kernel routines and the monitor; bits on a machine without bits; building the ROM into the emulator. |
+| M9 | [Debugger](milestones/M09-debugger.md) | Stopping a machine at exactly the right instruction and continuing as if nothing happened; step, step over (even through recursion), breakpoints; a debugger panel in the machine's own font; inserting triskettes. |
 
 ## Reference documents
 
