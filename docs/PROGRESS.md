@@ -6,7 +6,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 |---|---|---|---|
 | M0 | Project setup | ✅ done | 2026-11-07 |
 | M1 | Ternary math | ✅ done | 2026-11-07 |
-| M2 | Memory and bus | ⬜ not started | |
+| M2 | Memory and bus | ✅ done | 2026-11-07 |
 | M3 | CPU core | ⬜ not started | |
 | M4 | Assembler and disassembler | ⬜ not started | |
 | M5 | Headless runner and first program | ⬜ not started | |

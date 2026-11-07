@@ -54,3 +54,17 @@ Format: see CLAUDE.md §5.4.
 **Decision:** A. SPEC §3.5 now says "Division by zero (in `DIV` or `MOD`): result 0".
 **Why:** It is the most literal reading of the existing sentence, and one simple rule for both instructions is easier to remember. It also matches S = 0, which the spec already requires: S is the sign of the result, and only a result of 0 has sign 0.
 **Consequences:** `WordMath.mod(a, 0)` returns 0. In M3 the CPU writes 0 into `rd` for both DIV and MOD by zero.
+
+## D-007 — The KEY queue holds 27 keys and drops new ones when full   (Milestone M02, 2026-11-07)
+**Situation:** SPEC §5 says KEY returns the "next key from the keyboard queue" and that reading removes it, but doesn't say how big the queue is or what happens when it fills up.
+**Options:** A) Unlimited queue. B) A fixed size, dropping the *oldest* key when full. C) A fixed size, dropping the *newest* key when full.
+**Decision:** C, with 27 (3^3) keys.
+**Why:** Real home computers had small keyboard buffers that lost keystrokes typed faster than the program read them, so C feels authentic. A fixed array (a ring buffer) never allocates, which keeps `triada-core` garbage-free. An unlimited queue could grow forever while a program never reads KEY, such as a game that only uses the joystick. Dropping the newest key keeps what was typed first in order, which matters for typing commands into the monitor. 27 is a round ternary number, larger than anything a person can type in one frame.
+**Consequences:** `InputDevice.pushKey()` returns `false` when it drops a key, so the frontend could beep or log it. Tests that type long commands into the monitor (M8) must type at most 27 keys per frame, or run frames in between.
+
+## D-008 — I/O devices: register numbers `k`, and separate `read` / `peek`   (Milestone M02, 2026-11-07)
+**Situation:** CLAUDE.md asks for a pluggable device interface for the I/O registers. Two details were open. Should a device see the register's address or its number? And how can a debugger look at registers whose reads change something (KEY)?
+**Options:** for the first, the address (−20,406), the number counted from the device's own first register, or the spec's register number k (6). For the second, accept that looking changes things, or add a second, side-effect-free read.
+**Decision:** Devices receive the spec's register number `k` (0 … 728), with names in `IoRegisters`. `IoDevice` has `read(k)` (may have side effects), `peek(k)` (must not; the default calls `read`) and `write(k, value)`. The bus has a matching `Bus.peek()`.
+**Why:** `k` is how SPEC §5 names registers, so device code reads like the spec table (`case IoRegisters.KEY:`). A debugger that eats the key you just typed whenever its memory viewer refreshes would be a nasty, confusing bug. The split costs one method, and most devices don't need to write it at all.
+**Consequences:** The debugger (M9) must use `Bus.peek()`, never `Bus.read()`. A device attached to several registers checks `k` with a `switch`.

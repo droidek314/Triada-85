@@ -36,15 +36,34 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, libGDX |
 
-## Current state (after M1)
+## Current state (after M2)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
   - `Word`: the 12-trit word, stored as a plain `int` (D-004), with wrap, carry and trit access.
   - `WordMath`: every arithmetic and trit-wise operation the CPU needs. Static and allocation-free.
+- `org.triada.core.memory`: `MemoryMap` (all address constants, `regionOf`) and `Bus` (routes every read and write to RAM, ROM, an I/O device or nowhere).
+- `org.triada.core.io`: the `IoDevice` plug-in interface, the `IoRegisters` numbers, and `InputDevice` (joystick, buttons, KEY queue).
 - `triada-assembler` is an empty library with a package description.
 - `triada-cli` prints a usage message.
 - `triada-desktop` opens a 960 × 672 window titled "TRIADA-85" and clears it to a dark color every frame.
+
+## Inside triada-core: the bus
+
+```
+              read(address) / write(address, value)
+   CPU (M3) -----------------------------------------> Bus
+                                                        |
+        +-------------------+---------------------------+-------------------+
+        v                   v                           v                   v
+   RAM  int[59049]     ROM  int[19683]        devices[k], k = address - IO_BASE   unmapped
+   0 ... 59,048        -19,683 ... -1          -20,412 ... -19,684                 -> 0
+                       (CPU writes ignored)     |
+                                                +- k = 1 ... 6  InputDevice (joystick, buttons, KEY)
+                                                +- others       not attached yet -> read 0
+```
+
+Host code (frontends, tests, the future debugger) also uses `Bus.peek()` (no side effects), `Bus.loadRom()`, `Bus.loadRam()` and `Bus.attach()`.
 
 ## Data flow (planned; filled in as milestones land)
 

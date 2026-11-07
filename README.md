@@ -10,7 +10,7 @@ This project builds that whole machine as a program you can run on a normal PC: 
 
 ## Status
 
-Milestones **M0 (project setup)** and **M1 (ternary math)** are done. The project builds, an empty window titled "TRIADA-85" opens, and the machine's three-valued arithmetic works and has been checked for every one of its 531,441 possible numbers. See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
+Milestones **M0 (project setup)**, **M1 (ternary math)** and **M2 (memory and bus)** are done. The project builds and an empty window titled "TRIADA-85" opens. The machine's three-valued arithmetic works and has been checked for every one of its 531,441 possible numbers. Its memory (RAM, ROM, the I/O registers and the keyboard queue) is in place, waiting for a processor. See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
 
 ## Where to start reading
 
