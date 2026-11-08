@@ -11,9 +11,11 @@ import org.triada.core.memory.MemoryMap;
  * <ul>
  * <li>the ROM routines of the jump table (SPEC §8.1): {@code RESET},
  *     {@code PUTCHAR}, {@code PRINT}, {@code PRINTNUM}, {@code CLS},
- *     {@code GETKEY}, {@code LOCATE};</li>
+ *     {@code GETKEY}, {@code LOCATE}, and since M13 {@code DISKSAVE},
+ *     {@code DISKLOAD}, {@code DISKDIR}, {@code DISKDEL};</li>
  * <li>{@code IO_BASE} and every I/O register name as an offset from it
- *     ({@code FRAME = 0}, {@code JOY_X = 1}, … {@code HOST_EXIT = 22});</li>
+ *     ({@code FRAME = 0}, {@code JOY_X = 1}, … {@code HOST_EXIT = 22}, and since M13 {@code TS_CMD = 23} …
+ *     {@code TS_STATUS = 27});</li>
  * <li>{@code TILES}, {@code MAP} and {@code SPRITES}.</li>
  * </ul>
  * Built-in names are case-sensitive, like labels, and can't be redefined.
@@ -23,6 +25,7 @@ public final class BuiltinSymbols {
     /** ROM routine names in jump-table order; entry i is at ROM_START + 2·i. */
     private static final String[] ROM_ROUTINES = {
         "RESET", "PUTCHAR", "PRINT", "PRINTNUM", "CLS", "GETKEY", "LOCATE",
+        "DISKSAVE", "DISKLOAD", "DISKDIR", "DISKDEL",
     };
 
     private static final Map<String, Integer> ALL;

@@ -30,9 +30,15 @@ public final class IoRegisters {
     public static final int DEBUG_CHAR = 20;
     public static final int DEBUG_NUM = 21;
     public static final int HOST_EXIT = 22;
+    /** Triskette drive (SPEC §5.1, M13). */
+    public static final int TS_CMD = 23;
+    public static final int TS_NAME = 24;
+    public static final int TS_ADDR = 25;
+    public static final int TS_LEN = 26;
+    public static final int TS_STATUS = 27;
 
-    /** Number of registers the spec defines (0 … 22); the rest are reserved. */
-    public static final int DEFINED_COUNT = 23;
+    /** Number of registers the spec defines (0 … 27); the rest are reserved. */
+    public static final int DEFINED_COUNT = 28;
 
     /** Total number of register slots (0 … 728). */
     public static final int COUNT = 729;
@@ -43,6 +49,7 @@ public final class IoRegisters {
         "V1_FREQ", "V1_VOL", "V1_WAVE", "V2_FREQ", "V2_VOL", "V2_WAVE",
         "V3_FREQ", "V3_VOL", "V3_WAVE",
         "RAND", "DEBUG_CHAR", "DEBUG_NUM", "HOST_EXIT",
+        "TS_CMD", "TS_NAME", "TS_ADDR", "TS_LEN", "TS_STATUS",
     };
 
     private IoRegisters() {

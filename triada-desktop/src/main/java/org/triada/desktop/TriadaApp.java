@@ -16,6 +16,8 @@ import org.triada.app.MachineScreen;
 import org.triada.core.Machine;
 import org.triada.core.MachineInfo;
 import org.triada.core.TriImage;
+import org.triada.core.triskette.TrisketteException;
+import org.triada.core.triskette.TrisketteNames;
 import org.triada.core.sound.SoundChip;
 import org.triada.core.video.VideoChip;
 import org.triada.desktop.debug.Debugger;
@@ -247,12 +249,24 @@ public class TriadaApp extends ApplicationAdapter {
     }
 
     /**
-     * A file was dropped on the window: "insert the triskette". The machine
-     * powers on and boots, then runs the program (AUTORUN).
+     * A file was dropped on the window: "insert the triskette". It is copied
+     * onto the triskette (M13), so it shows up in FILES. Machine code then
+     * runs: the machine powers on and boots, then starts it (AUTORUN). A
+     * TRIBASIC program ({@code .TB}) is only stored.
      */
     void insertTriskette(Path file) {
         try {
             TriImage image = DesktopLauncher.load(file.toString());
+            String stored = TrisketteNames.forHostFile(file.getFileName().toString());
+            try {
+                machine.triskette().port().write(stored, image);
+            } catch (TrisketteException e) {
+                Gdx.app.error("triada", "can't store " + stored + " on the triskette: " + e.getMessage());
+            }
+            if (stored.endsWith(".TB")) {
+                Gdx.graphics.setTitle(MachineInfo.NAME + " - " + stored + " is on the triskette");
+                return;
+            }
             debugger.insertTriskette(image, file.getFileName().toString());
             Gdx.graphics.setTitle(MachineInfo.NAME + " - " + file.getFileName());
         } catch (Exception e) {

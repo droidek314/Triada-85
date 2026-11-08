@@ -11,6 +11,7 @@
 ;
 ;  Files:  sysvars.tasm  system variables (RAM 0 ... 242)
 ;          kernel.tasm   boot, screen output, keyboard
+;          disk.tasm     the triskette routines (M13)
 ;          monitor.tasm  the command line you see after boot
 ;          font.tasm     the 8 x 8 character set (generated)
 ; ============================================================================
@@ -27,8 +28,13 @@
         JMP cls                     ; -19,675  CLS
         JMP getkey                  ; -19,673  GETKEY    -> R0 = key (waits)
         JMP locate                  ; -19,671  LOCATE    R0 = column, R1 = row
-        ; -19,669 ... : reserved for future entries
+        JMP disksave                ; -19,669  DISKSAVE  R0 = name, R1 = address, R2 = length (M13)
+        JMP diskload                ; -19,667  DISKLOAD  R0 = name, R1 = address or -1 (M13)
+        JMP diskdir                 ; -19,665  DISKDIR   R0 = buffer, R1 = room (M13)
+        JMP diskdel                 ; -19,663  DISKDEL   R0 = name (M13)
+        ; -19,661 ... : reserved for future entries
 
         .include "kernel.tasm"
+        .include "disk.tasm"
         .include "monitor.tasm"
         .include "font.tasm"

@@ -25,6 +25,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M10 | [Games](milestones/M10-games.md) | Three games in TRIADA assembly: a snake with trit-coloured food, a puzzle whose moves are the CPU's own trit-wise instructions, and a scrolling shooter with two dozen sprites; painting tiles with arithmetic; tests that play. |
 | M11 | [Lore and presentation](milestones/M11-lore-and-presentation.md) | The owner's manual whose examples are tested against the machine, a type-in listing typed in by a test, a CRT shader, pictures made by the machine itself, and the finished README. |
 | M12 | [The web version](milestones/M12-web-version.md) | Translating the machine to JavaScript, sharing one frontend between desktop and browser, sound in a web page, and publishing on GitHub Pages behind the tests. |
+| M13 | [The triskette storage device](milestones/M13-triskette.md) | Phase 2 begins: a disk drive driven through five I/O registers, one storage interface with three homes (memory, a PC folder, browser storage), ROM routines, and getting files in and out. |
 
 Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 

@@ -1,0 +1,71 @@
+; ============================================================================
+;  DISK.TASM -- the triskette routines (M13, SPEC 5.1 and 8.5)
+;
+;  Each routine fills the drive's registers from R0 ... R2, starts one
+;  command and returns its status in R0 (0 = OK, -1 not found, -2 no space,
+;  -3 bad name, -4 I/O error). The status is the last value loaded, so S is
+;  already set from it: a caller can test with JNZ right after the JSR.
+;  Like every kernel routine they may change R0 ... R2 and keep R3 ... R8;
+;  R3 is borrowed to point at the I/O registers and given back.
+;
+;  A file name is a string: one character per word, ending with a 0 word.
+; ============================================================================
+
+; ---------------------------------------------------------------------------
+; DISKSAVE: R0 = name, R1 = address, R2 = length (words)  ->  R0 = status
+; Writes the R2 words at R1 into the file, replacing a file of that name.
+; ---------------------------------------------------------------------------
+disksave: PUSH R3
+        LDI R3, IO_BASE
+        ST R0, [R3+TS_NAME]
+        ST R1, [R3+TS_ADDR]
+        ST R2, [R3+TS_LEN]
+        LDI R0, 1                       ; SAVE
+        JMP disk_go
+
+; ---------------------------------------------------------------------------
+; DISKLOAD: R0 = name, R1 = address, or a negative number for "to the file's
+; own address" (negative addresses are never RAM)
+;   ->  R0 = status, R1 = address it was loaded to, R2 = length (words)
+; ---------------------------------------------------------------------------
+diskload: PUSH R3
+        LDI R3, IO_BASE
+        ST R0, [R3+TS_NAME]
+        ST R1, [R3+TS_ADDR]
+        LDI R0, 2                       ; LOAD to R1
+        MOV R1, R1
+        JGE dl_go
+        LDI R0, 5                       ; LOAD-HOME
+dl_go:  ST R0, [R3+TS_CMD]
+        LD R1, [R3+TS_ADDR]
+        LD R2, [R3+TS_LEN]
+        JMP disk_status
+
+; ---------------------------------------------------------------------------
+; DISKDIR: R0 = buffer, R1 = room in the buffer (words)
+;   ->  R0 = status, R1 = words used (with -2 = no space: words needed)
+; The buffer gets every file name as a 0-terminated string, then one more 0.
+; ---------------------------------------------------------------------------
+diskdir: PUSH R3
+        LDI R3, IO_BASE
+        ST R0, [R3+TS_ADDR]
+        ST R1, [R3+TS_LEN]
+        LDI R0, 3                       ; DIR
+        ST R0, [R3+TS_CMD]
+        LD R1, [R3+TS_LEN]
+        JMP disk_status
+
+; ---------------------------------------------------------------------------
+; DISKDEL: R0 = name  ->  R0 = status
+; ---------------------------------------------------------------------------
+diskdel: PUSH R3
+        LDI R3, IO_BASE
+        ST R0, [R3+TS_NAME]
+        LDI R0, 4                       ; DELETE
+
+disk_go: ST R0, [R3+TS_CMD]
+disk_status:
+        LD R0, [R3+TS_STATUS]           ; sets S from the status
+        POP R3                          ; POP sets S too: test R0 again below
+        MOV R0, R0
+        RET

@@ -30,7 +30,8 @@ This project builds that whole machine as a program you can run on a normal PC o
 - **The [owner's manual](docs/manual/README.md),** written as if printed in 1985, with a type-in listing from *Trit & Tryte*. Its examples are checked by tests against the real machine.
 - **An optional CRT look** (F2): curved glass, scanlines, phosphor stripes.
 - **[A web version](https://droidek314.github.io/Triada-85/)**: the same machine in a browser, with everything except the debugger, published by GitHub after every change that passes the tests.
-- **540 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
+- **A triskette drive** (M13): programs can save, load, list and delete files. On the desktop the triskette is the folder `triskettes/`; on the web page it lives in your browser, with import and export.
+- **563 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
 
 ## How to run
 
@@ -72,7 +73,7 @@ In the window:
 | Z, X, C | fire buttons A, B, C |
 | F1 | the debugger: F5 pause/continue, F11 step, F10 step over, click a line for a breakpoint |
 | F2 | the CRT look on/off |
-| drop a file on the window | "insert a triskette": the machine restarts and runs it |
+| drop a file on the window | "insert a triskette": it is stored on the triskette, and machine code runs |
 
 More programs are in [`programs/`](programs/), for example `colors.tasm` (all 27 colours), `piano.tasm` (your keyboard as a piano) and `triangle.tasm` (the type-in listing).
 
@@ -130,4 +131,4 @@ The desktop can also save a picture without opening a visible window, for exampl
 | `programs/` | Example programs and the three games, in TRIADA assembly. |
 | `docs/` | Everything written about it. |
 
-Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). See [docs/PROGRESS.md](docs/PROGRESS.md).
+Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2 is under way: the triskette drive (**M13**) is done; TRIBASIC, the built-in programming language, comes in M14–M15. See [docs/PROGRESS.md](docs/PROGRESS.md).

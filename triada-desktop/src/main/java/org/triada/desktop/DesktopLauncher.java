@@ -14,6 +14,7 @@ import org.triada.core.Machine;
 import org.triada.core.MachineInfo;
 import org.triada.core.TriImage;
 import org.triada.core.video.VideoChip;
+import org.triada.cli.FolderTriskette;
 import org.triada.rom.Rom;
 
 /**
@@ -54,6 +55,7 @@ public final class DesktopLauncher {
         }
         String program = options.program();
         Machine machine = Rom.newMachine();
+        machine.triskette().setPort(new FolderTriskette(options.disk()));
         String title = MachineInfo.NAME;
         if (program != null) {
             try {

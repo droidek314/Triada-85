@@ -17,7 +17,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M10 | Games | ✅ done | 2026-11-08 |
 | M11 | Lore and presentation | ✅ done | 2026-11-08 |
 | M12 | The web version (stretch goal) | ✅ done | 2026-11-08 |
-| M13 | Triskette storage device (Phase 2) | 🔄 in progress | |
+| M13 | Triskette storage device (Phase 2) | ✅ done | 2026-11-08 |
 | M14 | TRIBASIC I: the interpreter core | ⬜ not started | |
 | M15 | TRIBASIC II: strings, arrays, machine access, storage and release | ⬜ not started | |
 

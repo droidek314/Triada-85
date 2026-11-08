@@ -18,3 +18,6 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+# Triskettes (M13): the desktop's default triskette folder
+triskettes/

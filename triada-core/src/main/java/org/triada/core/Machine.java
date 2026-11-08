@@ -8,6 +8,7 @@ import org.triada.core.io.SystemDevice;
 import org.triada.core.memory.Bus;
 import org.triada.core.memory.MemoryMap;
 import org.triada.core.sound.SoundChip;
+import org.triada.core.triskette.TrisketteDevice;
 import org.triada.core.ternary.Word;
 import org.triada.core.video.VideoChip;
 
@@ -39,6 +40,7 @@ public final class Machine {
     private final DebugDevice debug = new DebugDevice(cpu::endFrame);
     private final VideoChip video = new VideoChip(bus);
     private final SoundChip sound = new SoundChip();
+    private final TrisketteDevice triskette = new TrisketteDevice(bus);
 
     /** A machine in power-on state, with an empty (all-zero) ROM. */
     public Machine() {
@@ -48,6 +50,7 @@ public final class Machine {
         bus.attach(SoundChip.FIRST_REGISTER, SoundChip.REGISTER_COUNT, sound);
         bus.attach(IoRegisters.RAND, 1, system);
         bus.attach(DebugDevice.FIRST_REGISTER, DebugDevice.REGISTER_COUNT, debug);
+        bus.attach(TrisketteDevice.FIRST_REGISTER, TrisketteDevice.REGISTER_COUNT, triskette);
     }
 
     /** Cycles the CPU may still use in the current frame (less than 59,049 after a breakpoint stop). */
@@ -169,6 +172,7 @@ public final class Machine {
         video.reset();
         video.render();
         sound.reset();
+        triskette.reset();
     }
 
     /**
@@ -195,6 +199,11 @@ public final class Machine {
 
     public Cpu cpu() {
         return cpu;
+    }
+
+    /** The triskette drive (M13); {@code triskette().setPort(...)} puts in the host's triskette. */
+    public TrisketteDevice triskette() {
+        return triskette;
     }
 
     public InputDevice input() {

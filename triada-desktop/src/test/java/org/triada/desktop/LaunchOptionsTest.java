@@ -63,4 +63,12 @@ class LaunchOptionsTest {
         assertEquals(0xFF0000, image.getRGB(0, 0) & 0xFFFFFF, "top: red");
         assertEquals(0x0000FF, image.getRGB(0, 1) & 0xFFFFFF, "bottom: blue");
     }
+
+    @Test
+    void theTrisketteFolderDefaultsToTrisketteAndCanBeChanged() {
+        assertEquals(Path.of("triskettes"), LaunchOptions.parse().disk());
+        assertEquals(Path.of("my", "disk"), LaunchOptions.parse("--disk", "my/disk", "--crt").disk());
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> LaunchOptions.parse("--disk"))
+                .getMessage().contains("needs a folder"));
+    }
 }

@@ -30,6 +30,10 @@ final class WebPage {
     @JSBody(script = "var b = triadaDrop.bytes; triadaDrop.name = null; triadaDrop.bytes = null; return b;")
     static native Int8Array takeDroppedBytes();
 
+    /** Tells the page that the triskette's files changed, so its file list is redrawn (M13). */
+    @JSBody(script = "if (window.triadaFilesChanged) triadaFilesChanged();")
+    static native void trisketteChanged();
+
     /** Shows a line of text under the screen (what is running, or what went wrong). */
     @JSBody(params = "text", script = "document.getElementById('status').textContent = text;")
     static native void status(String text);

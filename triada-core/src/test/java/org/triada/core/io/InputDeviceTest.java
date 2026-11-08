@@ -149,14 +149,16 @@ class InputDeviceTest {
         // SPEC §5 table: k = 0 … 22 at addresses −20,412 … −20,390.
         String[] names = {"FRAME", "JOY_X", "JOY_Y", "BTN_A", "BTN_B", "BTN_C", "KEY", "SCROLL_X",
             "SCROLL_Y", "BORDER", "V1_FREQ", "V1_VOL", "V1_WAVE", "V2_FREQ", "V2_VOL", "V2_WAVE",
-            "V3_FREQ", "V3_VOL", "V3_WAVE", "RAND", "DEBUG_CHAR", "DEBUG_NUM", "HOST_EXIT"};
+            "V3_FREQ", "V3_VOL", "V3_WAVE", "RAND", "DEBUG_CHAR", "DEBUG_NUM", "HOST_EXIT",
+            "TS_CMD", "TS_NAME", "TS_ADDR", "TS_LEN", "TS_STATUS"};
         for (int k = 0; k < names.length; k++) {
             assertEquals(names[k], IoRegisters.nameOf(k));
             assertEquals(-20_412 + k, MemoryMap.IO_BASE + k);
         }
         assertEquals(-20_390, MemoryMap.IO_BASE + IoRegisters.HOST_EXIT);
         assertEquals(IoRegisters.DEFINED_COUNT, names.length);
-        assertNull(IoRegisters.nameOf(23));
+        assertEquals(-20_385, MemoryMap.IO_BASE + IoRegisters.TS_STATUS);
+        assertNull(IoRegisters.nameOf(28));
         assertNull(IoRegisters.nameOf(-1));
         assertEquals(6, IoRegisters.KEY);
         assertEquals(22, IoRegisters.HOST_EXIT);

@@ -305,6 +305,14 @@ Rules:
 - **Host format:** every file is stored in the existing `.tri` container (§9.5: header, load address, words). For SAVE, the load address is TS_ADDR.
 - Writes outside RAM are silently clipped, and the status is −4.
 
+Details settled while building the device (D-045):
+- A name that has a character outside 32–126, or no 0 within its first 13 words, is a bad name (−3).
+- SAVE only saves a whole block of RAM: if TS_LEN is negative or the block doesn't lie entirely inside RAM, nothing is saved and the status is −4. TS_LEN = 0 saves an empty file.
+- LOAD and LOAD-HOME set TS_LEN to the file's length even when some words were clipped.
+- DIR lists the names in alphabetical order. If they don't fit in TS_LEN words, nothing is written, the status is −2 and TS_LEN is set to the number of words needed.
+- Any other TS_CMD value does nothing but set the status to −4.
+- Power-on clears the five registers; the files on the triskette stay.
+
 ---
 
 ## 6. Timing
@@ -387,7 +395,16 @@ These follow from D-026 … D-028 in `docs/DECISIONS.md`.
 - **Monitor:** prompt `> `; at most 24 characters per line; letters made upper case; blinking `_` cursor. `PEEK` prints `ADDR: VALUE 0tTRITS` per word, `TERN` prints `N = 0tTRITS`, and trits are shown without leading zeros. Missing or extra arguments, counts below 1 and out-of-range numbers are `?SYNTAX ERROR`.
 
 ### 8.5 Triskette routines (v1.1, M13)
-`DISKSAVE`, `DISKLOAD`, `DISKDIR` and `DISKDEL` drive the triskette device (§5.1) for programs that don't want to touch its registers. They follow the calling convention of §8.1; the exact registers are defined in M13 and recorded here.
+`DISKSAVE`, `DISKLOAD`, `DISKDIR` and `DISKDEL` drive the triskette device (§5.1) for programs that don't want to touch its registers. They follow the calling convention of §8.1: arguments in R0–R2, R3–R8 kept. Each returns the status in R0 (§5.1), and S is set from it, so `JNZ` right after the `JSR` catches any error.
+
+| Routine | In | Out |
+|---|---|---|
+| `DISKSAVE` | R0 = name, R1 = address, R2 = length | R0 = status |
+| `DISKLOAD` | R0 = name, R1 = address, or any negative number for "the file's own address" (LOAD-HOME) | R0 = status, R1 = address loaded to, R2 = length |
+| `DISKDIR` | R0 = buffer, R1 = room in words | R0 = status, R1 = words used (or needed, with −2) |
+| `DISKDEL` | R0 = name | R0 = status |
+
+A name is a string (one character per word, ending with 0). Negative addresses are never RAM, which is why a negative R1 can mean "home".
 
 ---
 

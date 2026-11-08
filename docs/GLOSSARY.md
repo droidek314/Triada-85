@@ -24,6 +24,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Balanced ternary**: Base 3 with the digits −1, 0 and +1 instead of 0, 1 and 2. Negative numbers need no minus sign, and flipping every digit negates a number. *In TRIADA:* how every number is stored (SPEC §1.1). First seen: M1.
 
+**Base64**: A way to write any bytes as plain letters, digits, `+` and `/`, so they can be kept where only text is allowed. *In TRIADA:* how the web triskette keeps `.tri` files in browser storage. First seen: M13.
+
 **Benchmark**: A program that measures how fast something runs. *In TRIADA:* `./gradlew :triada-core:benchmark` (M3). First seen: M3.
 
 **Binary**: Counting with two digits, 0 and 1. Almost every real computer works this way, because a switch is easily either off or on. *In TRIADA:* the road not taken; TRIADA uses ternary instead. First seen: M0.
@@ -188,6 +190,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Host**: The real computer the emulator runs on, as opposed to the imaginary TRIADA-85. First seen: M5.
 
+**Host round trip**: Saving from the emulated machine, finding the file on the real computer, and loading it back unchanged. *In TRIADA:* `TrisketteTest`. First seen: M13.
+
 **HUD (head-up display)**: The score, lives and similar information drawn on top of a game's picture. *In TRIADA:* OBLAKA draws it with sprites so it doesn't scroll. First seen: M10.
 
 **I/O register**: An address that isn't storage but a doorbell or window to hardware: reading or writing it talks to a device. *In TRIADA:* 729 slots from −20,412, 23 of them defined (SPEC §5). First seen: M2.
@@ -245,6 +249,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Little-endian**: Storing a multi-byte number with its least significant byte first. *In TRIADA:* the numbers in a `.tri` file. First seen: M4.
 
 **Load address**: The address where a program image is placed in memory. *In TRIADA:* usually 243. First seen: M4.
+
+**Local storage**: A small store of text that a browser keeps for each website, even after the page is closed. *In TRIADA:* the web version's triskette (`WebTriskette`). First seen: M13.
 
 **Lookup table**: A list of precomputed answers, so a calculation becomes a single array read. First seen: M1.
 
@@ -388,6 +394,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Static website**: A site made only of files that the server hands out unchanged; everything runs in the visitor's browser. First seen: M12.
 
+**Status code**: A number a device or routine returns to say how an action went. *In TRIADA:* TS_STATUS, 0 = OK, −1 not found, −2 no space, −3 bad name, −4 I/O error. First seen: M13.
+
 **stderr (standard error)**: A program's second output channel, for messages about the run (errors, notes), kept apart from its real output. First seen: M5.
 
 **stdout (standard output)**: A program's main output channel. *In TRIADA:* `triada run` prints the debug-port text there. First seen: M5.
@@ -431,6 +439,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Toolchain (Gradle)**: Gradle's setting for "compile and test with exactly this Java version", even if a different one is installed as the default. First seen: M0.
 
 **Transparency**: A colour that is not drawn, so whatever is behind shows through. *In TRIADA:* gray (value 0) in sprites. First seen: M6.
+
+**Triskette**: The TRIADA-85's floppy disk: a flat list of named files, with no tracks or folders. *In TRIADA:* `TrisketteDevice` on I/O registers 23–27 (SPEC §5.1); a folder on the desktop, browser storage on the web. First seen: M13 (as a word for "a program file" since M9).
+
+**TriskettePort**: The interface between the triskette drive and wherever its files really live: a folder, browser storage or memory. First seen: M13.
 
 **Trit**: One ternary digit: −1, 0 or +1. The ternary cousin of the bit. First seen: M0.
 

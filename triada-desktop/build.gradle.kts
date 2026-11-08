@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":triada-assembler"))
     implementation(project(":triada-rom"))
     implementation(project(":triada-app"))
+    implementation(project(":triada-cli"))         // FolderTriskette, the triskette as a folder (M13)
     implementation(libs.gdx.backend.lwjgl3)
     // Native libraries (OpenGL, OpenAL, GLFW glue) for Windows, Linux and macOS.
     runtimeOnly(variantOf(libs.gdx.platform) { classifier("natives-desktop") })

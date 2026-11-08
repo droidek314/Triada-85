@@ -14,6 +14,7 @@ import org.triada.app.MachineScreen;
 import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.TriImage;
+import org.triada.core.triskette.TrisketteNames;
 import org.triada.rom.Rom;
 
 /**
@@ -39,6 +40,7 @@ final class WebApp extends ApplicationAdapter {
 
     @Override
     public void create() {
+        machine.triskette().setPort(new WebTriskette());   // files kept in browser storage (M13)
         screen = new MachineScreen(false);
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
@@ -81,16 +83,27 @@ final class WebApp extends ApplicationAdapter {
 
     /**
      * Assembles or reads a program and runs it on a freshly switched-on
-     * machine. {@code bytes} is the dropped file, or null for a bundled program.
+     * machine. {@code bytes} is a dropped or imported file, or null for a
+     * bundled program. A dropped or imported file is also stored on the
+     * triskette (M13); a TRIBASIC program ({@code .TB}) is only stored.
      */
     private void insert(String name, byte[] bytes) {
         try {
             TriImage image = name.toLowerCase(Locale.ROOT).endsWith(".tasm")
                     ? new Assembler(path -> source(path, name, bytes)).assemble(name).image()
                     : TriImage.fromBytes(bytes);
+            if (bytes != null) {
+                String stored = TrisketteNames.forHostFile(name);
+                machine.triskette().port().write(stored, image);
+                WebPage.status(stored + " is on the triskette.");
+                WebPage.trisketteChanged();
+                if (stored.endsWith(".TB")) {
+                    return;
+                }
+            }
             machine.powerOn();
             Rom.autorun(machine, image);
-            WebPage.status("Running " + name + ".");
+            WebPage.status("Running " + name + (bytes != null ? " (also on the triskette)." : "."));
         } catch (Exception e) {
             WebPage.status("Can't load " + name + ": " + e.getMessage());
         }

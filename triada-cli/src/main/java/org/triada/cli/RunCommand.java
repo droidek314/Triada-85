@@ -13,7 +13,7 @@ import org.triada.core.cpu.Cpu;
 import org.triada.rom.Rom;
 
 /**
- * {@code triada run program.tri [--frames N] [--dump-screen out.png]}: runs a
+ * {@code triada run program.tri [--frames N] [--dump-screen out.png] [--disk DIR]}: runs a
  * program on a machine without window, sound or keyboard ("headless").
  *
  * <p>Since M8 the machine has its ROM and boots as usual; the program is
@@ -52,6 +52,7 @@ final class RunCommand {
         Integer frames = null;
         String dumpScreen = null;
         String dumpAudio = null;
+        String disk = null;
         boolean boot = true;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -76,6 +77,9 @@ final class RunCommand {
                 case "--dump-audio":
                     dumpAudio = TasmCommand.value(args, ++i, "--dump-audio");
                     break;
+                case "--disk":
+                    disk = TasmCommand.value(args, ++i, "--disk");
+                    break;
                 default:
                     if (args[i].startsWith("-")) {
                         throw new Main.UsageException("run: unknown option '" + args[i] + "'");
@@ -97,6 +101,9 @@ final class RunCommand {
             return f.exitCode;
         }
         Machine machine = Rom.newMachine();
+        if (disk != null) {
+            machine.triskette().setPort(new FolderTriskette(Path.of(disk)));   // else an empty one in memory
+        }
         try {
             if (boot) {
                 Rom.autorun(machine, image);

@@ -22,8 +22,10 @@ class KernelTest {
 
     @Test
     void jumpTableEntriesAreJmpsAtTheSpecAddresses() {
-        String[] names = {"RESET", "PUTCHAR", "PRINT", "PRINTNUM", "CLS", "GETKEY", "LOCATE"};
-        String[] targets = {"boot", "putchar", "print", "printnum", "cls", "getkey", "locate"};
+        String[] names = {"RESET", "PUTCHAR", "PRINT", "PRINTNUM", "CLS", "GETKEY", "LOCATE",
+            "DISKSAVE", "DISKLOAD", "DISKDIR", "DISKDEL"};
+        String[] targets = {"boot", "putchar", "print", "printnum", "cls", "getkey", "locate",
+            "disksave", "diskload", "diskdir", "diskdel"};
         var rom = Rom.image();
         for (int i = 0; i < names.length; i++) {
             int address = -19_683 + 2 * i;                        // SPEC 8.1 table

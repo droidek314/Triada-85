@@ -12,20 +12,25 @@ import java.nio.file.Path;
  *   --capture PNG           don't show a window: run --frames frames, save the
  *                           picture (scaled 3x, with --crt if given) and quit (M11)
  *   --frames N              frames before the capture (default 120: boot plus a second)
+ *   --disk DIR              the triskette: a folder of .tri files (default triskettes, M13)
  * </pre>
  *
  * @param program       the program file, or null for none
  * @param crt           whether the CRT effect starts switched on
  * @param capture       where to save a capture, or null for a normal window
  * @param captureFrames how many frames to run before capturing
+ * @param disk          the triskette folder
  */
-public record LaunchOptions(String program, boolean crt, Path capture, int captureFrames) {
+public record LaunchOptions(String program, boolean crt, Path capture, int captureFrames, Path disk) {
 
     /** Frames before a capture unless --frames says otherwise: the boot (about 48) and a second more. */
     public static final int DEFAULT_CAPTURE_FRAMES = 120;
 
     /** The picture's scale in a capture. */
     public static final int CAPTURE_SCALE = 3;
+
+    /** The triskette folder unless --disk says otherwise, relative to the working directory (M13). */
+    public static final Path DEFAULT_DISK = Path.of("triskettes");
 
     /**
      * Parses the arguments.
@@ -38,6 +43,7 @@ public record LaunchOptions(String program, boolean crt, Path capture, int captu
         boolean crt = false;
         Path capture = null;
         int frames = DEFAULT_CAPTURE_FRAMES;
+        Path disk = DEFAULT_DISK;
         for (int i = 0; i < args.length; i++) {
             String a = args[i];
             switch (a) {
@@ -45,16 +51,17 @@ public record LaunchOptions(String program, boolean crt, Path capture, int captu
                 case "--load" -> program = setOnce(program, value(args, ++i, a + " needs a file, e.g. --load programs/piano.tasm"));
                 case "--capture" -> capture = Path.of(value(args, ++i, a + " needs a PNG file name"));
                 case "--frames" -> frames = positive(value(args, ++i, a + " needs a number of frames"));
+                case "--disk" -> disk = Path.of(value(args, ++i, a + " needs a folder, e.g. --disk triskettes"));
                 default -> {
                     if (a.startsWith("--")) {
                         throw new IllegalArgumentException("unknown option " + a
-                                + " (options: --load FILE, --crt, --capture PNG, --frames N)");
+                                + " (options: --load FILE, --crt, --capture PNG, --frames N, --disk DIR)");
                     }
                     program = setOnce(program, a);
                 }
             }
         }
-        return new LaunchOptions(program, crt, capture, frames);
+        return new LaunchOptions(program, crt, capture, frames, disk);
     }
 
     private static String value(String[] args, int i, String message) {

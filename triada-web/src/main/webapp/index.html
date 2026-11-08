@@ -29,6 +29,9 @@
         table { border-collapse: collapse; margin: 8px auto; }
         td { padding: 1px 8px; vertical-align: top; }
         td:first-child { text-align: right; color: #fff; white-space: nowrap; }
+        .toggles { display: flex; gap: 24px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+        #files { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; margin: 8px 0; }
+        button { font: inherit; font-size: 13px; }
     </style>
 </head>
 <body oncontextmenu="return false">
@@ -44,6 +47,7 @@
         <a href="?program=colors">27 colours</a>
         <a href="?program=piano">Piano</a>
     </nav>
+    <div class="toggles">
     <details id="help">
         <summary>Help</summary>
         <table>
@@ -63,6 +67,21 @@
             the full version with the debugger is on <a href="https://github.com/droidek314/Triada-85">GitHub</a>.
         </p>
     </details>
+    <details id="disk">
+        <summary>Triskette</summary>
+        <p>
+            Files on the triskette stay in this browser. Click a name to save it on your computer.
+        </p>
+        <div id="files"></div>
+        <p style="text-align: center">
+            <button id="import">Import a file&hellip;</button>
+            <input id="importfile" type="file" accept=".tri,.tasm,.tb" hidden>
+        </p>
+        <p>
+            An imported <code>.tri</code> or <code>.tasm</code> program also runs at once, like a dropped one.
+        </p>
+    </details>
+    </div>
     <script>
         // The largest whole-number scale of the 240 x 168 picture that fits the window (1 ... 4).
         (function () {
@@ -106,22 +125,79 @@
         document.addEventListener("keydown", unmute);
         document.addEventListener("pointerdown", unmute);
 
-        // Clicks in the help would count as "clicked away from the machine" and stop the
-        // keyboard; keep them to the help itself.
-        document.getElementById("help").addEventListener("mousedown", function (e) { e.stopPropagation(); });
+        // Clicks in the help or the triskette panel would count as "clicked away from the
+        // machine" and stop the keyboard; keep them to the panels themselves.
+        ["help", "disk"].forEach(function (id) {
+            document.getElementById(id).addEventListener("mousedown", function (e) { e.stopPropagation(); });
+        });
 
-        // A file dropped on the page waits here until the machine picks it up.
+        // A dropped or imported file waits here until the machine picks it up (WebApp.insert
+        // stores it on the triskette and, if it is machine code, runs it).
         var triadaDrop = { name: null, bytes: null };
-        document.addEventListener("dragover", function (e) { e.preventDefault(); });
-        document.addEventListener("drop", function (e) {
-            e.preventDefault();
-            var f = e.dataTransfer.files[0];
+        function takeFile(f) {
             if (!f) return;
             f.arrayBuffer().then(function (buf) {
                 triadaDrop.bytes = new Int8Array(buf);
                 triadaDrop.name = f.name;
             });
+        }
+        document.addEventListener("dragover", function (e) { e.preventDefault(); });
+        document.addEventListener("drop", function (e) {
+            e.preventDefault();
+            takeFile(e.dataTransfer.files[0]);
         });
+        var importFile = document.getElementById("importfile");
+        document.getElementById("import").addEventListener("click", function () { importFile.click(); });
+        importFile.addEventListener("change", function () {
+            takeFile(importFile.files[0]);
+            importFile.value = "";
+        });
+
+        // The triskette's files (M13): the same browser storage entries as WebTriskette.java,
+        // one per file, holding a .tri file in Base64. Export = download one of them.
+        var TRISKETTE = "triada85.triskette.";
+        function triadaFilesChanged() {
+            var list = document.getElementById("files");
+            list.textContent = "";
+            var names = [];
+            try {
+                for (var i = 0; i < localStorage.length; i++) {
+                    var k = localStorage.key(i);
+                    if (k && k.indexOf(TRISKETTE) === 0) names.push(k.substring(TRISKETTE.length));
+                }
+            } catch (e) {
+                list.textContent = "This browser doesn't allow storage on this page.";
+                return;
+            }
+            names.sort();
+            if (!names.length) list.textContent = "The triskette is empty.";
+            names.forEach(function (name) {
+                var a = document.createElement("a");
+                a.href = "#";
+                a.textContent = name;
+                a.title = "Save " + name + " on your computer";
+                a.addEventListener("click", function (e) { e.preventDefault(); exportFile(name); });
+                list.appendChild(a);
+            });
+        }
+        function exportFile(name) {
+            try {
+                var bin = atob(localStorage.getItem(TRISKETTE + name));
+                var bytes = new Uint8Array(bin.length);
+                for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                var url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
+                var a = document.createElement("a");
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+            } catch (e) {
+                document.getElementById("status").textContent = "Can't export " + name + ".";
+            }
+        }
+        document.getElementById("disk").addEventListener("toggle", triadaFilesChanged);
 
         // Switch on as soon as the program has loaded.
         window.addEventListener("load", function () { main(); });
