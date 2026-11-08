@@ -49,6 +49,46 @@ class DocImagesTest {
         check("boot.png", ScreenDump.toImage(m.video().frame()));
     }
 
+    /** M15: TRIBASIC's three-way IF, typed in and run on the boot screen. */
+    @Test
+    void tribasicSession() throws IOException {
+        Machine m = typedIn("""
+                10 FOR T = -1 TO 1
+                20 IF T THEN PRINT "YES" MAYBE PRINT "MAYBE" ELSE PRINT "NO"
+                30 NEXT
+                RUN
+                """, 200);
+        check("tribasic.png", ScreenDump.toImage(m.video().frame()));
+    }
+
+    /** M15: the TERNCLOCK example after three seconds. */
+    @Test
+    void ternclock() throws IOException {
+        String program = Files.readString(Cli.root().resolve("programs/basic/TERNCLOCK.bas"));
+        Machine m = typedIn(program + "RUN\n", 60 * 3 + 120);
+        check("ternclock.png", ScreenDump.toImage(m.video().frame()));
+    }
+
+    /** Boots TRIBASIC and types {@code text} in (paste-typing, M15), then runs {@code frames} frames more. */
+    private static Machine typedIn(String text, int frames) {
+        Machine m = Rom.newMachine();
+        org.triada.core.io.KeyFeeder keys = new org.triada.core.io.KeyFeeder(text.replace("\r\n", "\n"));
+        for (int i = 0; i < 60; i++) {
+            m.runFrame();
+        }
+        while (keys.feed(m.input())) {
+            m.runFrame();
+        }
+        for (int i = 0; i < frames; i++) {
+            m.runFrame();
+        }
+        int cursor = Rom.address("CURSOR_X");
+        int row = Rom.address("CURSOR_Y");
+        m.bus().write(org.triada.core.memory.MemoryMap.MAP + m.bus().peek(row) * 27 + m.bus().peek(cursor), ' ');
+        m.video().render();                         // the blinking cursor would make the picture flicker
+        return m;
+    }
+
     @Test
     void theTypeInListing() throws IOException {
         GameHarness g = new GameHarness("triangle");

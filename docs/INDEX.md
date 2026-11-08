@@ -27,6 +27,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M12 | [The web version](milestones/M12-web-version.md) | Translating the machine to JavaScript, sharing one frontend between desktop and browser, sound in a web page, and publishing on GitHub Pages behind the tests. |
 | M13 | [The triskette storage device](milestones/M13-triskette.md) | Phase 2 begins: a disk drive driven through five I/O registers, one storage interface with three homes (memory, a PC folder, browser storage), ROM routines, and getting files in and out. |
 | M14 | [TRIBASIC I: the interpreter core](milestones/M14-tribasic-core.md) | A programming language in the machine's own assembly: storing lines as tokens, evaluating expressions, three-valued logic and the three-way IF on BR3, and a test suite of 66 small programs. |
+| M15 | [TRIBASIC II and release 1.1](milestones/M15-tribasic-complete.md) | Strings without garbage collection, arrays with a middle, the picture and sound chips from BASIC, SAVE and LOAD, paste-typing, example programs, the manual chapter, and releasing version 1.1. |
 
 Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 
@@ -37,4 +38,5 @@ Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, 
 - [PROGRESS.md](PROGRESS.md): which milestones are done.
 - [manual/](manual/README.md): the TRIADA-85 Owner's Manual, written as if printed in 1985 (M11). Start here if you just want to use the machine.
 - [RETROSPECTIVE.md](RETROSPECTIVE.md): looking back on the whole project.
+- [../CHANGELOG.md](../CHANGELOG.md): what changed in each released version.
 - [spikes/m06-teavm/](spikes/m06-teavm/build.gradle.kts): the reproducible web spike from M6 (D-022).

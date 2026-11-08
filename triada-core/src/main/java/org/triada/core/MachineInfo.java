@@ -13,7 +13,7 @@ public final class MachineInfo {
     public static final String NAME = "TRIADA-85";
 
     /** The version of {@code docs/SPEC.md} this code implements. */
-    public static final String SPEC_VERSION = "1.0";
+    public static final String SPEC_VERSION = "1.1";
 
     private MachineInfo() {
         // Constants only; never instantiated.

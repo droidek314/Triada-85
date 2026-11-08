@@ -14,6 +14,7 @@ import org.triada.app.MachineScreen;
 import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.TriImage;
+import org.triada.core.io.KeyFeeder;
 import org.triada.core.triskette.TrisketteNames;
 import org.triada.rom.Rom;
 
@@ -35,6 +36,7 @@ final class WebApp extends ApplicationAdapter {
     private final FrameClock clock = new FrameClock(Machine.FRAMES_PER_SECOND, MAX_CATCH_UP);
     private final InputMapper inputMapper = new InputMapper(machine.input());
     private MachineScreen screen;
+    private KeyFeeder pasting;          // pasted text still being typed, or null
     private int width;
     private int height;
 
@@ -131,6 +133,13 @@ final class WebApp extends ApplicationAdapter {
         String dropped = WebPage.droppedName();
         if (dropped != null) {
             insert(dropped, toBytes(WebPage.takeDroppedBytes()));
+        }
+        String pasted = WebPage.takePaste();
+        if (pasted != null) {
+            pasting = new KeyFeeder(pasted);    // Ctrl+V: typed in (M15)
+        }
+        if (pasting != null && !pasting.feed(machine.input())) {
+            pasting = null;
         }
         int due = clock.advance(Gdx.graphics.getDeltaTime());
         for (int i = 0; i < due; i++) {

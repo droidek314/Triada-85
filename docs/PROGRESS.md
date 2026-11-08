@@ -19,7 +19,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M12 | The web version (stretch goal) | ✅ done | 2026-11-08 |
 | M13 | Triskette storage device (Phase 2) | ✅ done | 2026-11-08 |
 | M14 | TRIBASIC I: the interpreter core | ✅ done | 2026-11-08 |
-| M15 | TRIBASIC II: strings, arrays, machine access, storage and release | ⬜ not started | |
+| M15 | TRIBASIC II: strings, arrays, machine access, storage and release | ✅ done (v1.1) | 2026-11-08 |
 
 ## Stretch goals (only after M11)
 

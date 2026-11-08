@@ -1,5 +1,5 @@
 ; ============================================================================
-;  BASIC.TASM -- TRIBASIC, the TRIADA-85's built-in language (M14, SPEC 10)
+;  BASIC.TASM -- TRIBASIC, the TRIADA-85's built-in language (M14-M15, SPEC 10)
 ;
 ;     TRIBASIC V1.0
 ;     39757 WORDS FREE
@@ -16,13 +16,22 @@
 ;     243 ...        the program: one record per line, in line-number order:
 ;                      [length][line number][text ...][0]
 ;                    then a single 0 word, the end marker (B_PROGEND)
-;     ... B_VAREND   the variables, VARSIZE words each: 8 name characters
-;                    (0-padded) and the value
+;     ... B_VAREND   the variables and arrays, one entry each:
+;                      [length][name: 10 words, 0-padded][data ...]
+;                    a number: 1 word; a string: a SLOT; an array: [low][high]
+;                    and its elements (1 word or a SLOT each)
 ;     40,000 ...     tiles, map, sprites (not TRIBASIC's)
 ;     45,000 ...     the control stack: FOR and GOSUB frames, growing up
-;     50,000 ...     INBUF, the line INPUT reads
+;     50,000 ...     INBUF, the line INPUT reads; FNAME, a file name
+;     50,100 ...     string temps: SLOTs for the values a statement works out,
+;                    all freed when the next statement starts
+;  A string is a SLOT: [length][up to 80 characters], one per word. Every
+;  string variable owns its own SLOT, so nothing ever needs tidying up (no
+;  "garbage collection"); M15, D-051.
 ;  Keywords are stored as tokens: one negative word each, -1 for PRINT ...
 ;  -68 for TERN$ (the order of kwtab below). Text is 32 ... 126.
+;  Every expression has a type, kept in B_TYPE: 0 = a number (R0 is its
+;  value), 1 = a string (R0 is the address of its SLOT).
 ;
 ;  Registers: R7 is the position in the line being run or parsed, everywhere.
 ;  The other registers are scratch: a routine keeps what it needs across a
@@ -34,7 +43,12 @@ B_MEMTOP    = 40000     ; program + variables stay below the tile patterns
 CSTACK      = 45000     ; the control stack's bottom ...
 CSTACK_END  = 49990     ; ... and its limit
 INBUF       = 50000     ; INPUT's line (up to 81 words)
-VARSIZE     = 9         ; one variable: 8 name characters + its value
+FNAME       = 50082     ; a file name being built (up to 18 words)
+TEMP_START  = 50100     ; string temps ...
+TEMP_END    = 57900     ; ... up to here (the CPU stack is far above)
+SLOT        = 81        ; a string: its length and up to 80 characters
+NAMELEN     = 10        ; a variable's name: up to 9 characters and '(' for arrays
+VARHEAD     = 11        ; an entry's length word and name
 LINE_LEN    = 80        ; the longest line that can be typed
 F_GOSUB     = 1         ; the kind of a control stack frame (its top word)
 F_FOR       = 2
@@ -54,6 +68,7 @@ T_MOD       = -30
 T_TRUE      = -31
 T_FALSE     = -32
 T_UNKNOWN   = -33
+T_FIRSTFN   = -51       ; ABS: the first function (-51 ... -68)
 
         .org -59048                     ; the first extension ROM word
 
@@ -66,6 +81,7 @@ T_UNKNOWN   = -33
 ; ===========================================================================
 
 b_cold: LDI SP, STACK_TOP
+        JSR b_fontcolours
         JSR b_new
         JSR b_hello
         JMP b_ready
@@ -79,6 +95,15 @@ b_hello: LDI R0, msg_tribasic
         LDI R0, wordsfree
         JMP print
 
+; b_fontcolours: the colours the kernel drew the font in (for COLOR).
+b_fontcolours: LDI R0, TEXT_FG
+        LDI R2, B_FONTFG
+        ST R0, [R2]
+        LDI R0, TEXT_BG
+        LDI R2, B_FONTBG
+        ST R0, [R2]
+        RET
+
 ; Back from the monitor (its BASIC command): keep the program if it still is
 ; one -- the monitor may have POKEd anything into that memory.
 b_warm: LDI SP, STACK_TOP
@@ -90,6 +115,7 @@ b_warm: LDI SP, STACK_TOP
 ; the program area, so TRIBASIC starts with an empty program. runprog has
 ; already printed READY.
 b_afterprog: LDI SP, STACK_TOP
+        JSR b_fontcolours
         JSR b_new
         JMP b_main
 
@@ -129,8 +155,12 @@ bm_direct: JSR b_tokenize
 ; Running statements
 ; ===========================================================================
 
-; b_stmt: runs the statement at R7. Every statement first checks for Esc.
+; b_stmt: runs the statement at R7. Every statement first checks for Esc and
+; frees the string temps of the one before.
 b_stmt: JSR b_poll
+        LDI R1, TEMP_START
+        LDI R2, B_TMP
+        ST R1, [R2]
         JSR b_skip
         JZ b_eol
         LDI R2, ':'
@@ -238,6 +268,14 @@ err_div0: LDI R0, 6
 err_overflow: LDI R0, 7
         JMP b_error
 err_type: LDI R0, 8
+        JMP b_error
+err_subscript: LDI R0, 9
+        JMP b_error
+err_toolong: LDI R0, 10
+        JMP b_error
+err_notfound: LDI R0, 11
+        JMP b_error
+err_disk: LDI R0, 12
 
 ; b_error: R0 = error number (errtab). Prints "?MESSAGE ERROR IN line" (no
 ; "IN" in direct mode) and goes back to READY.
@@ -295,19 +333,21 @@ bfr_ret: RET
 ; The keyboard: keys arriving while a program runs wait in B_KEYS
 ; ===========================================================================
 
-; b_poll: takes every waiting key from KEY. Esc is BREAK; the others wait in
-; B_KEYS (16 at most) for INPUT, ASK or the next line. Changes R0 ... R2.
-b_poll: LDI R1, IO_BASE
-        LD R0, [R1+KEY]
+; b_poll: takes the waiting keys from KEY. Esc is BREAK; the others wait in
+; B_KEYS (16 at most) for INPUT, ASK or the next line. When B_KEYS is full,
+; the rest stay in the keyboard queue, so typing ahead loses nothing (M15).
+; Changes R0 ... R2.
+b_poll: LDI R2, B_KEYN
+        LD R1, [R2]
+        LDI R2, 16
+        CMP R1, R2
+        JGE bp_ret                      ; full: leave the keys in the queue
+        LDI R2, IO_BASE
+        LD R0, [R2+KEY]
         JZ bp_ret
         LDI R2, 27
         CMP R0, R2
         JZ b_break
-        LDI R2, B_KEYN
-        LD R1, [R2]
-        LDI R2, 16
-        CMP R1, R2
-        JGE b_poll                      ; full: this key is lost
         LDI R2, B_KEYS
         ADD R2, R1
         ST R0, [R2]
@@ -862,7 +902,8 @@ b_clearvars: LDI R2, B_PROGEND
 
 ; b_relink: is the memory from 243 a program? Every record must be at least
 ; 3 words long, end with 0, stay below B_MEMTOP, and have a line number
-; above the one before (1 ... 65,535). Sets B_PROGEND; NEW if it isn't one.
+; above the one before (1 ... 65,535). Sets B_PROGEND and R0 = 1; if it
+; isn't a program: NEW and R0 = 0.
 b_relink: LDI R1, PROGRAM_START
         LDI R3, 0                       ; the previous line number
 brl_loop: LD R0, [R1]
@@ -888,8 +929,11 @@ brl_loop: LD R0, [R1]
         JMP brl_loop
 brl_end: LDI R2, B_PROGEND
         ST R1, [R2]
+        LDI R0, 1
         RET
-brl_bad: JMP b_new
+brl_bad: JSR b_new
+        LDI R0, 0
+        RET
 
 ; b_findline: R0 = a line number. R0 = its record, or 0 (S set from R0).
 b_findline: LDI R1, PROGRAM_START
@@ -907,16 +951,16 @@ bfl_none: LDI R0, 0
         RET
 
 ; ===========================================================================
-; Variables
+; Variables and arrays (M15: typed entries of any length)
 ; ===========================================================================
 
-; b_varname: reads the name at R7 into B_IDENT and moves R7 past it. A name
-; is a letter and at most 7 more letters or digits; a longer one, or one
-; ending in '$' (string variables come in M15), is ?SYNTAX ERROR.
+; b_varname: reads the name at R7 into B_IDENT (upper case, 0-terminated) and
+; moves R7 past it. R0 = 1 for a string name (ending in '$'), else 0. A name
+; is a letter and at most 7 more letters or digits, plus the '$'.
 b_varname: MOV R1, R7
         JSR b_scanword
         ADD R7, R0
-        LDI R2, 8
+        LDI R2, 9
         CMP R0, R2
         JP err_syntax
         LDI R2, B_IDENT - 1
@@ -924,84 +968,509 @@ b_varname: MOV R1, R7
         LD R1, [R2]                     ; the last character
         LDI R2, '$'
         CMP R1, R2
-        JZ err_syntax
+        JZ bvn_str
+        LDI R2, 8
+        CMP R0, R2
+        JP err_syntax
+        LDI R0, 0
+        RET
+bvn_str: LDI R0, 1
         RET
 
-; b_varfind: R0 = the address of the value of the variable named in B_IDENT,
-; or 0 if there is no such variable yet (S set from R0). Keeps R3 ... R8.
-b_varfind: PUSH R3
+; b_arrname: R0 = the length of the name in B_IDENT; appends '(' to it, which
+; is how an array's entry is told apart from a plain variable's.
+b_arrname: LDI R2, B_IDENT
+        ADD R2, R0
+        LDI R1, '('
+        ST R1, [R2]
+        LDI R1, 0
+        ST R1, [R2+1]
+        RET
+
+; b_findvar: R0 = the entry named B_IDENT, or 0 (S set from R0). Keeps R3 ... R8.
+b_findvar: PUSH R3
         PUSH R4
         LDI R2, B_PROGEND
         LD R3, [R2]
-        INC R3                          ; the first variable
-bvf_next: LDI R2, B_VAREND
+        INC R3                          ; the first entry
+bfv_next: LDI R2, B_VAREND
         LD R0, [R2]
         CMP R3, R0
-        JGE bvf_none
+        JGE bfv_none
         LDI R4, 0                       ; character index
-bvf_cmp: MOV R1, R3
+bfv_cmp: MOV R1, R3
         ADD R1, R4
-        LD R0, [R1]
+        LD R0, [R1+1]
         LDI R2, B_IDENT
         ADD R2, R4
         LD R2, [R2]
         CMP R0, R2
-        JNZ bvf_skip
+        JNZ bfv_skip
         MOV R0, R0
-        JZ bvf_found                    ; both names end here
+        JZ bfv_found                    ; both names end here
         INC R4
-        LDI R2, 8
+        LDI R2, NAMELEN
         CMP R4, R2
-        JN bvf_cmp
-bvf_found: MOV R0, R3
-        ADDI R0, 8
-        JMP bvf_ret
-bvf_skip: ADDI R3, VARSIZE
-        JMP bvf_next
-bvf_none: LDI R0, 0
-bvf_ret: POP R4
+        JN bfv_cmp
+bfv_found: MOV R0, R3
+        JMP bfv_ret
+bfv_skip: LD R0, [R3]                   ; the entry's length: on to the next
+        ADD R3, R0
+        JMP bfv_next
+bfv_none: LDI R0, 0
+bfv_ret: POP R4
         POP R3
         MOV R0, R0
         RET
 
-; b_varget: like b_varfind, but makes the variable (with value 0) if it
-; doesn't exist yet. Keeps R3 ... R8.
-b_varget: JSR b_varfind
-        JNZ bvg_ret
+; b_newvar: R0 = how many data words. Makes an entry named B_IDENT at the
+; end of the variables, all 0; R0 = its address. Keeps R3 ... R8.
+b_newvar: PUSH R3
+        MOV R3, R0
+        ADDI R3, VARHEAD                ; the whole entry's length
         LDI R2, B_VAREND
-        LD R0, [R2]                     ; the new variable goes here
+        LD R0, [R2]
         MOV R1, R0
-        ADDI R1, VARSIZE
+        ADD R1, R3                      ; the new end of the variables
         LDI R2, B_MEMTOP
         CMP R1, R2
         JP err_memory
         LDI R2, B_VAREND
         ST R1, [R2]
-        PUSH R3
-        MOV R1, R0                      ; all 9 words 0 ...
-        LDI R3, VARSIZE
-bvg_zero: LDI R2, 0
-        ST R2, [R1]
-        INC R1
-        DEC R3
-        JNZ bvg_zero
-        LDI R3, B_IDENT                 ; ... then the name
+        ST R3, [R0]
+        PUSH R0
+        INC R0
+bnv_zero: CMP R0, R1
+        JGE bnv_name
+        LDI R2, 0
+        ST R2, [R0]
+        INC R0
+        JMP bnv_zero
+bnv_name: POP R0
+        LDI R3, B_IDENT
         MOV R1, R0
-bvg_copy: LD R2, [R3]
-        JZ bvg_done
+        INC R1
+bnv_copy: LD R2, [R3]
+        JZ bnv_done
         ST R2, [R1]
         INC R3
         INC R1
-        JMP bvg_copy
-bvg_done: POP R3
-        ADDI R0, 8
-bvg_ret: RET
+        JMP bnv_copy
+bnv_done: POP R3
+        RET
+
+; b_varref: R7 is at a name. R0 = the address of its value (a number) or of
+; its SLOT (a string), and B_TYPE says which. "NAME(index)" is an array
+; element; an array used before DIM gets 0 ... 10. A variable is made the
+; first time it is used, with the value 0 or the empty string.
+b_varref: PUSH R3
+        PUSH R4
+        MOV R3, R7                      ; where the name starts
+        JSR b_varname
+        MOV R4, R0                      ; the type
+        JSR b_skip
+        LDI R2, '('
+        CMP R0, R2
+        JZ bvr_array
+        JSR b_findvar
+        JNZ bvr_have
+        LDI R0, 1                       ; a new variable: 1 word or a SLOT
+        MOV R4, R4
+        JZ bvr_new
+        LDI R0, SLOT
+bvr_new: JSR b_newvar
+bvr_have: ADDI R0, VARHEAD
+        JMP bvr_type
+bvr_array: INC R7
+        PUSH R3
+        PUSH R4
+        JSR b_numexpr                   ; the index (it may use other names)
+        POP R4
+        POP R3
+        PUSH R0
+        JSR b_skip
+        LDI R2, ')'
+        CMP R0, R2
+        JNZ err_syntax
+        INC R7
+        MOV R1, R3                      ; the array's name again
+        JSR b_scanword
+        JSR b_arrname
+        JSR b_findvar
+        JNZ bvr_arrhave
+        LDI R0, 0                       ; not DIMmed: 0 ... 10
+        LDI R1, 10
+        MOV R2, R4
+        JSR b_mkarray
+bvr_arrhave: POP R1
+        JSR b_element
+bvr_type: LDI R2, B_TYPE
+        ST R4, [R2]
+        POP R4
+        POP R3
+        RET
+
+; b_mkarray: R0 = lowest index, R1 = highest, R2 = type. Makes the array
+; entry named B_IDENT: [low][high] and the elements. R0 = the entry.
+b_mkarray: PUSH R3
+        PUSH R4
+        PUSH R2
+        MOV R3, R0
+        MOV R4, R1
+        MOV R0, R4                      ; count = high - low + 1
+        MOV R1, R3
+        NEG R1
+        JSR b_addflag
+        MOV R2, R2
+        JNZ err_memory
+        INC R0
+        JLE err_subscript               ; high below low
+        MOV R1, R0
+        POP R2
+        PUSH R2
+        MOV R2, R2
+        JZ bma_num
+        LDI R2, 494                     ; 494 strings would fill all memory
+        CMP R1, R2
+        JP err_memory
+        LDI R2, SLOT
+        MUL R1, R2
+        JMP bma_make
+bma_num: LDI R2, B_MEMTOP
+        CMP R1, R2
+        JP err_memory
+bma_make: MOV R0, R1
+        ADDI R0, 2
+        JSR b_newvar
+        ST R3, [R0+VARHEAD]
+        ST R4, [R0+VARHEAD+1]
+        POP R2
+        POP R4
+        POP R3
+        RET
+
+; b_element: R0 = an array entry, R1 = an index, R4 = the type. R0 = the
+; element's address; outside low ... high is ?BAD SUBSCRIPT.
+b_element: LD R2, [R0+VARHEAD]
+        CMP R1, R2
+        JN err_subscript
+        LD R2, [R0+VARHEAD+1]
+        CMP R1, R2
+        JP err_subscript
+        LD R2, [R0+VARHEAD]
+        SUB R1, R2                      ; 0 ... count - 1
+        MOV R4, R4
+        JZ bel_num
+        LDI R2, SLOT
+        MUL R1, R2
+bel_num: ADD R0, R1
+        ADDI R0, VARHEAD + 2
+        RET
+
+; ===========================================================================
+; Strings: SLOTs of [length][characters]
+; ===========================================================================
+
+; b_tmpnew: R0 = a fresh string temp. Temps live until the next statement.
+b_tmpnew: LDI R2, B_TMP
+        LD R0, [R2]
+        MOV R1, R0
+        ADDI R1, SLOT
+        LDI R2, TEMP_END
+        CMP R1, R2
+        JP err_memory
+        LDI R2, B_TMP
+        ST R1, [R2]
+        RET
+
+; b_littemp: R7 is at '"': the text up to the closing '"' becomes a temp
+; string (R0); R7 moves past it.
+b_littemp: PUSH R3
+        JSR b_tmpnew
+        PUSH R0
+        MOV R1, R0
+        INC R7
+        LDI R3, '"'
+blt_loop: LD R2, [R7]
+        JZ blt_end
+        INC R7
+        CMP R2, R3
+        JZ blt_end
+        INC R1
+        ST R2, [R1]
+        JMP blt_loop
+blt_end: POP R0
+        SUB R1, R0
+        ST R1, [R0]                     ; the length
+        POP R3
+        RET
+
+; b_copychars: R0 = where to, R1 = a string: copies its characters there;
+; R0 = just after them. Changes R1, R2; keeps R3 ... R8.
+b_copychars: PUSH R3
+        LD R3, [R1]
+bcc_loop: MOV R3, R3
+        JZ bcc_ret
+        INC R1
+        LD R2, [R1]
+        ST R2, [R0]
+        INC R0
+        DEC R3
+        JMP bcc_loop
+bcc_ret: POP R3
+        RET
+
+; b_strcopy: R0 = a SLOT, R1 = a string: the SLOT gets a copy of it.
+b_strcopy: LD R2, [R1]
+        ST R2, [R0]
+        INC R0
+        JMP b_copychars
+
+; b_concat: R0 + R1 (two strings) as a new temp; over 80 characters is
+; ?STRING TOO LONG.
+b_concat: PUSH R3
+        PUSH R4
+        PUSH R5
+        MOV R3, R0
+        MOV R4, R1
+        LD R0, [R3]
+        LD R1, [R4]
+        ADD R0, R1
+        LDI R2, LINE_LEN
+        CMP R0, R2
+        JP err_toolong
+        PUSH R0
+        JSR b_tmpnew
+        MOV R5, R0
+        POP R1
+        ST R1, [R5]
+        MOV R0, R5
+        INC R0
+        MOV R1, R3
+        JSR b_copychars
+        MOV R1, R4
+        JSR b_copychars
+        MOV R0, R5
+        POP R5
+        POP R4
+        POP R3
+        RET
+
+; b_strcmp: compares the strings R0 and R1 in alphabetical (character code)
+; order: R0 = -1, 0 or +1, like CMP. A string that is the start of a longer
+; one comes first.
+b_strcmp: PUSH R3
+        PUSH R4
+        PUSH R5
+        MOV R3, R0
+        MOV R4, R1
+        LD R5, [R3]                     ; length of the first
+        LDI R0, 0                       ; characters compared
+bsc_loop: CMP R0, R5
+        JZ bsc_aend
+        LD R1, [R4]
+        CMP R0, R1
+        JZ bsc_more                     ; the second has ended first
+        MOV R1, R3
+        ADD R1, R0
+        LD R1, [R1+1]
+        MOV R2, R4
+        ADD R2, R0
+        LD R2, [R2+1]
+        CMP R1, R2
+        JN bsc_less
+        JP bsc_more
+        INC R0
+        JMP bsc_loop
+bsc_aend: LD R1, [R4]
+        CMP R0, R1
+        JZ bsc_same
+bsc_less: LDI R0, -1
+        JMP bsc_ret
+bsc_more: LDI R0, 1
+        JMP bsc_ret
+bsc_same: LDI R0, 0
+bsc_ret: POP R5
+        POP R4
+        POP R3
+        RET
+
+; b_printstr: prints the string R0. Keeps R3 ... R8.
+b_printstr: PUSH R3
+        PUSH R4
+        MOV R4, R0
+        LD R3, [R4]
+bps_loop: MOV R3, R3
+        JZ bps_ret
+        INC R4
+        LD R0, [R4]
+        JSR putchar
+        DEC R3
+        JMP bps_loop
+bps_ret: POP R4
+        POP R3
+        RET
+
+; b_substr: R0 = a string, R1 = the first character (1 = the first), R2 = how
+; many. Both are clamped to the string, so it never fails. R0 = a new temp.
+b_substr: PUSH R3
+        PUSH R4
+        PUSH R5
+        MOV R3, R0
+        MOV R4, R1
+        MOV R5, R2
+        MOV R4, R4
+        JP bsb_start
+        LDI R4, 1                       ; before the first: from the first
+bsb_start: LD R0, [R3]
+        SUB R0, R4
+        INC R0                          ; characters from R4 to the end
+        JGE bsb_avail
+        LDI R0, 0
+bsb_avail: CMP R5, R0
+        JLE bsb_n
+        MOV R5, R0
+bsb_n:  MOV R5, R5
+        JGE bsb_copy
+        LDI R5, 0
+bsb_copy: JSR b_tmpnew
+        ST R5, [R0]
+        PUSH R0
+        MOV R1, R3
+        ADD R1, R4                      ; the first character to copy
+        MOV R2, R0
+bsb_loop: MOV R5, R5
+        JZ bsb_done
+        LD R3, [R1]
+        INC R2
+        ST R3, [R2]
+        INC R1
+        DEC R5
+        JMP bsb_loop
+bsb_done: POP R0
+        POP R5
+        POP R4
+        POP R3
+        RET
+
+; b_numtostr: R0 = a number; R0 = its decimal text as a new temp (STR$).
+b_numtostr: PUSH R3
+        PUSH R4
+        PUSH R5
+        MOV R3, R0
+        JSR b_tmpnew
+        MOV R4, R0                      ; the temp
+        MOV R5, R0                      ; where the last character went
+        MOV R3, R3
+        JGE bns_pos
+        LDI R0, '-'
+        INC R5
+        ST R0, [R5]
+        NEG R3
+bns_pos: LDI R1, 0                      ; digits on the stack
+bns_dig: MOV R0, R3
+        LDI R2, 10
+        MOD R0, R2                      ; rounds: 7 MOD 10 = -3 ...
+        JGE bns_ok
+        ADD R0, R2                      ; ... so add 10 back
+bns_ok: SUB R3, R0
+        DIV R3, R2
+        ADDI R0, '0'
+        PUSH R0
+        INC R1
+        MOV R3, R3
+        JNZ bns_dig
+bns_out: POP R0
+        INC R5
+        ST R0, [R5]
+        DEC R1
+        JNZ bns_out
+        SUB R5, R4
+        ST R5, [R4]
+        MOV R0, R4
+        POP R5
+        POP R4
+        POP R3
+        RET
+
+; b_terntostr: R0 = a number; R0 = its balanced-ternary text as a new temp,
+; without leading zeros (TERN$(6) = "+-0"). n MOD 3 is the lowest trit.
+b_terntostr: PUSH R3
+        PUSH R4
+        PUSH R5
+        PUSH R6
+        MOV R3, R0
+        JSR b_tmpnew
+        MOV R4, R0
+        MOV R5, R0
+        LDI R6, 12                      ; all 12 trits, lowest first
+btt_take: MOV R0, R3
+        LDI R1, 3
+        MOD R0, R1
+        PUSH R0
+        DIV R3, R1
+        DEC R6
+        JNZ btt_take
+        LDI R6, 12
+        LDI R3, 0                       ; 1 once a non-zero trit has come
+btt_show: POP R0
+        MOV R0, R0
+        JNZ btt_put
+        MOV R3, R3
+        JNZ btt_put
+        LDI R1, 1
+        CMP R6, R1
+        JZ btt_put                      ; the very last trit: even a 0
+        JMP btt_next
+btt_put: LDI R3, 1
+        MOV R0, R0
+        BR3 btt_minus, btt_zero, btt_plus
+btt_minus: LDI R1, '-'
+        JMP btt_store
+btt_zero: LDI R1, '0'
+        JMP btt_store
+btt_plus: LDI R1, '+'
+btt_store: INC R5
+        ST R1, [R5]
+btt_next: DEC R6
+        JNZ btt_show
+        SUB R5, R4
+        ST R5, [R4]
+        MOV R0, R4
+        POP R6
+        POP R5
+        POP R4
+        POP R3
+        RET
 
 ; ===========================================================================
 ; Expressions (SPEC 10.2): each level calls the next higher one.
 ;   OR < AND < comparisons < + - < * / MOD < unary - NOT < ( ), numbers, names
-; Every level returns the value in R0 and keeps unfinished values on the stack.
+; Every level returns the value in R0, its type in B_TYPE, and keeps
+; unfinished values (and their types) on the stack.
 ; ===========================================================================
+
+; b_numexpr / b_strexpr: an expression that must be a number / a string.
+b_numexpr: JSR b_expr
+b_neednum: LDI R2, B_TYPE               ; keeps R0, R1
+        LD R2, [R2]
+        JNZ err_type
+        RET
+b_strexpr: JSR b_expr
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        JZ err_type
+        RET
+
+; b_isnum / b_isstr: set B_TYPE. Keep R0.
+b_isnum: LDI R1, 0
+        LDI R2, B_TYPE
+        ST R1, [R2]
+        RET
+b_isstr: LDI R1, 1
+        LDI R2, B_TYPE
+        ST R1, [R2]
+        RET
 
 ; b_expr: OR = the trit-wise maximum (Kleene's OR on TRUE/UNKNOWN/FALSE).
 b_expr: JSR b_and
@@ -1010,8 +1479,10 @@ bx_loop: PUSH R0
         LDI R2, T_OR
         CMP R0, R2
         JNZ bx_done
+        JSR b_neednum
         INC R7
         JSR b_and
+        JSR b_neednum
         POP R1
         MAX R0, R1
         JMP bx_loop
@@ -1025,8 +1496,10 @@ ba_loop: PUSH R0
         LDI R2, T_AND
         CMP R0, R2
         JNZ ba_done
+        JSR b_neednum
         INC R7
         JSR b_cmp
+        JSR b_neednum
         POP R1
         MIN R0, R1
         JMP ba_loop
@@ -1034,19 +1507,31 @@ ba_done: POP R0
         RET
 
 ; b_cmp: = <> < > <= >= give TRUE (1) or FALSE (-1); <=> gives the sign of
-; the difference. CMP compares without wrapping and leaves -1, 0 or +1 in S;
-; BR3 turns that into 0, 1 or 2, and reltab holds each operator's three
-; answers.
+; the difference. Two strings compare alphabetically. CMP compares without
+; wrapping and leaves -1, 0 or +1 in S; BR3 turns that into 0, 1 or 2, and
+; reltab holds each operator's three answers.
 b_cmp:  JSR b_add
 bc_loop: PUSH R0
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        PUSH R2                         ; the left side's type
         JSR b_relop                     ; R0 = operator 0 ... 6, or -1
         JN bc_done
         PUSH R0
         JSR b_add
         MOV R1, R0                      ; right
         POP R3                          ; operator
+        POP R2                          ; left type
+        LDI R0, B_TYPE
+        LD R0, [R0]
+        CMP R0, R2
+        JNZ err_type                    ; a number and a string
         POP R0                          ; left
-        CMP R0, R1
+        MOV R2, R2
+        JZ bc_compare
+        JSR b_strcmp                    ; strings: R0 = -1, 0 or +1 ...
+        LDI R1, 0                       ; ... compared with 0 below
+bc_compare: CMP R0, R1
         BR3 bc_lt, bc_eq, bc_gt
 bc_lt:  LDI R2, 0
         JMP bc_pick
@@ -1059,8 +1544,12 @@ bc_pick: MOV R0, R3
         LDI R2, reltab
         ADD R0, R2
         LD R0, [R0]
+        JSR b_isnum                     ; a comparison is always a number
         JMP bc_loop
-bc_done: POP R0
+bc_done: POP R2
+        LDI R1, B_TYPE
+        ST R2, [R1]
+        POP R0
         RET
 
 ; reltab: for each operator the answer when left < right, =, >.
@@ -1123,9 +1612,13 @@ brl_ge: INC R7
         LDI R0, 5
         RET
 
-; b_add: + and -, with ?OVERFLOW ERROR outside the word range.
+; b_add: + (numbers, or joining two strings) and - (numbers), with
+; ?OVERFLOW ERROR outside the word range.
 b_add:  JSR b_mul
 bad_loop: PUSH R0
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        PUSH R2                         ; the left side's type
         JSR b_skip
         LDI R2, '+'
         CMP R0, R2
@@ -1133,15 +1626,34 @@ bad_loop: PUSH R0
         LDI R2, '-'
         CMP R0, R2
         JZ bad_minus
+        POP R2
+        LDI R1, B_TYPE
+        ST R2, [R1]
         POP R0
         RET
 bad_plus: INC R7
         JSR b_mul
-        JMP bad_sum
+        MOV R1, R0                      ; right
+        POP R2                          ; left type
+        LDI R0, B_TYPE
+        LD R0, [R0]
+        CMP R0, R2
+        JNZ err_type
+        POP R0                          ; left
+        MOV R2, R2
+        JNZ bad_join
+        JSR b_addchk
+        JMP bad_loop
+bad_join: JSR b_concat
+        JMP bad_loop
 bad_minus: INC R7
+        POP R2
+        MOV R2, R2
+        JNZ err_type                    ; a string minus anything
         JSR b_mul
+        JSR b_neednum
         NEG R0                          ; never overflows: the range is symmetric
-bad_sum: MOV R1, R0
+        MOV R1, R0
         POP R0
         JSR b_addchk
         JMP bad_loop
@@ -1172,8 +1684,8 @@ b_addchk: JSR b_addflag
         JNZ err_overflow
         RET
 
-; b_mul: *, / and MOD. * wraps like the CPU's MUL (SPEC 10.2); / and MOD round
-; to the nearest whole number like DIV and MOD (7 / 2 = 3, 8 MOD 3 = -1).
+; b_mul: *, / and MOD (numbers only). * wraps like the CPU's MUL (SPEC 10.2);
+; / and MOD round to the nearest whole number like DIV and MOD.
 b_mul:  JSR b_unary
 bmu_loop: PUSH R0
         JSR b_skip
@@ -1188,21 +1700,27 @@ bmu_loop: PUSH R0
         JZ bmu_mod
         POP R0
         RET
-bmu_times: INC R7
+bmu_times: JSR b_neednum
+        INC R7
         JSR b_unary
+        JSR b_neednum
         POP R1
         MUL R0, R1
         JMP bmu_loop
-bmu_div: INC R7
+bmu_div: JSR b_neednum
+        INC R7
         JSR b_unary
+        JSR b_neednum
         MOV R1, R0
         POP R0
         MOV R1, R1
         JZ err_div0
         DIV R0, R1
         JMP bmu_loop
-bmu_mod: INC R7
+bmu_mod: JSR b_neednum
+        INC R7
         JSR b_unary
+        JSR b_neednum
         MOV R1, R0
         POP R0
         MOV R1, R1
@@ -1222,12 +1740,12 @@ b_unary: JSR b_skip
         JMP b_primary
 bun_neg: INC R7
         JSR b_unary
+        JSR b_neednum
         NEG R0
         RET
 
-; b_primary: a number, ( expression ), TRUE / FALSE / UNKNOWN, or a variable
-; (one never assigned is 0, UNKNOWN). A text in quotes is ?TYPE MISMATCH here:
-; it can only be printed or used as a prompt (strings come in M15).
+; b_primary: a number, "text", ( expression ), TRUE / FALSE / UNKNOWN, a
+; function, or a variable (one never assigned is 0, UNKNOWN, or "").
 b_primary: JSR b_skip
         JSR b_isdigit
         MOV R1, R1
@@ -1235,10 +1753,13 @@ b_primary: JSR b_skip
         JSR b_number
         JZ err_overflow
         JN err_syntax
-        RET
+        JMP b_isnum
 bpr_other: LDI R2, '('
         CMP R0, R2
         JZ bpr_paren
+        LDI R2, '"'
+        CMP R0, R2
+        JZ bpr_text
         LDI R2, T_TRUE
         CMP R0, R2
         JZ bpr_true
@@ -1248,17 +1769,20 @@ bpr_other: LDI R2, '('
         LDI R2, T_UNKNOWN
         CMP R0, R2
         JZ bpr_unknown
-        LDI R2, '"'
+        LDI R2, T_FIRSTFN               ; -51 ... -68: a function
         CMP R0, R2
-        JZ err_type
+        JLE bpr_function
         JSR b_isletter
         MOV R1, R1
         JZ err_syntax
-        JSR b_varname
-        JSR b_varfind
-        JZ bpr_ret                      ; never assigned: 0
-        LD R0, [R0]
+        JSR b_varref
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        JNZ bpr_ret                     ; a string: its SLOT's address
+        LD R0, [R0]                     ; a number: its value
 bpr_ret: RET
+bpr_text: JSR b_littemp
+        JMP b_isstr
 bpr_paren: INC R7
         JSR b_expr
         PUSH R0
@@ -1271,13 +1795,217 @@ bpr_paren: INC R7
         RET
 bpr_true: INC R7
         LDI R0, 1
-        RET
+        JMP b_isnum
 bpr_false: INC R7
         LDI R0, -1
-        RET
+        JMP b_isnum
 bpr_unknown: INC R7
         LDI R0, 0
+        JMP b_isnum
+bpr_function: INC R7
+        NEG R0                          ; 51 ... 68
+        LDI R2, fntab - 51
+        ADD R0, R2
+        LD R0, [R0]
+        PUSH R0                         ; jump there; its RET returns to our caller
         RET
+
+; ===========================================================================
+; Functions (SPEC 10.6.3, 10.4). Each starts just past its keyword and
+; returns its value in R0 with B_TYPE set.
+; ===========================================================================
+
+; argument helpers
+b_open: JSR b_skip
+        LDI R2, '('
+        CMP R0, R2
+        JNZ err_syntax
+        INC R7
+        RET
+b_comma: JSR b_skip
+        LDI R2, ','
+        CMP R0, R2
+        JNZ err_syntax
+        INC R7
+        RET
+b_close: PUSH R0                        ; keeps R0
+        JSR b_skip
+        LDI R2, ')'
+        CMP R0, R2
+        JNZ err_syntax
+        INC R7
+        POP R0
+        RET
+b_numarg: JSR b_open                    ; "(number)"
+        JSR b_numexpr
+        JMP b_close
+b_strarg: JSR b_open                    ; "(string)"
+        JSR b_strexpr
+        JMP b_close
+
+fn_abs: JSR b_numarg
+        MOV R0, R0
+        JGE b_isnum
+        NEG R0
+        JMP b_isnum
+
+fn_sgn: JSR b_numarg
+        MOV R0, R0
+        BR3 fsg_neg, b_isnum, fsg_pos
+fsg_neg: LDI R0, -1
+        JMP b_isnum
+fsg_pos: LDI R0, 1
+        JMP b_isnum
+
+; RND(n): 1 ... n from the RAND register (0 if n < 1). MOD rounds, so a
+; negative remainder gets n added.
+fn_rnd: JSR b_numarg
+        MOV R1, R0
+        JLE frn_none
+        LDI R2, IO_BASE
+        LD R0, [R2+RAND]
+        MOD R0, R1
+        JGE frn_ok
+        ADD R0, R1
+frn_ok: INC R0
+        JMP b_isnum
+frn_none: LDI R0, 0
+        JMP b_isnum
+
+fn_peek: JSR b_numarg
+        LD R0, [R0]
+        JMP b_isnum
+
+fn_joyx: LDI R2, IO_BASE
+        LD R0, [R2+JOY_X]
+        JMP b_isnum
+
+fn_joyy: LDI R2, IO_BASE
+        LD R0, [R2+JOY_Y]
+        JMP b_isnum
+
+; BTN(n): button A, B or C (n = 1, 2, 3); 0 for any other n.
+fn_btn: JSR b_numarg
+        MOV R1, R0
+        LDI R0, 0
+        MOV R1, R1
+        JLE b_isnum
+        LDI R2, 3
+        CMP R1, R2
+        JP b_isnum
+        LDI R2, IO_BASE + BTN_A - 1
+        ADD R2, R1
+        LD R0, [R2]
+        JMP b_isnum
+
+fn_inkey: JSR b_key                     ; keys typed earlier come first
+        JMP b_isnum
+
+fn_frame: LDI R2, IO_BASE
+        LD R0, [R2+FRAME]
+        JMP b_isnum
+
+fn_len: JSR b_strarg
+        LD R0, [R0]
+        JMP b_isnum
+
+fn_left: JSR b_open
+        JSR b_strexpr
+        PUSH R0
+        JSR b_comma
+        JSR b_numexpr
+        JSR b_close
+        MOV R2, R0
+        POP R0
+        LDI R1, 1
+        JSR b_substr
+        JMP b_isstr
+
+fn_right: JSR b_open
+        JSR b_strexpr
+        PUSH R0
+        JSR b_comma
+        JSR b_numexpr
+        JSR b_close
+        MOV R2, R0                      ; how many
+        POP R0
+        LD R1, [R0]
+        SUB R1, R2
+        INC R1                          ; from length - n + 1
+        JSR b_substr
+        JMP b_isstr
+
+fn_mid: JSR b_open
+        JSR b_strexpr
+        PUSH R0
+        JSR b_comma
+        JSR b_numexpr
+        PUSH R0                         ; the first character
+        JSR b_comma
+        JSR b_numexpr
+        JSR b_close
+        MOV R2, R0                      ; how many
+        POP R1
+        POP R0
+        JSR b_substr
+        JMP b_isstr
+
+fn_chr: JSR b_numarg
+        PUSH R0
+        JSR b_tmpnew
+        POP R1
+        ST R1, [R0+1]
+        LDI R1, 1
+        ST R1, [R0]
+        JMP b_isstr
+
+fn_asc: JSR b_strarg                    ; the first character's code, 0 for ""
+        LD R1, [R0]
+        JZ fas_empty
+        LD R0, [R0+1]
+        JMP b_isnum
+fas_empty: LDI R0, 0
+        JMP b_isnum
+
+fn_str: JSR b_numarg
+        JSR b_numtostr
+        JMP b_isstr
+
+fn_tern: JSR b_numarg
+        JSR b_terntostr
+        JMP b_isstr
+
+; VAL(s$): the number at the start of s$ (spaces, a sign, decimal or 0T
+; trits); 0 if there is none.
+fn_val: JSR b_strarg
+        PUSH R0
+        JSR b_tmpnew                    ; the characters, 0-terminated, to read
+        POP R1
+        PUSH R0
+        JSR b_copychars
+        LDI R1, 0
+        ST R1, [R0]
+        POP R0
+        PUSH R7
+        MOV R7, R0
+        JSR b_skip
+        LDI R3, 1
+        LDI R2, '-'
+        CMP R0, R2
+        JNZ fvl_digit
+        LDI R3, -1
+        INC R7
+fvl_digit: LD R0, [R7]
+        JSR b_isdigit
+        MOV R1, R1
+        JZ fvl_none
+        JSR b_number
+        JLE fvl_none
+        MUL R0, R3
+        JMP fvl_ret
+fvl_none: LDI R0, 0
+fvl_ret: POP R7
+        JMP b_isnum
 
 ; ===========================================================================
 ; Statements. Each is reached with R7 just past its keyword, and returns to
@@ -1285,8 +2013,9 @@ bpr_unknown: INC R7
 ; b_resume or b_comeback, which reset the stack.
 ; ===========================================================================
 
-; --- PRINT items: "text"; expressions; ';' joins, ',' goes to the next of the
-; 9-column zones; a ';' or ',' at the end keeps the cursor on the line.
+; --- PRINT items: expressions (numbers or strings); ';' joins, ',' goes to
+; the next of the 9-column zones; a ';' or ',' at the end keeps the cursor on
+; the line.
 st_print: LDI R3, 1                     ; 1 = end with a new line
 spr_loop: JSR b_skip
         JZ spr_end
@@ -1305,14 +2034,14 @@ spr_loop: JSR b_skip
         LDI R2, ','
         CMP R0, R2
         JZ spr_comma
-        LDI R2, '"'
-        CMP R0, R2
-        JZ spr_text
         JSR b_expr
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        JNZ spr_string
         JSR printnum
         LDI R3, 1
         JMP spr_loop
-spr_text: JSR b_strlit
+spr_string: JSR b_printstr
         LDI R3, 1
         JMP spr_loop
 spr_semi: INC R7
@@ -1341,7 +2070,8 @@ bzn_loop: LDI R2, CURSOR_X
         JMP bzn_loop
 bzn_ret: RET
 
-; --- INPUT ["prompt";] var: "? " and a number (decimal or 0T...); anything
+; --- INPUT ["prompt";] var: "? " and a line. A string variable takes the
+; line as it is; a number variable a number (decimal or 0T...), and anything
 ; else gets ?REDO and another try. Esc is BREAK.
 st_input: JSR b_skip
         LDI R2, '"'
@@ -1357,24 +2087,47 @@ st_input: JSR b_skip
 sin_var: JSR b_isletter
         MOV R1, R1
         JZ err_syntax
-        JSR b_varname
-        JSR b_varget
+        JSR b_varref
         PUSH R7                         ; the program's place: R7 reads INBUF now
         PUSH R0                         ; the variable
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        PUSH R2                         ; its type
 sin_ask: LDI R0, msg_qmark
         JSR print
         LDI R0, INBUF
         LDI R1, 1
         JSR b_readline
         JNZ b_break                     ; Esc
+        POP R2
+        PUSH R2
+        MOV R2, R2
+        JNZ sin_text
         LDI R7, INBUF
         JSR b_signednum
         JNZ sin_got
         LDI R0, msg_redo
         JSR print
         JMP sin_ask
-sin_got: POP R1
+sin_got: POP R2
+        POP R1
         ST R0, [R1]
+        POP R7
+        RET
+sin_text: POP R2
+        POP R0                          ; the SLOT
+        LDI R1, INBUF
+        LDI R2, 0                       ; length
+sit_loop: LD R3, [R1]
+        JZ sit_end
+        INC R2
+        PUSH R2
+        ADD R2, R0
+        ST R3, [R2]
+        POP R2
+        INC R1
+        JMP sit_loop
+sit_end: ST R2, [R0]
         POP R7
         RET
 
@@ -1426,8 +2179,8 @@ st_ask: JSR b_skip
         JSR b_isletter
         MOV R1, R1
         JZ err_syntax
-        JSR b_varname
-        JSR b_varget
+        JSR b_varref
+        JSR b_neednum                   ; a truth value is a number
         PUSH R0                         ; the variable
         LDI R0, msg_yn
         JSR print
@@ -1462,30 +2215,44 @@ sak_set: PUSH R1
         ST R0, [R1]
         RET
 
-; --- LET var = expression (the word LET may be left out)
+; --- LET var = expression (the word LET may be left out). A string
+; variable needs a string, a number variable a number.
 st_let: JSR b_skip
         JSR b_isletter
         MOV R1, R1
         JZ err_syntax
-st_letvar: JSR b_varname
-        JSR b_varget
-        PUSH R0
+st_letvar: JSR b_varref
+        PUSH R0                         ; where
+        LDI R2, B_TYPE
+        LD R2, [R2]
+        PUSH R2                         ; and of which type
         JSR b_skip
         LDI R2, '='
         CMP R0, R2
         JNZ err_syntax
         INC R7
         JSR b_expr
+        POP R2
+        LDI R1, B_TYPE
+        LD R1, [R1]
+        CMP R1, R2
+        JNZ err_type
         POP R1
+        MOV R2, R2
+        JNZ slt_string
         ST R0, [R1]
         RET
+slt_string: MOV R2, R0                  ; b_strcopy wants R0 = SLOT, R1 = string
+        MOV R0, R1
+        MOV R1, R2
+        JMP b_strcopy
 
 ; --- GOTO line (an expression: GOTO 100 + 10 * K works too)
 st_goto: JSR b_target
         JMP b_goline
 
 ; b_target: R1 = the record of the line the expression at R7 names.
-b_target: JSR b_expr
+b_target: JSR b_numexpr
         JSR b_findline
         JZ err_undef
         MOV R1, R0
@@ -1544,15 +2311,15 @@ st_for: JSR b_skip
         JSR b_isletter
         MOV R1, R1
         JZ err_syntax
-        JSR b_varname
-        JSR b_varget
+        JSR b_varref
+        JSR b_neednum
         PUSH R0                         ; the variable
         JSR b_skip
         LDI R2, '='
         CMP R0, R2
         JNZ err_syntax
         INC R7
-        JSR b_expr
+        JSR b_numexpr
         POP R1
         ST R0, [R1]                     ; the start value
         PUSH R1
@@ -1561,14 +2328,14 @@ st_for: JSR b_skip
         CMP R0, R2
         JNZ err_syntax
         INC R7
-        JSR b_expr
+        JSR b_numexpr
         PUSH R0                         ; the limit
         JSR b_skip
         LDI R2, T_STEP
         CMP R0, R2
         JNZ sfr_one
         INC R7
-        JSR b_expr
+        JSR b_numexpr
         JMP sfr_step
 sfr_one: LDI R0, 1
 sfr_step: PUSH R0                       ; the step
@@ -1627,8 +2394,8 @@ st_next: JSR b_skip
         JSR b_isletter
         MOV R1, R1
         JZ snx_any
-        JSR b_varname
-        JSR b_varget
+        JSR b_varref
+        JSR b_neednum
         JMP snx_find
 snx_any: LDI R0, 0                      ; 0 = the innermost loop
 snx_find: LDI R2, B_CSP
@@ -1684,7 +2451,7 @@ snx_done: LDI R2, B_CSP
 ; the condition. BR3 is the CPU's three-way jump; it is the whole statement.
 ; A branch runs until MAYBE / ELSE (b_after ends the line there); a line
 ; number alone means GOTO.
-st_if:  JSR b_expr
+st_if:  JSR b_numexpr
         PUSH R0
         JSR b_skip
         LDI R2, T_THEN
@@ -1845,16 +2612,548 @@ sls_next: LD R0, [R5]
         JMP sls_line
 sls_ret: RET
 
+; --- DIM name(n) or name(low TO high), several separated by commas. An
+; array that already exists is ?SYNTAX ERROR (D-051).
+st_dim: JSR b_skip
+        JSR b_isletter
+        MOV R1, R1
+        JZ err_syntax
+        MOV R3, R7                      ; where the name starts
+        JSR b_varname
+        PUSH R0                         ; the type
+        PUSH R3
+        JSR b_skip
+        LDI R2, '('
+        CMP R0, R2
+        JNZ err_syntax
+        INC R7
+        JSR b_numexpr
+        PUSH R0                         ; the first number
+        JSR b_skip
+        LDI R2, T_TO
+        CMP R0, R2
+        JNZ sdm_upto
+        INC R7
+        JSR b_numexpr
+        MOV R1, R0                      ; high
+        POP R0                          ; low
+        JMP sdm_close
+sdm_upto: POP R1                        ; DIM A(n): 0 ... n
+        LDI R0, 0
+sdm_close: PUSH R0
+        PUSH R1
+        JSR b_skip
+        LDI R2, ')'
+        CMP R0, R2
+        JNZ err_syntax
+        INC R7
+        LD R1, [SP+2]                   ; the name again
+        JSR b_scanword
+        JSR b_arrname
+        JSR b_findvar
+        JNZ err_syntax
+        POP R1                          ; high
+        POP R0                          ; low
+        POP R3
+        POP R2                          ; the type
+        JSR b_mkarray
+        JSR b_skip
+        LDI R2, ','
+        CMP R0, R2
+        JNZ sdm_ret
+        INC R7
+        JMP st_dim
+sdm_ret: RET
+
+; ===========================================================================
+; Machine statements (SPEC 10.6.2). Their numbers go to B_ARGS first.
+; ===========================================================================
+
+; b_args: R0 = how many numbers; reads them, separated by commas, into B_ARGS.
+b_args: PUSH R3
+        PUSH R4
+        MOV R3, R0
+        LDI R4, 0
+bag_loop: MOV R4, R4
+        JZ bag_first
+        JSR b_comma
+bag_first: PUSH R3
+        PUSH R4
+        JSR b_numexpr
+        POP R4
+        POP R3
+        LDI R2, B_ARGS
+        ADD R2, R4
+        ST R0, [R2]
+        INC R4
+        CMP R4, R3
+        JN bag_loop
+        POP R4
+        POP R3
+        RET
+
+; b_inrange: R0 = a number, R1 = the highest allowed: S = 0 if 0 <= R0 <= R1.
+b_inrange: MOV R0, R0
+        JN bir_no
+        CMP R0, R1
+        JP bir_no
+        LDI R2, 0
+        MOV R2, R2
+        RET
+bir_no: LDI R2, 1
+        MOV R2, R2
+        RET
+
+; --- CLS
+st_cls: JMP cls
+
+; --- LOCATE column, row (clamped to the screen by the kernel)
+st_locate: LDI R0, 2
+        JSR b_args
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LD R1, [R2+1]
+        JMP locate
+
+; --- TILE column, row, tile: one cell of the tile map (off the screen: nothing)
+st_tile: LDI R0, 3
+        JSR b_args
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LDI R1, COLS - 1
+        JSR b_inrange
+        JNZ stl_ret
+        LDI R2, B_ARGS
+        LD R0, [R2+1]
+        LDI R1, ROWS - 1
+        JSR b_inrange
+        JNZ stl_ret
+        LDI R1, COLS
+        MUL R0, R1                      ; row * 27
+        LDI R2, B_ARGS
+        LD R1, [R2]
+        ADD R0, R1
+        LDI R1, MAP
+        ADD R0, R1
+        LD R1, [R2+2]
+        ST R1, [R0]
+stl_ret: RET
+
+; --- DEFTILE tile, row, p0 ... p7: one row of a tile, 8 pixel values. Each
+; value is taken MOD 27, which in balanced ternary is exactly -13 ... 13.
+st_deftile: LDI R0, 10
+        JSR b_args
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LDI R1, 242
+        JSR b_inrange
+        JNZ sdt_ret
+        LDI R2, B_ARGS
+        LD R0, [R2+1]
+        LDI R1, 7
+        JSR b_inrange
+        JNZ sdt_ret
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LDI R1, 16
+        MUL R0, R1                      ; tile * 16
+        LD R1, [R2+1]
+        ADD R0, R1
+        ADD R0, R1                      ; + row * 2
+        LDI R1, TILES
+        ADD R0, R1
+        PUSH R0
+        LDI R1, B_ARGS + 2
+        JSR b_pack4                     ; pixels 0 ... 3
+        POP R1
+        ST R0, [R1]
+        PUSH R1
+        LDI R1, B_ARGS + 6
+        JSR b_pack4                     ; pixels 4 ... 7
+        POP R1
+        ST R0, [R1+1]
+sdt_ret: RET
+
+; b_pack4: R1 = the address of 4 pixel values: R0 = them packed into one
+; word, p0 * 19683 + p1 * 729 + p2 * 27 + p3 (SPEC 4.3).
+b_pack4: PUSH R3
+        PUSH R4
+        LDI R0, 0
+        LDI R3, 4
+bpk_loop: LDI R2, 27
+        MUL R0, R2
+        LD R4, [R1]
+        MOD R4, R2
+        ADD R0, R4
+        INC R1
+        DEC R3
+        JNZ bpk_loop
+        POP R4
+        POP R3
+        RET
+
+; --- SPRITE i, x, y, tile [, flags]: flags are +1 (shown) if left out
+st_sprite: LDI R0, 4
+        JSR b_args
+        LDI R0, 1
+        LDI R2, B_ARGS
+        ST R0, [R2+4]
+        JSR b_skip
+        LDI R2, ','
+        CMP R0, R2
+        JNZ ssp_set
+        INC R7
+        JSR b_numexpr
+        LDI R2, B_ARGS
+        ST R0, [R2+4]
+ssp_set: LDI R2, B_ARGS
+        LD R0, [R2]
+        LDI R1, 26
+        JSR b_inrange
+        JNZ ssp_ret
+        SHT R0, 1
+        LDI R2, B_ARGS
+        LD R1, [R2]
+        ADD R0, R1                      ; i * 4
+        LDI R1, SPRITES
+        ADD R0, R1
+        LD R1, [R2+1]
+        ST R1, [R0]
+        LD R1, [R2+2]
+        ST R1, [R0+1]
+        LD R1, [R2+3]
+        ST R1, [R0+2]
+        LD R1, [R2+4]
+        ST R1, [R0+3]
+ssp_ret: RET
+
+; --- SOUND voice (1 ... 3), frequency, volume, wave
+st_sound: LDI R0, 4
+        JSR b_args
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        ADDI R0, -1
+        LDI R1, 2
+        JSR b_inrange
+        JNZ sso_ret
+        SHT R0, 1                       ; (voice - 1) * 3
+        LDI R1, IO_BASE + V1_FREQ
+        ADD R0, R1
+        LDI R2, B_ARGS
+        LD R1, [R2+1]
+        ST R1, [R0]
+        LD R1, [R2+2]
+        ST R1, [R0+1]
+        LD R1, [R2+3]
+        ST R1, [R0+2]
+sso_ret: RET
+
+; --- BORDER colour
+st_border: JSR b_numexpr
+        LDI R2, IO_BASE
+        ST R0, [R2+BORDER]
+        RET
+
+; --- SCROLL x, y
+st_scroll: LDI R0, 2
+        JSR b_args
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LD R1, [R2+1]
+        LDI R2, IO_BASE
+        ST R0, [R2+SCROLL_X]
+        ST R1, [R2+SCROLL_Y]
+        RET
+
+; --- WAIT frames: sleeps that many frames (Esc still stops the program)
+st_wait: JSR b_numexpr
+swt_loop: MOV R0, R0
+        JLE swt_ret
+        WAIT
+        PUSH R0
+        JSR b_poll
+        POP R0
+        DEC R0
+        JMP swt_loop
+swt_ret: RET
+
+; --- POKE address, value
+st_poke: LDI R0, 2
+        JSR b_args
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LD R1, [R2+1]
+        ST R1, [R0]
+        RET
+
+; --- SYS address: calls machine code there (JSR); it comes back with RET.
+st_sys: JSR b_numexpr
+b_call: PUSH R7                         ; R0 = the address
+        LDI R1, ssy_back
+        PUSH R1
+        PUSH R0
+        RET
+ssy_back: POP R7
+        RET
+
+; --- COLOR foreground, background: re-colours the font (tiles 32 ... 126).
+; Every pixel that has the font's current foreground colour gets the new
+; foreground, every other pixel the new background. A pixel is w MOD 27 (the
+; lowest three trits), and (w - pixel) / 27 is the rest of the word.
+st_color: LDI R0, 2
+        JSR b_args
+        LDI R1, 27
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        MOD R0, R1                      ; colours -13 ... 13
+        ST R0, [R2]
+        LD R0, [R2+1]
+        MOD R0, R1
+        ST R0, [R2+1]
+        PUSH R7
+        LDI R2, B_FONTFG
+        LD R0, [R2]
+        LDI R2, B_FONTBG
+        LD R1, [R2]
+        CMP R0, R1
+        JNZ sco_go
+        JSR loadfont                    ; one colour only: draw the font afresh
+        JSR b_fontcolours
+sco_go: LDI R5, TILES + 512             ; tile 32's first word
+sco_word: LD R3, [R5]
+        LDI R4, 0                       ; the new word
+        LDI R6, 1                       ; the place of the current pixel
+sco_pix: MOV R0, R3
+        LDI R2, 27
+        MOD R0, R2                      ; the lowest pixel ...
+        SUB R3, R0
+        DIV R3, R2                      ; ... and the rest
+        LDI R2, B_FONTFG
+        LD R1, [R2]
+        CMP R0, R1
+        JZ sco_fg
+        LDI R2, B_ARGS
+        LD R0, [R2+1]
+        JMP sco_put
+sco_fg: LDI R2, B_ARGS
+        LD R0, [R2]
+sco_put: MUL R0, R6
+        ADD R4, R0
+        LDI R2, 27
+        MUL R6, R2                      ; 1, 27, 729, 19683, then 3^12 wraps to 0
+        MOV R6, R6
+        JNZ sco_pix
+        ST R4, [R5]
+        INC R5
+        LDI R2, TILES + 512 + 1520      ; 95 tiles x 16 words
+        CMP R5, R2
+        JN sco_word
+        LDI R2, B_ARGS
+        LD R0, [R2]
+        LDI R2, B_FONTFG
+        ST R0, [R2]
+        LDI R2, B_ARGS
+        LD R0, [R2+1]
+        LDI R2, B_FONTBG
+        ST R0, [R2]
+        POP R7
+        RET
+
+; ===========================================================================
+; Storage (SPEC 10.6.4): the triskette, through the ROM's DISK routines (M13)
+; ===========================================================================
+
+; b_fname: R0 = an extension (".TB", ".TRI") or 0. Reads a string expression
+; and puts it into FNAME, 0-terminated, with the extension if the name has no
+; '.'. (Names the triskette can't take give ?DISK ERROR.)
+b_fname: PUSH R0
+        JSR b_strexpr
+        MOV R1, R0                      ; the name
+        LD R2, [R1]
+        LDI R0, 13                      ; at most 13 characters (13 is already too many)
+        CMP R2, R0
+        JLE bfn_len
+        LDI R2, 13
+bfn_len: PUSH R3
+        PUSH R4
+        PUSH R5
+        LDI R3, FNAME
+        LDI R4, 0                       ; 1 once a '.' was seen
+        LDI R5, '.'
+bfn_copy: MOV R2, R2
+        JZ bfn_ext
+        INC R1
+        LD R0, [R1]
+        ST R0, [R3]
+        INC R3
+        DEC R2
+        CMP R0, R5
+        JNZ bfn_copy
+        LDI R4, 1
+        JMP bfn_copy
+bfn_ext: LD R1, [SP+3]                  ; the extension
+        MOV R4, R4
+        JNZ bfn_end
+        MOV R1, R1
+        JZ bfn_end
+bfn_append: LD R0, [R1]
+        JZ bfn_end
+        ST R0, [R3]
+        INC R3
+        INC R1
+        JMP bfn_append
+bfn_end: LDI R0, 0
+        ST R0, [R3]
+        POP R5
+        POP R4
+        POP R3
+        POP R0
+        RET
+
+; b_diskstatus: R0 = a DISK routine's status: 0 goes on, -1 is ?FILE NOT FOUND,
+; anything else ?DISK ERROR.
+b_diskstatus: MOV R0, R0
+        JZ bds_ret
+        LDI R1, -1
+        CMP R0, R1
+        JZ err_notfound
+        JMP err_disk
+bds_ret: RET
+
+; --- SAVE "NAME": the program as NAME.TB (243 ... its end marker)
+st_save: LDI R0, ext_tb
+        JSR b_fname
+        LDI R2, B_PROGEND
+        LD R2, [R2]
+        LDI R1, PROGRAM_START
+        SUB R2, R1
+        INC R2                          ; its length, with the end marker
+        LDI R0, FNAME
+        JSR disksave
+        JMP b_diskstatus
+
+; --- LOAD "NAME": NAME.TB replaces the program; then READY.
+st_load: LDI R0, ext_tb
+        JSR b_fname
+        LDI R0, FNAME
+        LDI R1, PROGRAM_START
+        JSR diskload
+        JSR b_diskstatus
+        JSR b_relink                    ; is it a program? if not: NEW ...
+        MOV R0, R0
+        JZ err_disk                     ; ... and ?DISK ERROR
+        JSR b_clearvars
+        JMP b_ready
+
+; --- FILES: the names on the triskette, one per line
+st_files: LDI R0, TEMP_START
+        LDI R1, TEMP_END - TEMP_START
+        JSR diskdir
+        JSR b_diskstatus
+        LDI R5, TEMP_START
+sfl_name: JSR b_poll
+        LD R0, [R5]
+        JZ sfl_ret                      ; the extra 0: the end
+        MOV R0, R5
+        JSR print
+        LDI R0, 10
+        JSR putchar
+sfl_skip: LD R0, [R5]                   ; past this name and its 0
+        INC R5
+        MOV R0, R0
+        JNZ sfl_skip
+        JMP sfl_name
+sfl_ret: RET
+
+; --- ERASE "NAME.EXT"
+st_erase: LDI R0, 0
+        JSR b_fname
+        LDI R0, FNAME
+        JSR diskdel
+        JMP b_diskstatus
+
+; --- BSAVE "NAME", address, length: words as NAME.TRI
+st_bsave: LDI R0, ext_tri
+        JSR b_fname
+        JSR b_comma
+        JSR b_numexpr
+        PUSH R0
+        JSR b_comma
+        JSR b_numexpr
+        MOV R2, R0
+        POP R1
+        LDI R0, FNAME
+        JSR disksave
+        JMP b_diskstatus
+
+; --- BLOAD "NAME" [, address]: NAME.TRI to its own address, or to that one
+st_bload: JSR b_bload
+        JMP b_afterload
+
+; b_bload: loads the file named after BLOAD / BRUN; R1 = where it went,
+; R2 = its length.
+b_bload: LDI R0, ext_tri
+        JSR b_fname
+        LDI R1, -1                      ; negative: its own address
+        JSR b_skip
+        LDI R2, ','
+        CMP R0, R2
+        JNZ bbl_go
+        INC R7
+        JSR b_numexpr
+        MOV R1, R0
+bbl_go: LDI R0, FNAME
+        JSR diskload
+        PUSH R1
+        PUSH R2
+        JSR b_diskstatus
+        POP R2
+        POP R1
+        RET
+
+; b_afterload: R1 = where a block of R2 words went. If it covered the
+; program or its variables, they are gone: NEW and READY.
+b_afterload: LDI R0, B_VAREND
+        LD R0, [R0]
+        CMP R1, R0
+        JGE bal_ret                     ; it starts after the variables
+        ADD R1, R2
+        LDI R0, PROGRAM_START
+        CMP R1, R0
+        JLE bal_ret                     ; it ends before the program
+        JSR b_new
+        JMP b_ready
+bal_ret: RET
+
+; --- BRUN "NAME": BLOAD, then call it (SYS). The games run like this.
+st_brun: JSR b_bload
+        PUSH R1
+        PUSH R2
+        MOV R0, R1
+        JSR b_call
+        POP R2
+        POP R1
+        JMP b_afterload
+
 ; ===========================================================================
 ; Tables and texts
 ; ===========================================================================
 
 ; sttab: the routine for each keyword that starts a statement (token -1 is
-; the first entry); 0 = not a statement (yet: the rest come in M15).
+; the first entry); 0 = not a statement (CONT is not one, D-051).
 sttab:  .word st_print, st_input, st_ask, st_let, st_goto, st_gosub, st_return
         .word st_for, 0, 0, st_next, st_if, 0, 0, 0, st_rem, st_end, st_stop
-        .word 0, 0, 0, st_list, st_run, st_new, st_mon, 0
-        .fill 42, 0                     ; tokens -27 ... -68
+        .word st_dim, st_cls, st_locate, st_list, st_run, st_new, st_mon, 0
+        .fill 7, 0                      ; AND ... UNKNOWN (-27 ... -33)
+        .word st_tile, st_deftile, st_sprite, st_sound, st_border, st_scroll
+        .word st_wait, st_color, st_poke, st_sys, st_save, st_load, st_files
+        .word st_erase, st_bsave, st_bload, st_brun
+        .fill 18, 0                     ; the functions (-51 ... -68)
+
+; fntab: the routine for each function, from ABS (-51) to TERN$ (-68).
+fntab:  .word fn_abs, fn_sgn, fn_rnd, fn_peek, fn_joyx, fn_joyy, fn_btn
+        .word fn_inkey, fn_frame, fn_len, fn_left, fn_right, fn_mid, fn_chr
+        .word fn_asc, fn_str, fn_val, fn_tern
 
 ; kwtab: every keyword, in token order (-1, -2, ...). The whole language is
 ; here from the start, so saved programs keep their tokens when M15 adds the
@@ -1962,3 +3261,5 @@ msg_break:  .str "BREAK"
 msg_qmark:  .str "? "
 msg_redo:   .str "?REDO\n"
 msg_yn:     .str " (Y/N/?) "
+ext_tb:     .str ".TB"
+ext_tri:    .str ".TRI"

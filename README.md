@@ -10,13 +10,15 @@ TRIADA-85 imagines the other timeline. Ternary won in Eastern Europe, and by 198
 
 **[Switch it on in your browser](https://droidek314.github.io/Triada-85/)**, no installation needed.
 
-This project builds that whole machine as a program you can run on a normal PC or in a web browser: the three-valued arithmetic, the processor, the memory, the screen chip, the sound chip, a small operating system written in the machine's own language, a debugger, three games and the owner's manual. Every step is documented so that someone with no technical background can follow the ideas, and a programmer can rebuild the whole thing from the documents alone.
+This project builds that whole machine as a program you can run on a normal PC or in a web browser: the three-valued arithmetic, the processor, the memory, the screen chip, the sound chip, a small operating system and a programming language written in the machine's own language, a disk drive, a debugger, games and the owner's manual. This is **version 1.1**; see the [changelog](CHANGELOG.md). Every step is documented so that someone with no technical background can follow the ideas, and a programmer can rebuild the whole thing from the documents alone.
 
 | Switched on | TRIZMEYKA | TROIKA |
 |---|---|---|
 | ![The boot screen](docs/images/boot.png) | ![TRIZMEYKA, the snake](docs/images/trizmeyka.png) | ![TROIKA, the puzzle of threes](docs/images/troika.png) |
 | **OBLAKA** | **The type-in listing** | **With the CRT look** |
 | ![OBLAKA, the shooter](docs/images/oblaka.png) | ![Triangle of Threes](docs/images/triangle.png) | ![Triangle of Threes on a "television"](docs/images/crt-triangle.png) |
+| **TRIBASIC** | **TERNCLOCK, in TRIBASIC** | |
+| ![TRIBASIC's three-way IF](docs/images/tribasic.png) | ![The time in balanced ternary](docs/images/ternclock.png) | |
 
 ## What is in it
 
@@ -25,14 +27,33 @@ This project builds that whole machine as a program you can run on a normal PC o
 - **Its own assembly language and assembler,** which also turns machine code back into text.
 - **A video chip** (tiles, 27 sprites, scrolling) and **a sound chip** (three voices, including the machine's own "ternary square" wave).
 - **A ROM written in TRIADA assembly:** boot chime, boot screen, and a monitor with `HELP`, `TERN`, `PEEK`, `POKE`, `RUN`, `CLS`.
-- **TRIBASIC** (M14), the built-in programming language the machine greets you with, written in TRIADA assembly too. Its `IF` has three answers: `IF R THEN … MAYBE … ELSE …`.
+- **TRIBASIC** (M14–M15), the built-in programming language the machine greets you with, written in TRIADA assembly too. See [below](#tribasic).
 - **A debugger** (F1): stop, step, step over, breakpoints, registers in decimal and ternary.
 - **Three games**, written in TRIADA assembly: TRIZMEYKA (a snake whose food comes in three trit colours), TROIKA (a puzzle whose moves are the CPU's own trit-wise instructions) and OBLAKA (a scrolling shooter).
 - **The [owner's manual](docs/manual/README.md),** written as if printed in 1985, with a type-in listing from *Trit & Tryte*. Its examples are checked by tests against the real machine.
 - **An optional CRT look** (F2): curved glass, scanlines, phosphor stripes.
 - **[A web version](https://droidek314.github.io/Triada-85/)**: the same machine in a browser, with everything except the debugger, published by GitHub after every change that passes the tests.
 - **A triskette drive** (M13): programs can save, load, list and delete files. On the desktop the triskette is the folder `triskettes/`; on the web page it lives in your browser, with import and export.
-- **639 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
+- **691 automatic tests**, from single trits to tests that play the games, type in the manual's listings and run 93 TRIBASIC programs.
+
+## TRIBASIC
+
+Switch the TRIADA-85 on and it says `READY.`: type a program and `RUN` it.
+
+```
+10 ASK "IS IT RAINING"; R
+20 IF R THEN PRINT "UMBRELLA" MAYBE PRINT "JUST IN CASE" ELSE PRINT "SUN"
+RUN
+IS IT RAINING (Y/N/?) ?
+JUST IN CASE
+```
+
+- **Three answers.** Every condition is TRUE (+1), UNKNOWN (0) or FALSE (−1). `AND`, `OR` and `NOT` follow Kleene's three-valued logic (they are the processor's own MIN, MAX and NEG), `a <=> b` answers −1, 0 or +1, and `IF` has a third branch, `MAYBE`. `ASK` waits for Y, N or ?.
+- **A full home-computer BASIC:** numbers, strings and their functions (`LEFT$`, `MID$`, `TERN$` …), arrays (`DIM T(-5 TO 5)` has its 0 in the middle), `FOR`, `GOSUB`, `INPUT`, and statements for the picture and sound chips (`TILE`, `DEFTILE`, `SPRITE`, `SOUND`, `COLOR` …).
+- **The triskette:** `SAVE "NAME"`, `LOAD`, `FILES`, `ERASE`, and `BRUN` for machine-code programs. On the web page the triskette lives in your browser.
+- **Paste a listing** with Ctrl+V (desktop and web), or let the command line type it: `triada run --type program.bas`.
+- **Examples** in [`programs/basic/`](programs/basic/): ORACLE (a fortune teller with three answers), GUESS (the hints come from `<=>`), TERNCLOCK (the time in trits), ZMEYKA (a snake) and TYPEIN, the *Trit & Tryte* type-in listing.
+- **The manual chapter** [*TRIBASIC: Programming with Three Answers*](docs/manual/tribasic.md) shows every statement. Its examples are typed in and checked by a test.
 
 ## How to run
 
@@ -74,6 +95,8 @@ In the window:
 | Z, X, C | fire buttons A, B, C |
 | F1 | the debugger: F5 pause/continue, F11 step, F10 step over, click a line for a breakpoint |
 | F2 | the CRT look on/off |
+| Ctrl+V | types the clipboard in, e.g. a TRIBASIC listing |
+| Esc | stops a TRIBASIC program |
 | drop a file on the window | "insert a triskette": it is stored on the triskette, and machine code runs |
 
 More programs are in [`programs/`](programs/), for example `colors.tasm` (all 27 colours), `piano.tasm` (your keyboard as a piano) and `triangle.tasm` (the type-in listing).
@@ -129,7 +152,8 @@ The desktop can also save a picture without opening a visible window, for exampl
 | `triada-desktop/` | The window, sound, debugger and command line of the download (libGDX). |
 | `triada-web/` | The browser version and its page (libGDX web backend gdx-teavm). |
 | `rom/` | The ROM's source, in TRIADA assembly. |
-| `programs/` | Example programs and the three games, in TRIADA assembly. |
+| `programs/` | Example programs and the three games, in TRIADA assembly; TRIBASIC examples in `programs/basic/`. |
+| `tests/basic/` | The TRIBASIC test suite: programs and the screens they must leave. |
 | `docs/` | Everything written about it. |
 
-Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2 is under way: the triskette drive (**M13**) and TRIBASIC's core (**M14**) are done; strings, arrays, machine statements and SAVE/LOAD come in M15. See [docs/PROGRESS.md](docs/PROGRESS.md).
+Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2, the triskette drive and TRIBASIC (**M13 to M15**), is done too: this is release **v1.1**. See [docs/PROGRESS.md](docs/PROGRESS.md).

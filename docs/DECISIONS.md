@@ -488,3 +488,38 @@ We ran the result in Node.js 22.
 **Decision:** B. `BasicSuiteTest` (in `triada-rom`, next to the ROM it tests) runs every `tests/basic/NAME.bas`. A line `---` splits a file into a setup (typed first) and a session (typed after the screen is cleared; default `RUN`). In the session, `{ESC}` is the Esc key, `{BS}` Backspace and `{WAIT}` lets 10 frames pass. The runner waits up to 5,000 frames for READY. with every key taken, then compares the screen's rows (trailing spaces and empty rows left out) and saves what it saw to `build/basic-actual/` on a mismatch. The expected screens were worked out by hand from the spec, and three deliberately planted bugs (AND as MAX, IF's branches swapped, a wrong `<=`) were each caught.
 **Why:** Anyone can read and add a test without knowing Java, and the files double as small examples of the language. The existing typing helper and screen reader (`Triada`) are reused.
 **Consequences:** `tests/basic/` is a Gradle input of the ROM tests, so changing a program re-runs them. A test can only see what is on one screen (18 rows).
+
+## D-051 — Strings in fixed slots, typed expressions, and variables of any length   (Milestone M15, 2026-11-08)
+**Situation:** SPEC §10.4 asks for strings of up to 80 characters and leaves "garbage collection or compaction" to M15; §10.5 asks for arrays, including balanced ones. M14's variables were fixed 9-word entries holding one number.
+**Options:** For strings: A: a string heap with garbage collection, like the 1985 machines (compact in memory, but a collector in assembly is long and was slow on every one of them). B: a fixed 81-word slot for every string variable and array element, and temporary slots that are all freed when the next statement starts. For types: C: separate evaluators for numbers and strings. D: one evaluator that returns a value and its type.
+**Decision:** B and D. A string is `[length][up to 80 characters]`. Every expression leaves its type in `B_TYPE` (0 number, 1 string; for a string R0 is the slot's address). Each operator checks its operands' types (`?TYPE MISMATCH`). Temporaries come from `b_tmpnew` (50,100 … 57,899) and are reset at the start of each statement; assignments copy into the variable's own slot. Variables became entries `[length][name][data]` of any size, so numbers, strings and arrays share one list; an array's name carries a `(`. `DIM` of an existing array is `?SYNTAX ERROR` (SPEC's error list has no "redimensioned"), and `CONT` stays unimplemented (optional).
+**Why:** Nothing ever needs tidying up, so there is no collector to write, test or wait for, and every string operation takes a predictable time. Memory is plentiful: 39,757 words hold over 400 strings. One evaluator keeps the precedence rules in one place.
+**Consequences:** A string variable costs 92 words, however short its text: `DIM A$(494)` already fills the memory. A statement can make at most 96 temporary strings, far more than any line of 80 characters can ask for.
+
+## D-052 — The machine statements: quiet on bad numbers, and COLOR by pixels   (Milestone M15, 2026-11-08)
+**Situation:** SPEC §10.6.2 lists TILE, DEFTILE, SPRITE, SOUND, BORDER, SCROLL, WAIT, COLOR, POKE and SYS but not what they do with numbers outside the screen or the chips, and leaves COLOR's design to M15.
+**Options:** For bad numbers: A: an error (none of SPEC §10.7's messages fits). B: do nothing, as POKE into ROM does nothing. For COLOR: C: keep the font's bit patterns somewhere and redraw. D: work on the tiles' pixels: what has the font's foreground colour gets the new one, everything else the new background.
+**Decision:** B and D. Columns, rows, sprites, voices and tiles outside their ranges are ignored; pixel and colour values are taken MOD 27, which in balanced ternary is exactly the range −13 … 13. COLOR reads each tile word's four pixels as `w MOD 27` (the lowest three trits) and `(w − pixel) / 27`, and builds the new word. It remembers the current colours in `B_FONTFG`/`B_FONTBG`; when both are equal the letters can't be told from the background any more, so the kernel's `loadfont` draws the font afresh first.
+**Why:** Quiet limits match how the hardware itself behaves, and MOD 27 shows off balanced ternary. Working on pixels needs no copy of the font.
+**Consequences:** A program that draws its own tiles 32 … 126 and then uses COLOR gets them re-coloured too. COLOR takes about one and a half frames.
+
+## D-053 — Storage commands on top of the DISK routines   (Milestone M15, 2026-11-08)
+**Situation:** SPEC §10.6.4 lists SAVE, LOAD, FILES, ERASE, BSAVE, BLOAD and BRUN. The triskette device and its routines exist since M13.
+**Options:** A: drive the I/O registers again in TRIBASIC. B: call `disksave`, `diskload`, `diskdir`, `diskdel`.
+**Decision:** B. A name without a dot gets `.TB` or `.TRI`; `ERASE` takes the full name. Status −1 is `?FILE NOT FOUND`, anything else `?DISK`. `SAVE` stores 243 up to and including the end marker; `LOAD` reads it back to 243 and validates it with `b_relink` (an invalid file means `NEW` and `?DISK ERROR`). `BLOAD`/`BRUN` load to the file's own address unless one is given; if the block covers the program or its variables, TRIBASIC does `NEW` and `READY.`, which is what happens after `BRUN` of a game (they load at 243).
+**Why:** One implementation of the triskette, tested in M13, and simple rules a user can predict.
+**Consequences:** A `.TB` file is just the program records, so it only means something to TRIBASIC; games are `.TRI` files and run with `BRUN`.
+
+## D-054 — Paste-typing through one KeyFeeder, and typing ahead without losses   (Milestone M15, 2026-11-08)
+**Situation:** CLAUDE.md asks for Ctrl+V on the desktop and the web and `triada run --type file.bas`, "as if typed very fast". The keyboard queue holds 27 keys, and M14's Esc check moved typed-ahead keys into a 16-key buffer and dropped the rest.
+**Options:** A: a bigger queue. B: feed the queue only as far as it has room, each frame, and make the Esc check stop taking keys when its buffer is full.
+**Decision:** B. `KeyFeeder` (triada-core) pushes keys while `InputDevice.queuedKeys()` is below 27; the desktop and the web feed once per screen refresh, `triada run` once per frame. Line ends become Enter, `\r` is dropped, characters the font lacks are left out. `b_poll` leaves keys in the queue while `B_KEYS` is full. The web page catches the browser's `paste` event; the desktop reads libGDX's clipboard on Ctrl+V.
+**Why:** No change to the machine's queue (SPEC §5), one piece of code for three hosts, and nothing lost even when a program runs while text is pasted.
+**Consequences:** Pasting runs at up to 27 characters per frame (about 1,600 a second). A program that reads INKEY while text is being pasted receives it.
+
+## D-055 — Release v1.1: a changelog, and the specification's version   (Milestone M15, 2026-11-08)
+**Situation:** CLAUDE.md asks for a v1.1 release: README, changelog, and the GitHub Pages deployment, verified.
+**Options:** A: a version only in the documents. B: also in the code (`MachineInfo.SPEC_VERSION`) and a `CHANGELOG.md` at the top of the repository.
+**Decision:** B. `MachineInfo.SPEC_VERSION` is "1.1", `CHANGELOG.md` lists v1.0 and v1.1, and the README links it. Every push to `master` publishes the web version (D-042).
+**Why:** The version is visible where a programmer looks (the code) and where a user looks (the changelog).
+**Consequences:** The next change to the machine's behaviour needs a new version and a changelog entry.

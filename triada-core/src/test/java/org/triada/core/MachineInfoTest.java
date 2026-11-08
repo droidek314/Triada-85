@@ -17,6 +17,6 @@ class MachineInfoTest {
 
     @Test
     void implementsSpecVersion1_0() {
-        assertEquals("1.0", MachineInfo.SPEC_VERSION);
+        assertEquals("1.1", MachineInfo.SPEC_VERSION);
     }
 }

@@ -8,6 +8,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Annotation**: A note in Java code, starting with `@`, that a tool reads, e.g. `@Test` for JUnit. *In TRIADA:* `@JSBody` and `@JSByRef` tell TeaVM how to call JavaScript. First seen: M12.
 
+**Array**: A row of numbered boxes under one name. *In TRIBASIC:* `DIM A(10)`, or `DIM T(-5 TO 5)` with box 0 in the middle. First seen: M15.
+
 **Assembler**: A program that turns assembly language text into machine words. *In TRIADA:* `tasm`, the `Assembler` class (M4). First seen: M4.
 
 **Assembly language**: The thinnest layer above machine code: one line per instruction, written with mnemonics and names instead of numbers. First seen: M4.
@@ -66,9 +68,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Cartridge**: A plug-in module that adds memory or software to a computer. *In TRIADA:* lore only; addresses 59,049 and up are reserved for them. First seen: M2.
 
+**Changelog**: A list of what changed in each released version. *In TRIADA:* `CHANGELOG.md`. First seen: M15.
+
 **Class path**: The list of places (folders and jar files) where Java looks for classes and resource files. A browser has none. First seen: M12.
 
 **CLI (command-line interface)**: A program you control by typing commands in a terminal instead of clicking. *In TRIADA:* the `triada` tool in `triada-cli`. First seen: M0.
+
+**Clipboard**: Where a computer keeps the text you copied, until you paste it. First seen: M15.
 
 **Clipping**: Cutting off the parts of a picture that fall outside the visible area. *In TRIADA:* sprites are clipped to the 216 × 144 screen. First seen: M6.
 
@@ -167,6 +173,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Frequency**: How many times per second a pattern repeats, measured in hertz (Hz). 440 Hz is the note A. First seen: M7.
 
 **Frontend**: The part of a program that faces the person: window, sound, keyboard. *In TRIADA:* `triada-desktop`, built with libGDX. The machine itself (`triada-core`) knows nothing about it. First seen: M0.
+
+**Garbage collection**: Tidying up memory that old values no longer use. TRIBASIC avoids needing it by giving every string variable its own slot (D-051). First seen: M15.
 
 **Garbage collector**: The part of Java that finds objects no longer used and frees their memory. It costs time, so fast code creates few objects. First seen: M1.
 
@@ -316,6 +324,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Parser**: The part of a translator that recognises the structure of the tokens (label, instruction, operands …). First seen: M4.
 
+**Paste-typing**: Pasting text into the TRIADA, which types it in as if from the keyboard (`KeyFeeder`). First seen: M15.
+
 **PCM (pulse-code modulation)**: Sound stored as a plain list of samples. *In TRIADA:* 16-bit mono, 44,100 per second. First seen: M7.
 
 **Peek**: Looking at a memory address without any side effect. *In TRIADA:* `Bus.peek()`, used by the debugger; also a monitor command (M8). First seen: M2.
@@ -356,6 +366,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Register**: A small, very fast storage slot inside the processor, like a notepad on the CPU's desk. *In TRIADA:* R0–R8, one word each (SPEC §3.1). First seen: M1.
 
+**Release**: A version of a program given to its users, with a number such as 1.1. First seen: M15.
+
 **Render loop**: The cycle a game runs over and over: update, draw a frame, repeat. *In TRIADA:* libGDX calls `TriadaApp.render()` about 60 times a second. First seen: M0.
 
 **Return address**: Where the program continues after a subroutine; JSR pushes it on the stack and RET pops it. First seen: M3.
@@ -390,6 +402,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Skin**: The set of looks (fonts, colours, backgrounds) a user interface's widgets use. *In TRIADA:* built in code for the debugger (D-031). First seen: M9.
 
+**Slot (string)**: TRIBASIC's 81-word box for one string: its length and up to 80 characters. First seen: M15.
+
 **Smoke test**: A very small test that only checks "does it start at all?", like switching on a new appliance to see whether smoke comes out. First seen: M0.
 
 **Source code**: The text of a program as people write it. First seen: M0.
@@ -413,6 +427,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **stdout (standard output)**: A program's main output channel. *In TRIADA:* `triada run` prints the debug-port text there. First seen: M5.
 
 **Step over**: Executing a whole subroutine call as if it were one step, stopping at the instruction after the call. First seen: M9.
+
+**String**: A piece of text as a value, like "TRIADA". *In TRIBASIC:* names ending in `$`, at most 80 characters. First seen: M15.
 
 **Subroutine**: A piece of program that can be called from anywhere and returns to where it was called from. *In TRIADA:* JSR calls, RET returns. First seen: M3.
 
@@ -471,6 +487,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Two's complement**: The usual way binary computers store negative numbers, using the top bit as a sign. Balanced ternary doesn't need it. First seen: M1.
 
 **Two-pass assembler**: An assembler that first lays out all addresses (pass 1) and then encodes everything (pass 2), so labels can be used before they are defined. First seen: M4.
+
+**Type (of a value)**: Whether a value is a number or a string; TRIBASIC keeps it in `B_TYPE`. First seen: M15.
 
 **Type-in listing**: A program printed in a magazine for readers to type into their computers. *In TRIADA:* "Triangle of Threes" in chapter 7 of the manual, as 143 POKE lines. First seen: M11.
 

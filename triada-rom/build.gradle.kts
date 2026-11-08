@@ -49,4 +49,7 @@ tasks.withType<Test>().configureEach {
     // The TRIBASIC suite reads tests/basic/*.bas at run time (M14): a changed
     // program or expected screen must make the tests run again.
     inputs.dir(rootProject.file("tests/basic")).withPropertyName("basicSuite")
+    // ... and so do the example programs (M15) and the manual's TRIBASIC chapter.
+    inputs.dir(rootProject.file("programs/basic")).withPropertyName("basicExamples")
+    inputs.dir(rootProject.file("docs/manual")).withPropertyName("manual")
 }

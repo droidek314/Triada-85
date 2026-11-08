@@ -32,7 +32,12 @@ B_RUNNING   = 9         ; 1 while a program runs
 B_ERRSP     = 10        ; the statement loop's SP: errors and jumps reset it
 B_KEYN      = 11        ; keys waiting in B_KEYS
 B_KEYS      = 12        ; ... 27: keys read while checking for Esc
-B_IDENT     = 28        ; ... 37: a word being looked up (9 chars + 0)
+B_IDENT     = 28        ; ... 38: a word being looked up (9 chars, '(' + 0)
+B_TYPE      = 39        ; the type of the last value: 0 = number, 1 = string (M15)
+B_TMP       = 40        ; the next free string temp
+B_FONTFG    = 41        ; the font's colours now (COLOR)
+B_FONTBG    = 42
+B_ARGS      = 43        ; ... 52: the numbers of a machine statement
 LINE_MAX    = 24        ; longest command line: 27 columns minus "> " minus cursor
 
 ; --- constants --------------------------------------------------------------

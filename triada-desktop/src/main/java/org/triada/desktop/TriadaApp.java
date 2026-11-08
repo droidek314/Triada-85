@@ -16,6 +16,7 @@ import org.triada.app.MachineScreen;
 import org.triada.core.Machine;
 import org.triada.core.MachineInfo;
 import org.triada.core.TriImage;
+import org.triada.core.io.KeyFeeder;
 import org.triada.core.triskette.TrisketteException;
 import org.triada.core.triskette.TrisketteNames;
 import org.triada.core.sound.SoundChip;
@@ -37,7 +38,7 @@ import org.triada.desktop.debug.DebuggerView;
  * (--capture): run a number of frames, draw the picture into an off-screen
  * buffer, save it as a PNG and quit.
  *
- * <p>Keys: F1 shows or hides the debugger, F2 the CRT look. While it is shown, F5 = run/pause,
+ * <p>Keys: F1 shows or hides the debugger, F2 the CRT look, Ctrl+V types the clipboard in (M15). While it is shown, F5 = run/pause,
  * F11 = step, F10 = step over. Everything else goes to the TRIADA (unless a
  * debugger text field has the keyboard).
  */
@@ -52,6 +53,7 @@ public class TriadaApp extends ApplicationAdapter {
     private final String baseTitle;
 
     private MachineScreen screen;
+    private KeyFeeder pasting;      // text from Ctrl+V still being typed, or null
     private final FrameClock clock = new FrameClock(Machine.FRAMES_PER_SECOND, MAX_CATCH_UP);
     private InputMapper inputMapper;
     private SoundOutput sound;      // null if no audio device could be opened
@@ -127,6 +129,14 @@ public class TriadaApp extends ApplicationAdapter {
     }
 
     private boolean functionKey(int keycode) {
+        if (keycode == Input.Keys.V && (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT))) {
+            String text = Gdx.app.getClipboard().getContents();
+            if (text != null) {
+                pasting = new KeyFeeder(text);  // Ctrl+V: typed in, as fast as the queue takes it (M15)
+            }
+            return true;
+        }
         if (keycode == Input.Keys.F1) {
             showDebugger(!debuggerVisible);
             return true;
@@ -185,6 +195,9 @@ public class TriadaApp extends ApplicationAdapter {
         if (options.capture() != null) {
             capture();
             return;
+        }
+        if (pasting != null && !pasting.feed(machine.input())) {
+            pasting = null;
         }
         int due = clock.advance(Gdx.graphics.getDeltaTime());
         boolean wasPaused = debugger.isPaused();

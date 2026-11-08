@@ -23,6 +23,19 @@ class RunCommandTest {
         return Cli.run(args);
     }
 
+    /** M15: a TRIBASIC program typed in by --type; POKE reaches the debug port and HOST_EXIT. */
+    @Test
+    void typeFeedsTheKeyboardAndTribasicRunsIt() throws Exception {
+        String bas = Cli.write(dir, "count.bas", """
+                10 FOR I = 1 TO 3: POKE -20391, I: NEXT
+                20 POKE -20390, 7
+                RUN
+                """);
+        Cli.Result r = Cli.run("run", "--type", bas, "--frames", "600");
+        assertEquals(7, r.code(), r.toString());
+        assertEquals("1\n2\n3\n", r.out());
+    }
+
     @Test
     void hostExitBecomesTheExitCode() throws Exception {
         Cli.Result r = runSource("LDI R1, IO_BASE\nLDI R0, 42\nST R0, [R1+HOST_EXIT]\n");
@@ -104,7 +117,7 @@ class RunCommandTest {
     void aProgramThatReturnsToTheMonitorEndsTheRun() throws Exception {
         Cli.Result r = runSource("LDI R0, 5\nRET\n");
         assertEquals(0, r.code(), r.toString());
-        assertTrue(r.err().contains("the program returned to the monitor (RET)"), r.err());
+        assertTrue(r.err().contains("the program returned (RET)"), r.err());
     }
 
     @Test

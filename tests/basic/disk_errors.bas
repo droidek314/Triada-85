@@ -1,0 +1,4 @@
+---
+LOAD "NONE"
+SAVE "BAD NAME"
+ERASE "NONE.TB"

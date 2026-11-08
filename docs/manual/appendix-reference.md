@@ -80,6 +80,12 @@ Jump conditions for `JIF`: −1 `JN`, 0 `JZ`, +1 `JP`, +2 `JNZ`, −2 `JLE`, +3 
 
 Four dots of colour c: the word c × 20,440. One tile line of four dots p0 p1 p2 p3: p0 × 19,683 + p1 × 729 + p2 × 27 + p3.
 
+## TRIBASIC
+
+Statements: `PRINT` `INPUT` `ASK` `LET` `GOTO` `GOSUB` `RETURN` `FOR … TO … STEP` `NEXT` `IF … THEN … MAYBE … ELSE` `REM` `END` `STOP` `DIM` `CLS` `LOCATE` `TILE` `DEFTILE` `SPRITE` `SOUND` `BORDER` `SCROLL` `WAIT` `COLOR` `POKE` `SYS` `SAVE` `LOAD` `FILES` `ERASE` `BSAVE` `BLOAD` `BRUN`. Commands: `LIST` `RUN` `NEW` `MON`.
+
+Functions: `ABS` `SGN` `RND` `PEEK` `JOYX` `JOYY` `BTN` `INKEY` `FRAME` `LEN` `LEFT$` `RIGHT$` `MID$` `CHR$` `ASC` `STR$` `VAL` `TERN$`. Truth: `TRUE` = 1, `UNKNOWN` = 0, `FALSE` = −1; `AND` `OR` `NOT`; compare `<=>`. Chapter 8 explains them all.
+
 ## Monitor commands
 
 `HELP` · `TERN n` · `PEEK addr [count]` · `POKE addr value` · `RUN [addr]` · `CLS` · `BASIC` — numbers as `123`, `-5` or `0t+-0`. Anything else: `?SYNTAX ERROR`. From TRIBASIC, `MON` leads here.

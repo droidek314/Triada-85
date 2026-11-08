@@ -21,3 +21,6 @@ Thumbs.db
 
 # Triskettes (M13): the desktop's default triskette folder
 triskettes/
+
+# Local preview settings of the Claude desktop app (machine-specific paths)
+.claude/

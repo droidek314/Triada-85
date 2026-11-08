@@ -54,6 +54,8 @@
             <tr><td>arrow keys</td><td>the joystick</td></tr>
             <tr><td>Z, X, C</td><td>fire buttons A, B, C (Z starts the games)</td></tr>
             <tr><td>F2</td><td>the CRT look on/off</td></tr>
+            <tr><td>Ctrl+V</td><td>types what you copied, for example a TRIBASIC listing</td></tr>
+            <tr><td>Esc</td><td>stops a TRIBASIC program</td></tr>
             <tr><td>drop a file</td><td>"insert a triskette": a <code>.tri</code> or <code>.tasm</code> program</td></tr>
         </table>
         <p>
@@ -129,6 +131,15 @@
         // machine" and stop the keyboard; keep them to the panels themselves.
         ["help", "disk"].forEach(function (id) {
             document.getElementById(id).addEventListener("mousedown", function (e) { e.stopPropagation(); });
+        });
+
+        // Pasted text (Ctrl+V) is typed into the machine (WebApp, KeyFeeder).
+        var triadaPaste = null;
+        document.addEventListener("paste", function (e) {
+            var data = e.clipboardData || window.clipboardData;
+            if (!data) return;
+            triadaPaste = data.getData("text");
+            e.preventDefault();
         });
 
         // A dropped or imported file waits here until the machine picks it up (WebApp.insert

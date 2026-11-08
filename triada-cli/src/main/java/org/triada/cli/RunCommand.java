@@ -3,11 +3,13 @@ package org.triada.cli;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import org.triada.assembler.AssemblyError;
 import org.triada.assembler.AssemblyException;
 import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
+import org.triada.core.io.KeyFeeder;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
 import org.triada.rom.Rom;
@@ -53,6 +55,7 @@ final class RunCommand {
         String dumpScreen = null;
         String dumpAudio = null;
         String disk = null;
+        String typeFile = null;
         boolean boot = true;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -80,6 +83,9 @@ final class RunCommand {
                 case "--disk":
                     disk = TasmCommand.value(args, ++i, "--disk");
                     break;
+                case "--type":
+                    typeFile = TasmCommand.value(args, ++i, "--type");
+                    break;
                 default:
                     if (args[i].startsWith("-")) {
                         throw new Main.UsageException("run: unknown option '" + args[i] + "'");
@@ -91,21 +97,34 @@ final class RunCommand {
                     program = args[i];
             }
         }
-        if (program == null) {
-            throw new Main.UsageException("run: which program? e.g. triada run hello.tri");
+        if (program == null && typeFile == null) {
+            throw new Main.UsageException("run: which program? e.g. triada run hello.tri, or --type prog.bas");
         }
-        TriImage image;
-        try {
-            image = load(program);
-        } catch (LoadFailure f) {
-            return f.exitCode;
+        KeyFeeder typing = null;
+        if (typeFile != null) {
+            try {
+                typing = new KeyFeeder(Files.readString(Path.of(typeFile), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                err.println("triada: can't read " + typeFile + ": " + e.getMessage());
+                return Main.EXIT_USAGE;
+            }
+        }
+        TriImage image = null;
+        if (program != null) {
+            try {
+                image = load(program);
+            } catch (LoadFailure f) {
+                return f.exitCode;
+            }
         }
         Machine machine = Rom.newMachine();
         if (disk != null) {
             machine.triskette().setPort(new FolderTriskette(Path.of(disk)));   // else an empty one in memory
         }
         try {
-            if (boot) {
+            if (image == null) {
+                boot = true;                    // just TRIBASIC, typed into (M15)
+            } else if (boot) {
                 Rom.autorun(machine, image);
             } else {
                 machine.loadProgram(image);
@@ -115,7 +134,8 @@ final class RunCommand {
             return Main.EXIT_USAGE;
         }
         WavRecorder audio = dumpAudio != null ? new WavRecorder() : null;
-        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null, audio, boot);
+        int code = execute(machine, frames == null ? DEFAULT_FRAME_LIMIT : frames, frames != null, audio, boot,
+                typing);
         if (audio != null) {
             try {
                 audio.write(Path.of(dumpAudio));
@@ -135,10 +155,14 @@ final class RunCommand {
         return code;
     }
 
-    private int execute(Machine machine, int limit, boolean explicitLimit, WavRecorder audio, boolean booted) {
+    private int execute(Machine machine, int limit, boolean explicitLimit, WavRecorder audio, boolean booted,
+            KeyFeeder typing) {
         Cpu cpu = machine.cpu();
         int runDone = Rom.address("RUN_DONE");
         for (int frame = 1; frame <= limit; frame++) {
+            if (typing != null) {
+                typing.feed(machine.input());   // --type: as fast as the keyboard queue takes it
+            }
             machine.runFrame();
             if (audio != null) {
                 audio.add(machine.sound().frameSamples());
@@ -152,7 +176,7 @@ final class RunCommand {
                 return machine.debug().exitCode();
             }
             if (booted && machine.bus().peek(runDone) > 0) {
-                err.println("triada: the program returned to the monitor (RET) in frame " + frame);
+                err.println("triada: the program returned (RET) in frame " + frame);
                 return Main.EXIT_OK;
             }
             if (cpu.isHalted()) {

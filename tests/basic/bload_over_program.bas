@@ -1,0 +1,5 @@
+10 PRINT 1
+---
+BSAVE "P", 243, 2
+BLOAD "P"
+LIST

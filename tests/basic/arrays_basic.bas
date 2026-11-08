@@ -1,0 +1,4 @@
+10 DIM A(5)
+20 FOR I = 0 TO 5: A(I) = I * I: NEXT
+30 FOR I = 5 TO 0 STEP -1: PRINT A(I); " ";: NEXT
+40 PRINT

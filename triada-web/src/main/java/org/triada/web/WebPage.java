@@ -34,6 +34,10 @@ final class WebPage {
     @JSBody(script = "if (window.triadaFilesChanged) triadaFilesChanged();")
     static native void trisketteChanged();
 
+    /** Text pasted into the page since the last call (and forgets it), or null (M15). */
+    @JSBody(script = "var t = triadaPaste; triadaPaste = null; return t;")
+    static native String takePaste();
+
     /** Shows a line of text under the screen (what is running, or what went wrong). */
     @JSBody(params = "text", script = "document.getElementById('status').textContent = text;")
     static native void status(String text);

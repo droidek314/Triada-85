@@ -1,6 +1,6 @@
 # Chapter 6 — The Games triskette
 
-Your TRIADA-85 comes with a triskette holding three games. Each one starts by itself when you insert the triskette (in the emulator: `--load programs/trizmeyka.tasm`, `troika.tasm` or `oblaka.tasm`). In all three, the joystick moves and button **A** starts the game.
+Your TRIADA-85 comes with a triskette holding three games. Each one starts by itself when you insert the triskette (in the emulator: `--load programs/trizmeyka.tasm`, `troika.tasm` or `oblaka.tasm`). In all three, the joystick moves and button **A** starts the game. If a game is on your own triskette, `BRUN "TROIKA"` in TRIBASIC starts it too (Chapter 8).
 
 ## TRIZMEYKA — the ternary snake
 

@@ -1,0 +1,7 @@
+10 PRINT "SAVED"
+---
+SAVE "PROG"
+NEW
+LOAD "prog"
+LIST
+RUN

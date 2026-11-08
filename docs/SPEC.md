@@ -1,6 +1,6 @@
 # TRIADA-85 — Machine Specification
 
-Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15; until a part is built, its section describes the target. This document is the **source of truth** for the machine. If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
+Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15 and released on 2026-11-08 (see `CHANGELOG.md`). This document is the **source of truth** for the machine. If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
 
 ---
 
@@ -551,7 +551,7 @@ Example:
 - At most 80 characters each. Assigning a longer string raises `?STRING TOO LONG`.
 - `+` concatenates. `=`, `<>` and `<=>` compare. Mixing strings and numbers raises `?TYPE MISMATCH`.
 - Functions: `LEN(s$)`, `LEFT$(s$,n)`, `RIGHT$(s$,n)`, `MID$(s$,start,n)` (1-based), `CHR$(n)`, `ASC(s$)`, `STR$(n)`, `VAL(s$)`, **`TERN$(n)`** (the balanced-ternary text of n, e.g. `TERN$(6) = "+-0"`).
-- Strings are stored one character per word. Garbage collection or compaction is designed in M15 and documented there.
+- Strings are stored one character per word. Every string variable and string array element owns a fixed 81-word slot (its length and 80 characters), so no garbage collection is needed (M15, D-051).
 
 ### 10.5 Arrays
 - `DIM A(n)` gives indices 0 … n. **`DIM A(-n TO n)`** gives a balanced array with a centre element at 0, in the spirit of the machine. `DIM A$(n)` also works.
@@ -573,7 +573,7 @@ Example:
 | `BORDER c` | Border color |
 | `SCROLL x,y` | Background scroll |
 | `WAIT n` | Wait n frames |
-| `COLOR fg,bg` | Re-color the font tiles 32–126 (designed in M15) |
+| `COLOR fg,bg` | Re-color the font tiles 32–126: every pixel of the old foreground colour becomes fg, every other pixel bg (M15, D-052) |
 | `POKE addr,value` | Write a memory word |
 | `SYS addr` | Call machine code (`JSR`); it returns with `RET` |
 
@@ -619,4 +619,13 @@ The first line keeps the released single spacing, exactly 27 characters (D-027, 
 - **IF:** a nested `IF` owns the rest of its line, so `MAYBE`/`ELSE` after it belong to it.
 - **Overflow:** no instruction can branch on the O flag, so `+` and `-` compare before adding (§10.2's rule, same result).
 - **INPUT** accepts a whole number with an optional sign, in decimal or `0t` trits; anything else prints `?REDO` and asks again. **ASK** echoes the key (Y, N or ?).
-- In M14, a text in quotes is only allowed after `PRINT` and as a prompt; elsewhere it is `?TYPE MISMATCH` (strings: M15). Keywords of M15 statements give `?SYNTAX ERROR` until then.
+- `CONT` is not implemented (it is optional, CLAUDE.md M14) and gives `?SYNTAX ERROR`.
+
+### 10.10 Details settled while finishing TRIBASIC (M15, D-051 … D-054)
+- **Memory:** every variable is an entry `[length][name: 10 words][data]`; a number is 1 word, a string an 81-word slot, an array `[low][high]` and its elements. Arrays are told apart from plain variables by a `(` after the name, so `A` and `A()` are different. String values in the middle of a statement live in temporary slots at 50,100 … 57,899, all freed when the next statement starts. File names are built at 50,082.
+- **Strings:** a name is a letter, up to 7 more letters or digits, and `$`. `MID$`, `LEFT$` and `RIGHT$` clamp their numbers to the string, so they never fail. `ASC("")` is 0. `VAL` reads spaces, an optional `-`, and a decimal or `0T` number at the start of the text (0 if there is none). `STR$` and `TERN$` have no leading space. INPUT into a string variable takes the line as typed.
+- **Arrays:** `DIM` of an array that already exists is `?SYNTAX ERROR`. `DIM A(n)` and `DIM A(low TO high)`, several separated by commas. An array used before `DIM` gets 0 … 10.
+- **Functions:** `RND(n)` is 0 for n < 1; `BTN(n)` is 0 for n other than 1, 2, 3. `JOYX`, `JOYY`, `INKEY` and `FRAME` take no parentheses; `INKEY` takes keys typed earlier first.
+- **Machine statements:** `TILE`, `SPRITE` and `SOUND` with a column, row, sprite or voice outside the screen or the chip do nothing. `DEFTILE` takes each pixel value MOD 27, which is −13 … 13 exactly; a tile or row outside 0 … 242, 0 … 7 does nothing. `COLOR` takes its colours MOD 27 too; if the font has a single colour (after `COLOR c, c`), it is first drawn afresh. `WAIT` checks Esc every frame. `SYS` keeps TRIBASIC's place (R7) on the stack.
+- **Storage:** a name without a `.` gets `.TB` (`SAVE`, `LOAD`) or `.TRI` (`BSAVE`, `BLOAD`, `BRUN`); `ERASE` takes the name as it is. Status −1 is `?FILE NOT FOUND`, any other failure `?DISK`. `SAVE` writes 243 up to and including the end marker, loaded back to 243; `LOAD` checks the records and does `NEW` plus `?DISK ERROR` if they aren't a program, and ends a running program. If `BLOAD` or `BRUN` load over the program or its variables, TRIBASIC does `NEW` and says `READY.`. `FILES` lists one name per line.
+- **Keys:** while B_KEYS (16 keys) is full, further keys stay in the keyboard queue, so typing ahead and paste-typing lose nothing.
