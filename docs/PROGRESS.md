@@ -15,7 +15,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M8 | ROM: kernel and monitor | ✅ done | 2026-11-07 |
 | M9 | Debugger | ✅ done | 2026-11-07 |
 | M10 | Games | ✅ done | 2026-11-08 |
-| M11 | Lore and presentation | ⬜ not started | |
+| M11 | Lore and presentation | ✅ done | 2026-11-08 |
 
 ## Stretch goals (only after M11)
 

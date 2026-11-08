@@ -1,0 +1,97 @@
+; ============================================================================
+;  TRIANGLE OF THREES -- the type-in listing from TRIT & TRYTE No. 3/1985 (M11)
+;
+;  Pascal's triangle, worked out in trits, grows down the screen: every cell
+;  is the sum of the two cells above it, and TRIADA's MOD 3 turns the sum
+;  straight into a trit (-1 blue, 0 black, +1 red). Then the whole picture
+;  turns: twice a second every trit is rotated up, -1 -> 0 -> +1 -> -1.
+;  Any key goes back to the monitor.
+;
+;  The manual prints this program twice: as source, and as POKE lines for
+;  owners without an assembler (docs/manual/07-type-in-listing.md). A test
+;  checks that both still match this file.
+; ============================================================================
+
+        .org 243
+        LDI R6, IO_BASE
+        JSR CLS
+        LDI R0, -224840                 ; tile 1: blue  (-11 x 20440)
+        LDI R1, TILES+16
+        JSR paint
+        LDI R0, -265720                 ; tile 2: black (-13 x 20440)
+        JSR paint
+        LDI R0, 102200                  ; tile 3: red   (5 x 20440)
+        JSR paint
+        LDI R1, MAP                     ; rows 0 ... 16: trit 0 everywhere
+        LDI R2, 459
+        LDI R0, 2                       ; (a cell holds its trit + 2: tile 1, 2 or 3)
+clear:  ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ clear
+        LDI R0, 3                       ; the top: a single +1
+        LDI R1, MAP+13
+        ST R0, [R1]
+        LDI R3, MAP+28                  ; row 1, column 1
+        LDI R4, 16                      ; rows still to grow
+row:    LDI R5, 25                      ; columns 1 ... 25
+cell:   LD R0, [R3-28]                  ; up and left
+        LD R1, [R3-26]                  ; up and right
+        ADD R0, R1
+        ADDI R0, -4                     ; two tiles -> two trits
+        LDI R1, 3
+        MOD R0, R1                      ; MOD 3 rounds: 2 -> -1, -2 -> +1
+        ADDI R0, 2
+        ST R0, [R3]
+        INC R3
+        DEC R5
+        JNZ cell
+        ADDI R3, 2                      ; on to column 1 of the next row
+        LDI R0, -60                     ; a rising note: 1020 - 60 x rows left
+        MUL R0, R4
+        LDI R1, 1020
+        ADD R0, R1
+        ST R0, [R6+V1_FREQ]
+        LDI R0, 9
+        ST R0, [R6+V1_VOL]
+        LDI R0, 4                       ; 4 frames per row
+wait:   WAIT
+        DEC R0
+        JNZ wait
+        DEC R4
+        JNZ row
+        LDI R0, 0
+        ST R0, [R6+V1_VOL]
+        LDI R0, 4
+        LDI R1, 17
+        JSR LOCATE
+        LDI R0, title
+        JSR PRINT
+turn:   LDI R2, 30                      ; half a second
+pause:  WAIT
+        LD R0, [R6+KEY]                 ; a key? back to the monitor
+        JNZ done
+        DEC R2
+        JNZ pause
+        LDI R1, MAP
+        LDI R2, 459
+rotate: LD R0, [R1]
+        ADDI R0, -2                     ; tile -> trit
+        ROT R0                          ; every trit up ...
+        LDI R3, 3
+        MOD R0, R3                      ; ... and keep only the lowest one
+        ADDI R0, 2
+        ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ rotate
+        JMP turn
+done:   JSR CLS
+        RET
+paint:  LDI R2, 16                      ; the word R0 into the 16 words at R1
+p_loop: ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ p_loop
+        RET
+title:  .str "TRIANGLE OF THREES"

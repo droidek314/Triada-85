@@ -274,9 +274,16 @@ class TrizmeykaTest {
         System.out.println("TRIZMEYKA autopilot: " + games + " games, best score " + best);
     }
 
-    /** Heads for the food, never into something solid, never straight back. */
     private void autopilot() {
-        int head = head();
+        autopilot(g);
+    }
+
+    /**
+     * Heads for the food, never into something solid, never straight back.
+     * Static so that DocImagesTest can use it for the README's picture.
+     */
+    static void autopilot(GameHarness g) {
+        int head = g.ram(g.sym("BODY") + g.var("V_HEAD")) - MemoryMap.MAP;
         int food = -1;
         for (int i = 27; i < 486; i++) {
             int t = g.ram(MemoryMap.MAP + i);

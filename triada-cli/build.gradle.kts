@@ -26,7 +26,12 @@ tasks.withType<Test>().configureEach {
     systemProperty("triada.root", rootProject.projectDir.absolutePath)
     systemProperty("triada.diffDir", layout.buildDirectory.dir("golden-diff").get().asFile.absolutePath)
     systemProperty("triada.updateGolden", System.getProperty("triada.updateGolden") ?: "false")
+    systemProperty("triada.updateDocImages", System.getProperty("triada.updateDocImages") ?: "false")
     // The tests assemble programs/*.tasm at run time, so Gradle must know that
     // a changed program means the tests are out of date (otherwise it skips them).
     inputs.dir(rootProject.file("programs")).withPropertyName("programs")
+    // Likewise the manual (ManualTest replays its examples) and the README's
+    // pictures (DocImagesTest compares them with the machine), M11.
+    inputs.files(rootProject.fileTree("docs/manual"), rootProject.fileTree("docs/images"))
+        .withPropertyName("docs")
 }

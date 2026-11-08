@@ -121,7 +121,7 @@ if (breakAt != null && breakAt[pc + Word.MAX] && !(first && ignoreFirst)) {
 - `TriadaApp.insertTriskette()` loads a dropped file.
 
 [`DesktopLauncher.java`](../../triada-desktop/src/main/java/org/triada/desktop/DesktopLauncher.java):
-- `DesktopLauncher.programArgument()` understands `--load FILE`;
+- `--load FILE` is understood on the command line (in M9 by a small method in `DesktopLauncher`; since M11 by `LaunchOptions.parse()`, which also knows the M11 options);
 - `config.setHdpiMode(HdpiMode.Pixels)`;
 - a window listener forwards `filesDropped` to the app.
 

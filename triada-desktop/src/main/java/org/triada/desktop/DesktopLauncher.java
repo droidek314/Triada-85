@@ -25,11 +25,14 @@ import org.triada.rom.Rom;
  * <pre>
  *   ./gradlew :triada-desktop:run                                     (boots to the monitor)
  *   ./gradlew :triada-desktop:run --args="--load programs/piano.tasm" (boots, then runs it)
+ *   ./gradlew :triada-desktop:run --args="--crt"                       (with the CRT look, M11)
+ *   ./gradlew :triada-desktop:run --args="--capture out.png --crt"     (no window: save a picture)
  * </pre>
  *
  * A {@code .tasm} file is assembled first; a {@code .tri} file is loaded as is.
  * Dropping such a file on the window "inserts a triskette": the machine powers
- * on again and runs it (M9). F1 opens the debugger.
+ * on again and runs it (M9). F1 opens the debugger, F2 switches the CRT look
+ * on and off. All options: {@link LaunchOptions}.
  */
 public final class DesktopLauncher {
 
@@ -41,7 +44,15 @@ public final class DesktopLauncher {
     }
 
     public static void main(String[] args) {
-        String program = programArgument(args);
+        LaunchOptions options;
+        try {
+            options = LaunchOptions.parse(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println("triada: " + e.getMessage());
+            System.exit(2);
+            return;
+        }
+        String program = options.program();
         Machine machine = Rom.newMachine();
         String title = MachineInfo.NAME;
         if (program != null) {
@@ -57,6 +68,12 @@ public final class DesktopLauncher {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle(title);
         config.setWindowedMode(WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (options.capture() != null) {
+            // A capture renders into an off-screen buffer: the window never needs to be seen,
+            // so it doesn't appear in front of whatever the user is doing.
+            config.setInitialVisible(false);
+            config.disableAudio(true);
+        }
         // Window sizes and mouse positions in real pixels: keeps integer scaling and
         // the debugger's layout exact when the OS scales windows (e.g. 125 %).
         config.setHdpiMode(HdpiMode.Pixels);
@@ -64,7 +81,7 @@ public final class DesktopLauncher {
         config.useVsync(true);
         // OpenAL: 16 sources (libGDX default), 512-sample buffers, 6 of them: about 70 ms of sound queued.
         config.setAudioConfig(16, 512, 6);
-        TriadaApp app = new TriadaApp(machine, title);
+        TriadaApp app = new TriadaApp(machine, title, options);
         config.setWindowListener(new Lwjgl3WindowAdapter() {
             @Override
             public void focusLost() {
@@ -79,24 +96,6 @@ public final class DesktopLauncher {
             }
         });
         new Lwjgl3Application(app, config);
-    }
-
-    /**
-     * The program to start: {@code --load FILE}, or (as before M9) a plain file
-     * name. Null if none.
-     */
-    static String programArgument(String[] args) {
-        if (args.length == 0) {
-            return null;
-        }
-        if (args[0].equals("--load")) {
-            if (args.length < 2) {
-                System.err.println("triada: --load needs a file, e.g. --load programs/piano.tasm");
-                System.exit(2);
-            }
-            return args[1];
-        }
-        return args[0];
     }
 
     /** Reads a .tri file, or assembles a .tasm file. */

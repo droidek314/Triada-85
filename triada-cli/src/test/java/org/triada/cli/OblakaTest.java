@@ -329,20 +329,29 @@ class OblakaTest {
                 + ", up to " + mostSprites + " sprites at once");
     }
 
-    /** Fires all the time, steers under the lowest enemy, and keeps away from close ones. */
     private void autopilot() {
+        autopilot(g);
+    }
+
+    /**
+     * Fires all the time, steers under the lowest enemy, and keeps away from
+     * close ones. Static so that DocImagesTest can fly the README's animation.
+     */
+    static void autopilot(GameHarness g) {
         g.setButton('A', true);
-        int px = sprite(PLAYER, 0);
-        int py = sprite(PLAYER, 1);
+        int s = MemoryMap.SPRITES;
+        int px = g.ram(s);
+        int py = g.ram(s + 1);
         int target = -1;
         int targetY = -100;
         int dodge = 0;
         for (int i = 0; i < 12; i++) {
-            if (sprite(FIRST_ENEMY + i, 3) == 0 || enemyVar("e_boom", i) > 0) {
+            int e = s + 4 * (FIRST_ENEMY + i);
+            if (g.ram(e + 3) == 0 || g.ram(g.sym("e_boom") + i) > 0) {
                 continue;
             }
-            int ex = sprite(FIRST_ENEMY + i, 0);
-            int ey = sprite(FIRST_ENEMY + i, 1);
+            int ex = g.ram(e);
+            int ey = g.ram(e + 1);
             if (ey > py - 24 && ey < py + 8 && Math.abs(ex - px) < 12) {
                 dodge = ex >= px ? -1 : 1;
             }

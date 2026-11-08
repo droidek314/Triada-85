@@ -9,6 +9,8 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.FrameBuffer;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import org.triada.core.Machine;
@@ -30,7 +32,11 @@ import org.triada.desktop.debug.DebuggerView;
  * {@code int[]} from triada-core, copied into a texture with nearest-neighbour
  * filtering and drawn at a whole-number scale.
  *
- * <p>Keys: F1 shows or hides the debugger. While it is shown, F5 = run/pause,
+ * <p>M11 adds an optional CRT look ({@link CrtEffect}, F2) and a capture mode
+ * (--capture): run a number of frames, draw the picture into an off-screen
+ * buffer, save it as a PNG and quit.
+ *
+ * <p>Keys: F1 shows or hides the debugger, F2 the CRT look. While it is shown, F5 = run/pause,
  * F11 = step, F10 = step over. Everything else goes to the TRIADA (unless a
  * debugger text field has the keyboard).
  */
@@ -54,12 +60,16 @@ public class TriadaApp extends ApplicationAdapter {
     private boolean debuggerVisible;
     private int viewWidth;
     private int viewHeight;
+    private final LaunchOptions options;
+    private CrtEffect crt;          // created in create(); unavailable if the shader didn't compile
+    private boolean crtOn;
 
     /** @param machine a machine with its ROM, possibly with a program set to autorun */
-    public TriadaApp(Machine machine, String title) {
+    public TriadaApp(Machine machine, String title, LaunchOptions options) {
         this.machine = machine;
         this.debugger = new Debugger(machine);
         this.baseTitle = title;
+        this.options = options;
     }
 
     @Override
@@ -72,6 +82,11 @@ public class TriadaApp extends ApplicationAdapter {
 
         inputMapper = new InputMapper(machine.input());
         updateInput();
+        crt = new CrtEffect();
+        crtOn = options.crt() && crt.available();
+        if (options.capture() != null) {
+            return;                     // no sound in a capture: see capture()
+        }
 
         try {
             sound = new SoundOutput(Gdx.audio.newAudioDevice(SoundChip.SAMPLE_RATE, true));
@@ -124,6 +139,10 @@ public class TriadaApp extends ApplicationAdapter {
             showDebugger(!debuggerVisible);
             return true;
         }
+        if (keycode == Input.Keys.F2) {
+            crtOn = !crtOn && crt.available();
+            return true;
+        }
         if (!debuggerVisible) {
             return false;
         }
@@ -171,6 +190,10 @@ public class TriadaApp extends ApplicationAdapter {
 
     @Override
     public void render() {
+        if (options.capture() != null) {
+            capture();
+            return;
+        }
         int due = clock.advance(Gdx.graphics.getDeltaTime());
         boolean wasPaused = debugger.isPaused();
         int frames = debugger.runFrames(due);
@@ -195,15 +218,57 @@ public class TriadaApp extends ApplicationAdapter {
             x = (viewWidth - VideoChip.FRAME_WIDTH * scale) / 2f;
             y = (viewHeight - VideoChip.FRAME_HEIGHT * scale) / 2f;
         }
-        batch.begin();
-        // No flip: libGDX shows a Pixmap upright (its row 0 at the top).
-        batch.draw(texture, x, y, VideoChip.FRAME_WIDTH * scale, VideoChip.FRAME_HEIGHT * scale, 0, 0,
-                VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT, false, false);
-        batch.end();
+        drawPicture(x, y, scale);
         if (debuggerVisible) {
             view.refresh();
             view.draw(Gdx.graphics.getDeltaTime());
         }
+    }
+
+    /** Draws the machine's picture at (x, y), scaled, with the CRT look if it is on. */
+    private void drawPicture(float x, float y, int scale) {
+        batch.setShader(crtOn ? crt.program() : null);
+        batch.begin();
+        if (crtOn) {
+            crt.setUniforms();
+        }
+        // No flip: libGDX shows a Pixmap upright (its row 0 at the top).
+        batch.draw(texture, x, y, VideoChip.FRAME_WIDTH * scale, VideoChip.FRAME_HEIGHT * scale, 0, 0,
+                VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT, false, false);
+        batch.end();
+    }
+
+    /**
+     * Capture mode: runs the requested frames at once, draws the picture into
+     * an off-screen frame buffer (so the hidden window never has to be shown),
+     * saves it and quits.
+     */
+    private void capture() {
+        for (int i = 0; i < options.captureFrames(); i++) {
+            machine.runFrame();
+        }
+        upload(machine.video().frame());
+        int scale = LaunchOptions.CAPTURE_SCALE;
+        int w = VideoChip.FRAME_WIDTH * scale;
+        int h = VideoChip.FRAME_HEIGHT * scale;
+        FrameBuffer fbo = new FrameBuffer(Pixmap.Format.RGBA8888, w, h, false);
+        fbo.begin();
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        batch.getProjectionMatrix().setToOrtho2D(0, 0, w, h);
+        drawPicture(0, 0, scale);
+        Pixmap shot = Pixmap.createFromFrameBuffer(0, 0, w, h);
+        fbo.end();
+        fbo.dispose();
+        try {
+            Capture.writePng(shot, options.capture());
+            Gdx.app.log("triada", "saved " + options.capture() + " (" + w + " x " + h
+                    + (crtOn ? ", CRT" : "") + ")");
+        } catch (IOException e) {
+            Gdx.app.error("triada", "can't write " + options.capture() + ": " + e.getMessage());
+        }
+        shot.dispose();
+        Gdx.app.exit();
     }
 
     /** The largest whole-number scale at which the picture fits, at least 1. */
@@ -255,6 +320,9 @@ public class TriadaApp extends ApplicationAdapter {
         }
         if (view != null) {
             view.dispose();
+        }
+        if (crt != null) {
+            crt.dispose();
         }
         texture.dispose();
         pixmap.dispose();

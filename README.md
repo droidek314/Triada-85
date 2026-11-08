@@ -2,24 +2,36 @@
 
 **A home computer that never existed — built in software.**
 
-In our world, computers count in *binary*: every tiny switch inside them is either off or on, 0 or 1. But in 1958 Moscow State University built a computer called **Setun** that counted in *ternary* — three states instead of two: −1, 0 and +1. It worked well, and then it was forgotten. Binary won.
+![OBLAKA, the shooter, played by its test autopilot](docs/images/oblaka.gif)
+
+In our world, computers count in *binary*: every tiny switch inside them is either off or on, 0 or 1. But in 1958 Moscow State University built a computer called **Setun** that counted in *ternary*, with three states instead of two: −1, 0 and +1. It worked well, and then it was forgotten. Binary won.
 
 TRIADA-85 imagines the other timeline. Ternary won in Eastern Europe, and by 1985 a (fictional) factory, NPO "Triada", sells a beige home computer called the TRIADA-85: a membrane keyboard, a three-position joystick, a cassette port and a "triskette" drive. Children type in game listings from the (fictional) magazine *Trit & Tryte*.
 
-This project builds that whole machine as a program you can run on a normal PC: the three-valued arithmetic, the processor, the memory, the screen chip, the sound chip, a small operating system written in the machine's own language, a debugger, and games. Every step is documented so that someone with no technical background can follow the ideas, and a programmer can rebuild the whole thing from the documents alone.
+This project builds that whole machine as a program you can run on a normal PC: the three-valued arithmetic, the processor, the memory, the screen chip, the sound chip, a small operating system written in the machine's own language, a debugger, three games and the owner's manual. Every step is documented so that someone with no technical background can follow the ideas, and a programmer can rebuild the whole thing from the documents alone.
 
-## Status
+| Switched on | TRIZMEYKA | TROIKA |
+|---|---|---|
+| ![The boot screen](docs/images/boot.png) | ![TRIZMEYKA, the snake](docs/images/trizmeyka.png) | ![TROIKA, the puzzle of threes](docs/images/troika.png) |
+| **OBLAKA** | **The type-in listing** | **With the CRT look** |
+| ![OBLAKA, the shooter](docs/images/oblaka.png) | ![Triangle of Threes](docs/images/triangle.png) | ![Triangle of Threes on a "television"](docs/images/crt-triangle.png) |
 
-Milestones **M0 to M10** are done: project setup, ternary math, memory, the processor, the assembler, a command-line tool that runs programs without a window, the video chip (27 colours, tiles, scrolling, sprites), keyboard, joystick and a three-voice sound chip, its own built-in software (switched on, it plays a chime, shows its boot screen and waits for commands), and a debugger: press F1 to stop the machine, step through a program one instruction at a time and look at every register in decimal and balanced ternary. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. `programs/colors.tasm` shows all 27 colours and a bouncing ball; `programs/piano.tasm` turns your keyboard into a piano (A–K and W, E, T, Y, U play notes; the arrow keys change the sound). The built-in software (the "ROM") is itself written in TRIADA assembly. And it has games, written in TRIADA assembly: **TRIZMEYKA**, a snake whose food comes in three trit colours; **TROIKA**, a puzzle of −1, 0 and +1 cells that you rotate and flip back to zero (the machine computes each move with its own trit-wise instructions); and **OBLAKA**, a shooter over a scrolling night sky. The user manual and finishing touches come next (M11). See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
+## What is in it
 
-## Where to start reading
+- **A machine with trits instead of bits.** Its words are 12 trits (−265,720 … +265,720), its 27 instructions include some no binary computer has (rotate every trit, multiply trit by trit), and its 27 colours are each three trits: red, green, blue. All 531,441 possible words were checked.
+- **A processor fast enough.** It runs about 47 million instructions a second on an ordinary PC, 13 times what the real TRIADA-85 would need.
+- **Its own assembly language and assembler,** which also turns machine code back into text.
+- **A video chip** (tiles, 27 sprites, scrolling) and **a sound chip** (three voices, including the machine's own "ternary square" wave).
+- **A ROM written in TRIADA assembly:** boot chime, boot screen, and a monitor with `HELP`, `TERN`, `PEEK`, `POKE`, `RUN`, `CLS`.
+- **A debugger** (F1): stop, step, step over, breakpoints, registers in decimal and ternary.
+- **Three games**, written in TRIADA assembly: TRIZMEYKA (a snake whose food comes in three trit colours), TROIKA (a puzzle whose moves are the CPU's own trit-wise instructions) and OBLAKA (a scrolling shooter).
+- **The [owner's manual](docs/manual/README.md),** written as if printed in 1985, with a type-in listing from *Trit & Tryte*. Its examples are checked by tests against the real machine.
+- **An optional CRT look** (F2): curved glass, scanlines, phosphor stripes.
+- **540 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
 
-- [docs/INDEX.md](docs/INDEX.md) — the reading guide to every document, in order.
-- [docs/SPEC.md](docs/SPEC.md) — the exact technical description of the machine.
+## How to run
 
-## How to run (for now)
-
-You need a Java Development Kit (JDK) version 25 installed. Gradle (the build tool) downloads itself. On Windows, use `gradlew.bat` instead of `./gradlew` if you are not in a Bash-style shell.
+You need a Java Development Kit (**JDK**) version 25. Gradle, the build tool, downloads itself. On Windows, use `gradlew.bat` instead of `./gradlew` if you are not in a Bash-style shell.
 
 Build everything and run all tests:
 
@@ -27,39 +39,13 @@ Build everything and run all tests:
 ./gradlew build
 ```
 
-Run the first program (it prints `HELLO, WORLD`):
-
-```bash
-./gradlew :triada-cli:run --args="run programs/hello.tasm"
-```
-
-Or install the `triada` command once and use it directly. Its launcher uses the `JAVA_HOME` environment variable, which must point to a JDK 25:
-
-```bash
-./gradlew :triada-cli:installDist
-```
-
-```bash
-triada-cli/build/install/triada/bin/triada run programs/ternary.tasm
-```
-
-`triada help` lists all commands and exit codes. Switch the machine on and type commands at its `READY.` prompt (try `HELP`, `TERN 42`, `PEEK 243 3`):
+Switch the machine on. It plays its chime and waits at `READY.` (try `HELP`, `TERN 42`, `PEEK 243 3`):
 
 ```bash
 ./gradlew :triada-desktop:run
 ```
 
-To see a program in a window:
-
-```bash
-./gradlew :triada-desktop:run --args="programs/colors.tasm"
-```
-
-```bash
-./gradlew :triada-desktop:run --args="--load programs/piano.tasm"
-```
-
-Play the games (arrow keys to move, Z to start; TROIKA also uses X, C and R):
+Play the games: arrow keys to move, Z to start (TROIKA also uses X, C and R):
 
 ```bash
 ./gradlew :triada-desktop:run --args="--load programs/trizmeyka.tasm"
@@ -70,7 +56,65 @@ Play the games (arrow keys to move, Z to start; TROIKA also uses X, C and R):
 ```
 
 ```bash
-./gradlew :triada-desktop:run --args="--load programs/oblaka.tasm"
+./gradlew :triada-desktop:run --args="--load programs/oblaka.tasm --crt"
 ```
 
-You can also drop a `.tri` or `.tasm` file onto the window ("insert a triskette"). In the window, **F1** opens the debugger: **F5** pause/continue, **F11** step, **F10** step over; click a program line to set a breakpoint.
+In the window:
+
+| Key | |
+|---|---|
+| arrow keys | the joystick |
+| Z, X, C | fire buttons A, B, C |
+| F1 | the debugger: F5 pause/continue, F11 step, F10 step over, click a line for a breakpoint |
+| F2 | the CRT look on/off |
+| drop a file on the window | "insert a triskette": the machine restarts and runs it |
+
+More programs are in [`programs/`](programs/), for example `colors.tasm` (all 27 colours), `piano.tasm` (your keyboard as a piano) and `triangle.tasm` (the type-in listing).
+
+Without a window, the command-line tool `triada` assembles (`tasm`) and runs (`run`) programs, and can save the screen and the sound:
+
+```bash
+./gradlew :triada-cli:run --args="run programs/hello.tasm"
+```
+
+```bash
+./gradlew :triada-cli:run --args="run programs/troika.tasm --frames 80 --dump-screen build/troika.png"
+```
+
+Or install it once (its launcher needs `JAVA_HOME` pointing to a JDK 25), then `triada help` lists every command:
+
+```bash
+./gradlew :triada-cli:installDist
+```
+
+```bash
+triada-cli/build/install/triada/bin/triada help
+```
+
+The desktop can also save a picture without opening a visible window, for example with the CRT look:
+
+```bash
+./gradlew :triada-desktop:run --args="--load programs/triangle.tasm --crt --frames 140 --capture build/crt.png"
+```
+
+## Where to start reading
+
+- **[docs/INDEX.md](docs/INDEX.md)**: the reading guide to every document, in order. The milestone documents read like a book: *How to build a computer that never existed.*
+- **[docs/manual/](docs/manual/README.md)**: the owner's manual, if you just want to use the machine.
+- **[docs/SPEC.md](docs/SPEC.md)**: the exact technical description of the machine.
+- **[docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md)**: what went well, what was hard, what we would do differently.
+
+## How the project is laid out
+
+| Folder | What |
+|---|---|
+| `triada-core/` | The machine: ternary math, memory, CPU, video, sound, input. Plain Java, no graphics library. |
+| `triada-assembler/` | The assembler and disassembler. |
+| `triada-rom/` | Builds the ROM from `rom/` into the emulator. |
+| `triada-cli/` | The `triada` command-line tool, and the tests that run whole programs. |
+| `triada-desktop/` | The window, sound, keyboard, debugger and CRT look (libGDX). |
+| `rom/` | The ROM's source, in TRIADA assembly. |
+| `programs/` | Example programs and the three games, in TRIADA assembly. |
+| `docs/` | Everything written about it. |
+
+Status: all milestones, **M0 to M11**, are done. See [docs/PROGRESS.md](docs/PROGRESS.md).

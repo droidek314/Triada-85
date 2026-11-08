@@ -4,7 +4,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 
 ## Start here
 
-1. [../README.md](../README.md): what this project is, in a few paragraphs.
+1. [../README.md](../README.md): what this project is, in a few paragraphs, with pictures.
 2. [SPEC.md](SPEC.md): the exact description of the TRIADA-85 machine. This is the law.
 3. [ARCHITECTURE.md](ARCHITECTURE.md): how the software parts fit together.
 
@@ -23,11 +23,15 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M8 | [ROM: kernel and monitor](milestones/M08-rom.md) | The built-in software, written in TRIADA assembly: boot, font, chime, the kernel routines and the monitor; bits on a machine without bits; building the ROM into the emulator. |
 | M9 | [Debugger](milestones/M09-debugger.md) | Stopping a machine at exactly the right instruction and continuing as if nothing happened; step, step over (even through recursion), breakpoints; a debugger panel in the machine's own font; inserting triskettes. |
 | M10 | [Games](milestones/M10-games.md) | Three games in TRIADA assembly: a snake with trit-coloured food, a puzzle whose moves are the CPU's own trit-wise instructions, and a scrolling shooter with two dozen sprites; painting tiles with arithmetic; tests that play. |
+| M11 | [Lore and presentation](milestones/M11-lore-and-presentation.md) | The owner's manual whose examples are tested against the machine, a type-in listing typed in by a test, a CRT shader, pictures made by the machine itself, and the finished README. |
+
+Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 
 ## Reference documents
 
 - [GLOSSARY.md](GLOSSARY.md): every technical word, explained simply.
 - [DECISIONS.md](DECISIONS.md): every design decision, with the alternatives we rejected.
 - [PROGRESS.md](PROGRESS.md): which milestones are done.
-- [manual/](manual/README.md): the in-universe user manual (from M11).
+- [manual/](manual/README.md): the TRIADA-85 Owner's Manual, written as if printed in 1985 (M11). Start here if you just want to use the machine.
+- [RETROSPECTIVE.md](RETROSPECTIVE.md): looking back on the whole project.
 - [spikes/m06-teavm/](spikes/m06-teavm/build.gradle.kts): the reproducible web spike from M6 (D-022).

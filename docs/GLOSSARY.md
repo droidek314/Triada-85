@@ -48,6 +48,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Canonical form**: The one standard way of writing something. *In TRIADA:* an instruction word whose unused fields are all 0. First seen: M4.
 
+**Capture (mode)**: Saving a program's picture to a file instead of showing it. *In TRIADA:* the desktop's `--capture FILE` (M11, D-037). First seen: M11.
+
 **Carry**: The digit that falls off the top when a result is too big for its space. *In TRIADA:* a trit (−1, 0 or +1), stored in flag O by ADD, SUB and ADDI. First seen: M1.
 
 **Cartridge**: A plug-in module that adds memory or software to a computer. *In TRIADA:* lore only; addresses 59,049 and up are reserved for them. First seen: M2.
@@ -73,6 +75,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Constant (assembler)**: A name for a number, defined with `NAME = value`. First seen: M4.
 
 **CPU (central processing unit)**: The part of a computer that reads instructions from memory and carries them out, one after another. *In TRIADA:* the `Cpu` class. First seen: M3.
+
+**CRT (cathode-ray tube)**: The glass tube of old televisions and monitors, which drew the picture with an electron beam on glowing phosphor. *In TRIADA:* the optional CRT look, F2. First seen: M11.
 
 **Cycle**: One tick of a processor's clock. *In TRIADA:* every instruction takes exactly one cycle. First seen: M3.
 
@@ -132,6 +136,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Forward reference**: Using a label before the line that defines it, e.g. `JMP end` above `end:`. Two passes make it possible. First seen: M4.
 
+**Fragment shader**: The part of a shader that decides the colour of each pixel. *In TRIADA:* `crt.frag`. First seen: M11.
+
 **Frame**: One complete picture on the screen. Showing many frames per second makes movement. *In TRIADA:* 60 frames per second (SPEC §6). First seen: M0.
 
 **Frame buffer**: The block of memory that holds a finished picture. *In TRIADA:* `VideoChip.frame()`, 240 × 168 RGB values. First seen: M6.
@@ -141,6 +147,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Frontend**: The part of a program that faces the person: window, sound, keyboard. *In TRIADA:* `triada-desktop`, built with libGDX. The machine itself (`triada-core`) knows nothing about it. First seen: M0.
 
 **Garbage collector**: The part of Java that finds objects no longer used and frees their memory. It costs time, so fast code creates few objects. First seen: M1.
+
+**GIF**: An old image format with a palette of at most 256 colours that can also hold an animation. *In TRIADA:* the README's `oblaka.gif`, with exactly the machine's 27 colours. First seen: M11.
 
 **Glyph**: The picture of one character in a font. First seen: M8.
 
@@ -254,6 +262,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Noise (audio)**: A random, hissing sound. *In TRIADA:* random trits (−1, 0, +1), a new one every quarter period (D-023). First seen: M7.
 
+**Off-screen frame buffer**: A picture in the graphics card's memory that can be drawn into like the screen, but isn't shown. *In TRIADA:* used by the capture mode. First seen: M11.
+
 **Opcode**: The number that says which instruction it is. *In TRIADA:* 3 trits, −13 … +13, all 27 used. First seen: M3.
 
 **OpenGL**: A standard way for programs to ask the graphics card to draw. libGDX uses it behind the scenes. First seen: M0.
@@ -277,6 +287,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Pending wrap**: Moving to the next line only when another character arrives after a full line, so a full line plus a newline gives no empty line. First seen: M8.
 
 **Phase**: Where in its repeating pattern a wave currently is. *In TRIADA:* an exact integer 0 … 44,099 per voice. First seen: M7.
+
+**Phosphor**: The material on a CRT's glass that glows red, green or blue when the electron beam hits it. First seen: M11.
 
 **Pixel**: One dot of a picture. *In TRIADA:* a 3-trit value from −13 to 13; four pixels fit in one word. First seen: M6.
 
@@ -320,9 +332,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Sample rate**: How many samples per second a sound has. *In TRIADA:* 44,100 (the CD rate). First seen: M7.
 
+**Scanline**: One of the horizontal lines a CRT draws its picture with, with thin darker gaps between them. First seen: M11.
+
 **Scrolling**: Sliding the whole background so a different part of it is visible. *In TRIADA:* SCROLL_X/SCROLL_Y; what slides out comes back on the other side. First seen: M6.
 
 **Seed**: The starting value of a pseudo-random number generator. The same seed always gives the same sequence. First seen: M3.
+
+**Shader**: A small program that runs on the graphics card, for example once for every pixel. *In TRIADA:* the CRT look (`CrtEffect`). First seen: M11.
 
 **Shift (SHT)**: Slide all digits left (multiply by the base) or right (drop the last digits). *In TRIADA:* a right shift rounds to the nearest number. First seen: M1.
 
@@ -400,7 +416,11 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Two-pass assembler**: An assembler that first lays out all addresses (pass 1) and then encodes everything (pass 2), so labels can be used before they are defined. First seen: M4.
 
+**Type-in listing**: A program printed in a magazine for readers to type into their computers. *In TRIADA:* "Triangle of Threes" in chapter 7 of the manual, as 143 POKE lines. First seen: M11.
+
 **Underrun / Overrun**: The sound card running out of samples (a gap) / more samples waiting than allowed (delay). *In TRIADA:* `SampleRing` holds the last value on underrun and drops the oldest on overrun. First seen: M7.
+
+**Uniform (shader)**: A setting a program passes to a shader, the same for every pixel. *In TRIADA:* `u_curvature`, `u_scanlines`. First seen: M11.
 
 **Unmapped**: An address with nothing behind it: reads 0, writes have no effect. First seen: M2.
 
@@ -411,6 +431,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Version control (git)**: A system that remembers every saved version of a project, so you can see what changed, when and why, and go back. First seen: M0.
 
 **Video chip**: The part of a computer that turns memory contents into a picture, many times per second. *In TRIADA:* `VideoChip`, once per frame (SPEC §4). First seen: M6.
+
+**Vignette**: A darkening towards the corners of a picture. First seen: M11.
 
 **Voice**: One independent sound generator with its own pitch, volume and waveform. *In TRIADA:* three (V1–V3). First seen: M7.
 
