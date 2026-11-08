@@ -193,7 +193,7 @@ To try paste-typing from the command line:
 - **No `CONT`.**
 - **`BRUN` of a game ends the TRIBASIC program,** because the game loads where the program lives.
 - **Paste-typing types exactly what was copied,** so a listing with very long lines is cut at 80 characters per line, as when typing.
-- **In the browser,** TRIBASIC's `SAVE`, `LOAD` and `FILES` use the browser triskette of M13; the deployed page was checked after publishing as described in "How we know it works".
+- **In the browser,** TRIBASIC's `SAVE`, `LOAD` and `FILES` go through the same triskette device and the same browser triskette as M13, whose writing, listing and reading were checked in a browser then. TRIBASIC's own SAVE/LOAD in the deployed page was **not** tried by us: the release was published (build, 691 tests and deployment passed on GitHub, and the new page is served), but the browser pane we use pauses pages that aren't on screen, so the page could not be driven at release time.
 - **Phase 2 is complete.** What could come next: the cassette-loading effect (the last stretch goal in CLAUDE.md), `CONT`, or a TRIBASIC that compiles to machine code for speed.
 
 ## New words
