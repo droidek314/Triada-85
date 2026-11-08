@@ -34,7 +34,7 @@ This project builds that whole machine as a program you can run on a normal PC o
 
 ## How to run
 
-The quickest way: open **https://droidek314.github.io/Triada-85/**, click "switch on" and pick a program. The download below adds the debugger and the command-line tools.
+The quickest way: open **https://droidek314.github.io/Triada-85/** and type, or pick a program. The download below adds the debugger and the command-line tools.
 
 You need a Java Development Kit (**JDK**) version 25. Gradle, the build tool, downloads itself. On Windows, use `gradlew.bat` instead of `./gradlew` if you are not in a Bash-style shell.
 

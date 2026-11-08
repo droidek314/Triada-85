@@ -1,7 +1,7 @@
 # Milestone 12 — The web version
 
 ## In one paragraph
-Until now, trying the TRIADA-85 meant installing Java and building the project. This milestone puts the machine on a web page: open an address, click "switch on", and it boots with its chime, exactly as on the desktop. The games, the type-in listing, the CRT look and "inserting a triskette" (dropping a file on the page) all work. Only the workshop tools stay in the download: the debugger, the command line and the capture mode. The page is published on GitHub Pages and rebuilt by GitHub after every change, but only if all tests still pass.
+Until now, trying the TRIADA-85 meant installing Java and building the project. This milestone puts the machine on a web page: open an address and it boots, exactly as on the desktop. The sound comes on with the first key press, because browsers keep pages silent until then. The games, the type-in listing, the CRT look and "inserting a triskette" (dropping a file on the page) all work. Only the workshop tools stay in the download: the debugger, the command line and the capture mode. The page is published on GitHub Pages and rebuilt by GitHub after every change, but only if all tests still pass.
 
 ## What was built
 - **`triada-app`**, a new module with what the desktop and the web share: the picture (`MachineScreen`), the CRT look (`CrtEffect`), the keyboard (`InputMapper`) and the frame clock (`FrameClock`) ([D-039](../DECISIONS.md#d-039--the-web-version-gdx-teavm-a-shared-frontend-module-the-same-machine-without-the-debugger---milestone-m12-2026-11-08)).
@@ -39,18 +39,18 @@ GitHub Pages is a free service that hands out files over the web: it doesn't run
    |   +-------------------------------------+   |
    |   |                                     |   |
    |   |      the machine's screen           |   |  <- a canvas: a drawing area
-   |   |      ("Click to switch on" first)   |   |     on the page
+   |   |                                     |   |     on the page
    |   |                                     |   |
    |   +-------------------------------------+   |
    |   Running trizmeyka.tasm.                   |  <- status line
    |   Monitor TRIZMEYKA TROIKA OBLAKA ...       |  <- one link per program
-   |   arrow keys / Z X C / F2 / drop a file     |
+   |   > Help                                    |  <- opens the keys and a short note
    +---------------------------------------------+
 ```
 The screen is shown 1 to 4 times its real size of 240 × 168 pixels, whichever whole number fits the browser window, so the pixels stay square and sharp.
 
-### Why you have to click first
-Browsers don't let a page make sound until the visitor has clicked or typed on it, so that pages can't start shouting by surprise. The page uses this rule: the machine only switches on with the click, so the boot chime is heard from its first note.
+### Why the first sound waits for a key
+Browsers don't let a page make sound until the visitor has pressed a key or clicked on it, so that pages can't start shouting by surprise. The first version of the page therefore had a "Click to switch on" button, so the boot chime was heard from its first note. That extra click got in the way, so now the machine switches itself on as soon as the page has loaded, and its sound is unmuted by the first key press or click ([D-043](../DECISIONS.md#d-043--the-web-page-switches-itself-on-sound-follows-the-first-key---milestone-m12-2026-11-08)). The price: the boot chime is usually silent.
 
 ### Sound, one frame at a time
 The machine makes 60 frames a second, and each frame comes with 735 sound samples (1/60 of a second at 44,100 samples per second). The page wraps each frame's samples in a tiny sound buffer and books it on the browser's sound clock, right after the previous one, like train cars coupled end to end. A small head start of 60 ms (about 4 frames) keeps the train from running out of cars when the browser is briefly busy.
@@ -78,7 +78,7 @@ The desktop's [`TriadaApp.java`](../../triada-desktop/src/main/java/org/triada/d
 
 ### 2. The web app
 [`WebApp.java`](../../triada-web/src/main/java/org/triada/web/WebApp.java) is a libGDX `ApplicationAdapter`, like `TriadaApp`, without the debugger:
-- `create()` makes the `MachineScreen`, routes keys to `InputMapper` (and F2 to the CRT), and asks the browser to keep the arrow keys, Space and F2 for itself (`setCatchKey`), so they don't scroll the page. If the address has `?program=NAME` with a plain name (`[a-z0-9]+`), it inserts `NAME.tasm`.
+- `create()` makes the `MachineScreen`, routes keys to `InputMapper` (and F2 to the CRT), and asks the browser to keep the arrow keys, Space and F2 for itself (`setCatchKey`), so they don't scroll the page. Because a caught Space produces no typed character, `keyDown` types the space itself. If the address has `?program=NAME` with a plain name (`[a-z0-9]+`), it inserts `NAME.tasm`.
 - `WebApp.insert()` assembles a `.tasm` or reads a `.tri`, then `powerOn()` and `Rom.autorun()`, the same two calls as the desktop's `Debugger.insertTriskette()`. Errors go to the status line.
 - `WebApp.source()` feeds the assembler: the dropped file itself, or a bundled file through `Gdx.files.internal`, so `.include "lib/game.tasm"` works.
 - `render()` takes a dropped file if there is one, asks the `FrameClock` how many frames are due, runs them, hands each frame's samples to the page, and draws.
@@ -115,7 +115,8 @@ this.next += b.duration;
 
    `now` is the sound clock. `next` is where the last buffer ends. The `return` drops a frame instead of letting the sound lag ever further behind.
 3. It reads a dropped file into `triadaDrop`.
-4. The "Click to switch on" button creates the `AudioContext` (the browser's sound system) and only then calls `main()`, which starts the Java program.
+4. It creates the `AudioContext` (the browser's sound system), which starts muted, and resumes it on the first key press or click (`unmute`). When the page has loaded it calls `main()`, which starts the Java program.
+5. Clicks inside the "Help" section are kept from reaching the backend: gdx-teavm treats a click outside the canvas as "the keyboard belongs to the page now" and stops passing keys on.
 
 ### 5. The build
 [`triada-web/build.gradle.kts`](../../triada-web/build.gradle.kts) applies the gdx-teavm plugin. It declares `programs/` as *assets* (files the app reads at run time, which gdx-teavm copies next to the page and downloads before start) and turns off the generated page (`generateIndexHtml = false`). After `gdx_teavm_web_js_build` it copies our `index.html` next to `app.js`. The finished site is in `triada-web/build/dist/js/webapp`.
@@ -128,8 +129,8 @@ this.next += b.duration;
 1. **Move the shared frontend code out of the desktop module.** This is the picture upload and draw, the integer scale, the CRT shader, the key mapping and the frame clock. The new module may depend only on `com.badlogicgames.gdx:gdx` (core). Run the desktop tests: nothing should change.
 2. **Get rid of resource files in shared code.** A browser has no *class path* (the list of places where Java looks for classes and resource files). Put small texts like shader source into the code as Java *text blocks* (strings written between `"""` over several lines), or into web assets.
 3. **Add a web module** with the gdx-teavm Gradle plugin (`id("com.github.xpenatan.gdx-teavm") version "1.6.2"`, plugin repository: Maven Central). Write a launcher whose `main` does `new WebApplication(app, config)`. Build with `gdx_teavm_web_js_build` and open the output through a web server, not as a file.
-4. **Write the web `ApplicationAdapter`.** Create a machine with the ROM, map keys, run frames with a fixed time step, draw. Call `Gdx.input.setCatchKey` for the arrows, or the page will scroll while you play.
-5. **Do sound in JavaScript.** `Gdx.audio.newAudioDevice` throws on gdx-teavm. Pass each frame's samples out with `@JSBody` + `@JSByRef`, and schedule Web Audio buffers back to back with a small lead. Create the `AudioContext` inside a click handler, or browsers will keep it silent.
+4. **Write the web `ApplicationAdapter`.** Create a machine with the ROM, map keys, run frames with a fixed time step, draw. Call `Gdx.input.setCatchKey` for the arrows and Space, or the page will scroll while you play. A caught key no longer produces the browser's typed character, so type the space yourself in `keyDown`.
+5. **Do sound in JavaScript.** `Gdx.audio.newAudioDevice` throws on gdx-teavm. Pass each frame's samples out with `@JSBody` + `@JSByRef`, and schedule Web Audio buffers back to back with a small lead. Browsers keep a new `AudioContext` suspended until the visitor presses a key or clicks: call `resume()` on the first `keydown` or `pointerdown`, and skip scheduling while it is not `"running"`.
 6. **Write your own page** (`generateIndexHtml = false`) and copy it next to `app.js` after the build. Use only relative paths: on GitHub Pages the site lives in a sub-folder (`/Triada-85/`).
 7. **Test under a sub-folder.** Copy the output into `site/Triada-85/` and serve `site/` (for example `python -m http.server`), then open `/Triada-85/`.
 8. **Publish with GitHub Actions:** `actions/setup-java` with JDK 25, run the build, then `actions/upload-pages-artifact` and `actions/deploy-pages`. Set the repository's Pages source to "GitHub Actions". Make sure `gradlew` is executable in git (`git update-index --chmod=+x gradlew`) or the Linux build machine can't start it.
@@ -160,7 +161,8 @@ To try it locally:
 This serves the page at http://localhost:8385/. We checked that the page, `app.js` and the program files are served there (HTTP 200).
 
 Checked in a browser, with the build copied into a `/Triada-85/` sub-folder as on GitHub Pages:
-- The page loads, and the "switch on" button starts the machine.
+- The page loads and the machine boots by itself to `READY.`.
+- Typing at the monitor works, including Space: `HELP 1` reached the machine with its space and got `?SYNTAX ERROR`, as on the desktop.
 - `?program=triangle` and `?program=colors` assemble and run their programs.
 - The `colors` picture, read back from the canvas, consists of exactly the 27 palette colours: 40,320 of 40,320 pixels.
 - The sound player schedules buffers continuously while the machine runs.
@@ -172,14 +174,15 @@ The published page: https://droidek314.github.io/Triada-85/ (the workflow's run 
 - **Warnings turned into errors.** Our build treats every compiler warning as an error. TeaVM's annotations refer to an IntelliJ annotation that isn't on the class path, and the plugin adds TeaVM's annotation processor, which complains that it supports only Java 11 sources. Neither is about our code. `triada-web` switches off exactly these two (`-Xlint:-classfile`, `-proc:none`); everything else stays an error.
 - **A Gradle task that didn't exist yet.** `tasks.named("gdx_teavm_web_js_build")` failed because the plugin creates its tasks late. `tasks.matching { … }.configureEach` waits for it.
 - **A black screen that wasn't.** The browser pane's screenshots showed a black canvas, while sound was clearly being scheduled. We first suspected that `resize()` wasn't called at start and added a call. Then we read the pixels straight after a frame was drawn (`gl.readPixels`), and the picture was there. A WebGL canvas is cleared after it is shown on screen, so the screenshot tool captured an empty one. The gdx-teavm source confirmed that it calls `resize()` right after `create()`, so the extra call was removed again.
+- **Space didn't type.** Reported by the user right after publishing. To stop Space from scrolling the page, `WebApp` asked the backend to catch it (`setCatchKey`). The backend then cancels the key's default action, and with it the browser's typed-character event, so the monitor never saw the space. `WebApp` now types it itself when Space goes down. The desktop never had this problem.
 - **Port 8080 was taken** by another program on the development PC, so the local server failed to start. `triada-web` now uses port 8385.
 
 ## Limitations and what comes next
 - **No debugger, command line or capture mode** on the web, by choice (D-039). They are in the download.
 - **A keyboard is needed.** Phones and tablets show the page, but the TRIADA has no on-screen keyboard or joystick.
-- **Sound runs about 60 ms behind the picture**, and a tab in the background pauses the machine.
+- **Sound runs about 60 ms behind the picture**, a tab in the background pauses the machine, and the boot chime is usually silent because browsers keep the page muted until the first key press (D-043).
 - **Speed in the browser was not measured.** M6 measured TeaVM's JavaScript at about 1.3 times real time in the worst case (every frame using all 59,049 cycles). The games mostly wait for the next frame, so they need far less. If a slow computer struggles, gdx-teavm can also produce WebAssembly, usually faster, with a one-word change in the build (`wasm {}`).
-- **Not checked by us in a browser:** typing into the monitor, playing a game with the arrow keys, dropping a file, F2 and *hearing* the sound. They use the same `InputMapper`, `MachineScreen` and libGDX input code as the desktop, but the browser's side of them is new.
+- **Not checked by us in a browser:** playing a game with the arrow keys, dropping a file, F2 and *hearing* the sound. They use the same `InputMapper`, `MachineScreen` and libGDX input code as the desktop, but the browser's side of them is new.
 - **What comes next:** the remaining stretch goals, a small high-level language and the cassette-loading effect. Both live in the shared code or the ROM, so they would reach the web version too.
 
 ## New words

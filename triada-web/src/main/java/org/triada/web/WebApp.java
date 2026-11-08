@@ -47,6 +47,11 @@ final class WebApp extends ApplicationAdapter {
                     screen.toggleCrt();
                     return true;
                 }
+                if (keycode == Input.Keys.SPACE) {
+                    // Catching Space (below) stops the page scrolling, but it also stops the
+                    // browser's typed-character event, so the space is typed from here.
+                    return inputMapper.keyTyped(' ');
+                }
                 return inputMapper.keyDown(keycode);
             }
 
@@ -70,7 +75,7 @@ final class WebApp extends ApplicationAdapter {
         if (program.matches("[a-z0-9]+")) {
             insert(program + ".tasm", null);
         } else {
-            WebPage.status("Type HELP and press Enter. Or pick a program below.");
+            WebPage.status("Type HELP and press Enter.");
         }
     }
 

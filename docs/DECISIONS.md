@@ -422,7 +422,7 @@ We ran the result in Node.js 22.
 ## D-041 — Sound in the browser: one small buffer per frame, scheduled back to back   (Milestone M12, 2026-11-08)
 **Situation:** gdx-teavm doesn't support libGDX's `AudioDevice` (raw sample output); `newAudioDevice` throws. A browser page also has no threads like the desktop's audio thread (D-025), and browsers keep sound off until the visitor clicks or types.
 **Options:** A: an AudioWorklet (a sound program running beside the page) fed through shared memory: smooth, but shared memory needs special server headers that GitHub Pages can't send. B: an AudioWorklet fed by messages: more code. C: for every machine frame, turn its 735 samples into a tiny Web Audio buffer and schedule it to start exactly where the previous one ends.
-**Decision:** C, about 20 lines of JavaScript in `index.html` (`triadaSound.play`). `WebPage.playSamples` hands over each frame's samples. The player keeps a 60 ms cushion. If it falls behind (the tab was busy), it starts again 60 ms ahead. If it gets more than 250 ms ahead, it drops the frame. The page starts the machine with a "Click to switch on" button, which also unlocks sound.
+**Decision:** C, about 20 lines of JavaScript in `index.html` (`triadaSound.play`). `WebPage.playSamples` hands over each frame's samples. The player keeps a 60 ms cushion. If it falls behind (the tab was busy), it starts again 60 ms ahead. If it gets more than 250 ms ahead, it drops the frame. The page starts the machine with a "Click to switch on" button, which also unlocks sound (replaced by D-043).
 **Why:** It is the smallest thing that works on every current browser and on a static host. A web page's own sound clock does the timing the desktop's audio thread does.
 **Consequences:** About 60 ms of delay between a key and its sound. A tab in the background stops (browsers pause hidden pages), and the sound with it. The button means every page load starts with a click, which matches switching a computer on.
 
@@ -432,3 +432,10 @@ We ran the result in Node.js 22.
 **Decision:** B. `.github/workflows/pages.yml` runs on every push to `master`: it sets up JDK 25, runs `./gradlew build :triada-web:gdx_teavm_web_js_build` (all tests, then the web build), uploads `triada-web/build/dist/js/webapp` and deploys it. The repository's Pages source is set to "GitHub Actions".
 **Why:** No build output in git, and the tests act as a gate: a commit that breaks a test is never published.
 **Consequences:** The site is at https://droidek314.github.io/Triada-85/. The page uses only relative paths, so it works in that sub-folder. `gradlew` must be executable in git for the Linux build machine.
+
+## D-043 — The web page switches itself on; sound follows the first key   (Milestone M12, 2026-11-08)
+**Situation:** The first published page had a "Click to switch on" button (D-041), so that the browser would allow sound from the boot chime on. The user found the extra click unnecessary, and asked for a page with less text on it.
+**Options:** A: keep the button. B: start the machine as soon as the page has loaded, with sound muted until the first key press or click (browsers don't allow more).
+**Decision:** B. `index.html` calls `main()` on load and creates the `AudioContext` straight away. The first `keydown` or `pointerdown` resumes it, and until then `triadaSound.play` skips frames. The key table and the notes moved into a "Help" section that opens and closes; clicks inside it don't take the keyboard away from the machine.
+**Why:** The machine is ready the moment the page is, and the first thing almost everyone does is press a key, which unmutes it.
+**Consequences:** The boot chime is usually not heard (it plays while the page is still muted). Everything typed or played afterwards is heard.
