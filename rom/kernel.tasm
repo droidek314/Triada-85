@@ -21,18 +21,17 @@ boot:   LDI SP, STACK_TOP               ; 1. the stack
         JSR chime                       ;    ... and the chime
         LDI R0, banner                  ; 4. the boot screen
         JSR print
-        LDI R0, FREE_WORDS
-        JSR printnum
-        LDI R0, wordsfree
-        JSR print
 
         LDI R2, AUTORUN                 ; did the host leave a program to start?
         LD R0, [R2]
-        JZ monitor                      ; no: 5. enter the monitor
+        JZ BASIC_COLD                   ; no: 5. TRIBASIC (M14) prints the rest
         LDI R1, 0
         ST R1, [R2]                     ; yes: forget it (so it runs only once) ...
+        PUSH R0
+        JSR b_hello                     ; ... finish the boot screen ...
+        POP R0
         JSR runprog                     ; ... run it like RUN (prints READY. after)
-        JMP mn_prompt                   ; then the monitor's prompt
+        JMP b_afterprog                 ; then TRIBASIC, with an empty program
 
 banner:    .str "TRIADA-85 NPO \"TRIADA\" 1985"    ; exactly 27 characters (D-027)
 wordsfree: .str " WORDS FREE\n"

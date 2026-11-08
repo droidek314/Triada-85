@@ -1,0 +1,1 @@
+10 ABCDEFGHI = 1

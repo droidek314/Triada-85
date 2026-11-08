@@ -17,7 +17,7 @@
 
 ## Typing it in
 
-No assembler? No problem. Switch on your TRIADA-85 and type the 143 POKE lines below at the `>` sign, each followed by ENTER. Read them **down each column**, starting at the top left. Then type `RUN`.
+No assembler? No problem. Switch on your TRIADA-85, type `MON` to reach the monitor, and type the 143 POKE lines below at the `>` sign, each followed by ENTER. Read them **down each column**, starting at the top left. Then type `RUN`.
 
 Typing all of it takes about an hour. Take a break after each column! If the program does not work, check your typing with `PEEK 243 10`, `PEEK 253 10` and so on, and compare the numbers with the listing. The values are printed in trits, as our readers asked. Remember that the monitor shows trits without the zeros in front, just as they are printed here.
 

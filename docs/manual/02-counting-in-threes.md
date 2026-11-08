@@ -40,7 +40,7 @@ Here are the first few numbers. Look how the negative numbers are simply the pos
 
 When you give the computer a number in trits, start it with `0t` so that it knows. `0t+-0` is 6, and `0t-+` is −2. You can always use ordinary numbers as well: the computer understands both.
 
-The monitor can show you any number in trits. Type `TERN 42` and press ENTER:
+The monitor can show you any number in trits. Type `MON` to reach it (Chapter 3), then type `TERN 42` and press ENTER:
 
 ```monitor
 > TERN 42

@@ -1,0 +1,8 @@
+10 PRINT "A"
+20 PRINT "C"
+10 PRINT "B"
+20
+15 PRINT "M"
+---
+LIST
+RUN

@@ -2,7 +2,9 @@
 
 ## 3.1 What the monitor is
 
-The **monitor** is the program built into your computer's permanent memory (the **ROM**). It starts when you switch on, shows `READY.` and waits for your commands at the `>` sign. With it you can look into the memory, change it, and start programs. Think of it as the computer's front desk.
+The **monitor** is a program built into your computer's permanent memory (the **ROM**), next to TRIBASIC. With it you can look into the memory, change it, and start programs in the machine's own code. Think of it as the computer's back office, where TRIBASIC is the front desk.
+
+To reach it, type `MON` in TRIBASIC and press ENTER. The monitor shows `READY.` and waits for your commands at the `>` sign. All examples in this chapter start there. To go back to TRIBASIC, type `BASIC`; your TRIBASIC program is still there.
 
 Type a command, then press **ENTER**. Numbers may be ordinary (`123`, `-5`) or written in trits (`0t+-0`, see Chapter 2).
 
@@ -18,6 +20,7 @@ COMMANDS:
  RUN [ADDR]
  CLS
  TERN N
+ BASIC
  HELP
 NUMBERS: 123  -5  0T+-0
 ```

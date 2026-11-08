@@ -15,10 +15,11 @@
 ## The memory street
 
 ```
- -265,720 ... -20,413   (nothing: reads 0)
-  -20,412 ... -19,684   connections: picture, sound, joystick, keyboard   (I/O)
+ -265,720 ... -59,049   (nothing: reads 0)
+  -59,048 ... -20,413   extension ROM: TRIBASIC (read-only)
+  -20,412 ... -19,684   connections: picture, sound, joystick, keyboard, triskette   (I/O)
   -19,683 ...      -1   ROM: the monitor and its routines (read-only)
-        0 ...     242   the monitor's own notes
+        0 ...     242   the ROM's own notes
       243 ...  39,999   YOUR PROGRAMS start at 243
    40,000 ...  43,887   tiles (243 x 16 words)
    44,000 ...  44,485   tile map (27 x 18)
@@ -81,7 +82,7 @@ Four dots of colour c: the word c × 20,440. One tile line of four dots p0 p1 p2
 
 ## Monitor commands
 
-`HELP` · `TERN n` · `PEEK addr [count]` · `POKE addr value` · `RUN [addr]` · `CLS` — numbers as `123`, `-5` or `0t+-0`. Anything else: `?SYNTAX ERROR`.
+`HELP` · `TERN n` · `PEEK addr [count]` · `POKE addr value` · `RUN [addr]` · `CLS` · `BASIC` — numbers as `123`, `-5` or `0t+-0`. Anything else: `?SYNTAX ERROR`. From TRIBASIC, `MON` leads here.
 
 ---
 *TRIADA-85 Owner's Manual · Appendix*

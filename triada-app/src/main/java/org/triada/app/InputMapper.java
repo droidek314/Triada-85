@@ -62,6 +62,13 @@ public final class InputMapper {
             case Input.Keys.C:
                 input.setButtonC(pressed);
                 return true;
+            case Input.Keys.ESCAPE:
+                // Neither libGDX backend turns Esc into a typed character, so it
+                // goes into the KEY queue here (code 27, D-024): TRIBASIC's BREAK.
+                if (pressed) {
+                    input.pushKey(27);
+                }
+                return true;
             default:
                 return false;
         }

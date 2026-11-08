@@ -41,13 +41,13 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
 
-## Current state (after M13)
+## Current state (after M14)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
   - `Word`: the 12-trit word, stored as a plain `int` (D-004), with wrap, carry and trit access.
   - `WordMath`: every arithmetic and trit-wise operation the CPU needs. Static and allocation-free.
-- `org.triada.core.memory`: `MemoryMap` (all address constants, `regionOf`) and `Bus` (routes every read and write to RAM, ROM, an I/O device or nowhere).
+- `org.triada.core.memory`: `MemoryMap` (all address constants, `regionOf`) and `Bus` (routes every read and write to RAM, ROM, an I/O device or nowhere). Since M14 the bus also holds the extension ROM (−59,048 … −20,413, `Bus.loadExtensionRom`).
 - `org.triada.core.triskette` (M13): `TrisketteDevice` (the drive on I/O registers 23–27), the `TriskettePort` interface it stores files through, `MemoryTriskette` (default and tests), `TrisketteNames` (name rules) and `TrisketteException` (D-045). `Machine.triskette()` lets the host plug in its own port.
 - `org.triada.core.io`: the `IoDevice` plug-in interface, the `IoRegisters` numbers, `InputDevice` (joystick, buttons, KEY queue) and `SystemDevice` (FRAME, RAND).
 - `org.triada.core.cpu`: `Instruction` (encoding, opcode tables), `Cpu` (registers, flags, `step()`, `runFrame()`) and `Fault`.
@@ -63,8 +63,9 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `triada-desktop`: `DesktopLauncher` (`--load`, drag-and-drop, window focus listener, the `triskettes/` folder or `--disk DIR` since M13), `TriadaApp` (runs the machine through the debugger, draws with `MachineScreen`), `SoundOutput` + `SampleRing` (audio thread, D-025). Since M11: `LaunchOptions` (the command line), F2 or `--crt` for the CRT look, and `Capture` (`--capture`: draw into an off-screen frame buffer of a hidden window, save a PNG, quit), D-037. Package `debug`: `Debugger` (pause/step/step over/breakpoints, tested logic), `DebuggerView` (scene2d.ui panel, F1) and `TriadaFont` (the ROM font as a BitmapFont), D-031.
 - `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm`, `piano.tasm` and the three M10 games `trizmeyka.tasm` (snake), `troika.tasm` (ternary puzzle) and `oblaka.tasm` (scrolling shooter). They share `programs/lib/game.tasm`, an include library (D-033). The games run on the ROM: they are started through AUTORUN and call PRINT and LOCATE. Their tests (`GameHarness` and one test class per game in `triada-cli`) boot the ROM and play them through `InputDevice`. M11 added `triangle.tasm`, the manual's type-in listing.
 - `docs/manual/` is the owner's manual (M11). `ManualTest` replays its monitor examples and types its listing in (D-036). `DocImagesTest` makes and checks the pictures in `docs/images/` (D-038). The CLI tests declare `programs/`, `docs/manual/` and `docs/images/` as Gradle inputs.
-- `rom/` holds the ROM source (`rom.tasm`, `sysvars.tasm`, `kernel.tasm`, `monitor.tasm`, generated `font.tasm`), the public-domain font in `third_party/`, and the font converter in `tools/`. `triada-rom` assembles it at every build (D-029); the CLI and desktop boot through it and start programs via the AUTORUN system variable (D-028).
+- `rom/` holds the ROM source (`rom.tasm`, `sysvars.tasm`, `kernel.tasm`, `monitor.tasm`, `disk.tasm` since M13, `basic.tasm` since M14, generated `font.tasm`), the public-domain font in `third_party/`, and the font converter in `tools/`. `triada-rom` assembles it at every build (D-029); the CLI and desktop boot through it and start programs via the AUTORUN system variable (D-028).
 - `triada-web` (M12): the browser version, compiled to JavaScript by gdx-teavm. `WebLauncher` → `WebApp` (the same machine, `MachineScreen` and `InputMapper`, no debugger; programs from `?program=NAME` or a dropped file, assembled in the browser) and `WebPage` (one-line JavaScript glue). Since M13 `WebTriskette` keeps the triskette in browser storage, and the page has a Triskette panel for import and export (D-047). Its `index.html` holds the sound player (D-041) and the file drop. `.github/workflows/pages.yml` tests, builds and publishes it to GitHub Pages (D-042).
+- TRIBASIC (M14, D-048): `rom/basic.tasm` is assembled together with the main ROM (one symbol table) at `.org -59048`; `RomGenerator` splits the image into the main ROM and the extension ROM, and `Rom.newMachine()` loads both. The kernel boots into `BASIC_COLD`; `MON` and the monitor's `BASIC` switch between the two. Its tests: `BasicSuiteTest` runs `tests/basic/*.bas` against `*.expected` (D-050).
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
 
 ## Inside triada-core: the bus

@@ -76,6 +76,15 @@ class InputMapperTest {
         assertEquals(0, machine.input().queuedKeys());
     }
 
+    /** M14: the Esc key itself puts 27 into the KEY queue; the backends make no typed character for it. */
+    @Test
+    void escapeKeyIsCode27() {
+        assertTrue(mapper.keyDown(Input.Keys.ESCAPE));
+        assertTrue(mapper.keyUp(Input.Keys.ESCAPE));
+        assertEquals(27, reg(IoRegisters.KEY));
+        assertEquals(0, reg(IoRegisters.KEY), "once, on the way down");
+    }
+
     @Test
     void otherKeysAreNotOurs() {
         assertFalse(mapper.keyDown(Input.Keys.F1));

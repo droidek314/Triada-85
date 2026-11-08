@@ -1,0 +1,2 @@
+10 PRINT "BEFORE"
+20 DIM A(5)

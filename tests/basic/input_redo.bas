@@ -1,0 +1,6 @@
+10 INPUT A
+20 PRINT A
+---
+RUN
+ABC
+0t+-0

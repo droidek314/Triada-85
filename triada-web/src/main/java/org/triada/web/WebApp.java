@@ -77,7 +77,7 @@ final class WebApp extends ApplicationAdapter {
         if (program.matches("[a-z0-9]+")) {
             insert(program + ".tasm", null);
         } else {
-            WebPage.status("Type HELP and press Enter.");
+            WebPage.status("Type PRINT 6 * 7 and press Enter.");
         }
     }
 

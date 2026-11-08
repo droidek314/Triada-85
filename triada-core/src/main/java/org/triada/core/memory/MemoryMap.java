@@ -24,7 +24,8 @@ public final class MemoryMap {
         UNMAPPED,
         /** I/O registers: reads and writes go to devices (SPEC §5). */
         IO,
-        /** Read-only memory holding the kernel; CPU writes are ignored. */
+        /** Read-only memory: the main ROM (kernel, monitor) and, since M14, the
+         *  extension ROM (TRIBASIC); CPU writes are ignored. */
         ROM,
         /** Normal read/write memory. */
         RAM
@@ -45,6 +46,13 @@ public final class MemoryMap {
     public static final int ROM_START = -ROM_SIZE;                         // −19,683
     /** Last ROM address. */
     public static final int ROM_END = -1;
+
+    /** First word of the extension ROM, where TRIBASIC lives (SPEC §2.5, M14). */
+    public static final int EXT_ROM_START = -59_048;
+    /** Last word of the extension ROM: just below the I/O registers. */
+    public static final int EXT_ROM_END = -20_413;
+    /** Number of extension ROM words: 38,636. */
+    public static final int EXT_ROM_SIZE = EXT_ROM_END - EXT_ROM_START + 1;
 
     /** Number of I/O registers: 3^6. */
     public static final int IO_SIZE = 729;
@@ -87,6 +95,9 @@ public final class MemoryMap {
         }
         if (address >= IO_BASE && address <= IO_END) {
             return Region.IO;
+        }
+        if (address >= EXT_ROM_START && address <= EXT_ROM_END) {
+            return Region.ROM;
         }
         checkAddress(address);
         return Region.UNMAPPED;

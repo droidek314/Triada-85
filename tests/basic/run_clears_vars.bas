@@ -1,0 +1,4 @@
+10 PRINT A: A = 5
+---
+RUN
+RUN

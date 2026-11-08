@@ -39,33 +39,36 @@ Switch on the computer. You will hear a short chime of three rising notes, and a
 
 ```
 TRIADA-85 NPO "TRIADA" 1985
+TRIBASIC V1.0
 39757 WORDS FREE
 READY.
-> _
+_
 ```
 
-The blinking line is the **cursor**. It shows where the next letter you type will appear. Your computer is now waiting for your commands. The program that greets you is the **monitor**, which is built into the computer. Chapter 3 tells you everything about it.
+The blinking line is the **cursor**. It shows where the next letter you type will appear. Your computer is now waiting for your commands. The program that greets you is **TRIBASIC**, the computer's own programming language, built into it. Try `PRINT 6 * 7` and press ENTER.
+
+For working with the machine itself there is a second built-in program, the **monitor**. Type `MON` and press ENTER to reach it, and `BASIC` to come back; your TRIBASIC program waits for you meanwhile. Chapter 3 tells you everything about the monitor.
 
 "39757 WORDS FREE" means that 39,757 places in the computer's memory are free for your programs. Each place (a **word**) holds one number. Chapter 2 explains what kind of numbers.
 
 ## 1.4 The keyboard
 
-Type letters as on a typewriter. The monitor always works in capital letters, so you need not press the shift key. Press **ENTER** to finish a line, and **BACKSPACE** to rub out the last letter you typed. A line may be at most 24 letters long.
+Type letters as on a typewriter. The computer works in capital letters, so you need not press the shift key (only text "in quotes" in TRIBASIC keeps small letters). Press **ENTER** to finish a line, and **BACKSPACE** to rub out the last letter you typed. A TRIBASIC line may be 80 letters long and simply continues on the next screen row; a monitor line at most 24. The **ESC** key stops a running TRIBASIC program.
 
 ## 1.5 The joystick
 
-The joystick has three positions from left to right (left, middle, right) and three from top to bottom (up, middle, down). Of course! A binary joystick would have only two. The three fire buttons are called **A**, **B** and **C**. Programs read the joystick and buttons whenever they like (see Chapter 5). The monitor does not use them.
+The joystick has three positions from left to right (left, middle, right) and three from top to bottom (up, middle, down). Of course! A binary joystick would have only two. The three fire buttons are called **A**, **B** and **C**. Programs read the joystick and buttons whenever they like (see Chapter 5). TRIBASIC and the monitor do not use them.
 
 ## 1.6 Triskettes
 
-A **triskette** holds programs. Insert it in the drive with the label upwards, and the computer starts again: the chime plays, and then the program on the triskette starts by itself. To return to the monitor, switch the computer off and on again without a triskette.
+A **triskette** holds programs. Insert it in the drive with the label upwards, and the computer starts again: the chime plays, and then the program on the triskette starts by itself. When it ends, TRIBASIC says `READY.` again.
 
 ## 1.7 If something goes wrong
 
 | What you see | What to do |
 |---|---|
 | No picture | Check the TV lead and the channel. Is the power supply connected? |
-| `?SYNTAX ERROR` | The monitor did not understand your line. Check the spelling (Chapter 3). |
+| `?SYNTAX ERROR` | TRIBASIC or the monitor did not understand your line. Check the spelling (Chapter 3 for the monitor). |
 | The picture stands still and nothing reacts | A program has stopped the processor. Switch off and on again. |
 | A program does strange things | Check your typing against the listing, word by word (Chapter 7). |
 

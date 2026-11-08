@@ -90,6 +90,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Constant (assembler)**: A name for a number, defined with `NAME = value`. First seen: M4.
 
+**Control stack**: TRIBASIC's own stack of FOR and GOSUB frames, separate from the CPU's stack, at RAM 45,000 upwards. First seen: M14.
+
 **CPU (central processing unit)**: The part of a computer that reads instructions from memory and carries them out, one after another. *In TRIADA:* the `Cpu` class. First seen: M3.
 
 **CRT (cathode-ray tube)**: The glass tube of old televisions and monitors, which drew the picture with an electron beam on glowing phosphor. *In TRIADA:* the optional CRT look, F2. First seen: M11.
@@ -109,6 +111,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Depth-first search**: A way of searching by following one possibility all the way down before trying the next. *In TRIADA:* a test uses it to find TROIKA solutions within par. First seen: M10.
 
 **Device**: A piece of hardware the processor talks to through I/O registers. *In TRIADA:* anything implementing `IoDevice`, such as `InputDevice`. First seen: M2.
+
+**Direct mode**: A TRIBASIC line typed without a number: it runs at once instead of being stored. First seen: M14.
 
 **Directive**: A line that tells the assembler what to do (`.org`, `.str`, `.include` …) rather than producing a CPU instruction. First seen: M4.
 
@@ -137,6 +141,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Exit code**: The number a program hands back to the operating system when it ends; 0 means success. *In TRIADA:* `triada run` returns the value a program writes to HOST_EXIT. First seen: M5.
 
 **Expression**: A small calculation in the source, such as `IO_BASE + KEY` or `end - start`. *In TRIADA:* numbers and names combined with + and −. First seen: M4.
+
+**Extension ROM**: A second read-only memory area, −59,048 … −20,413, where TRIBASIC lives (SPEC §2.5). First seen: M14.
 
 **Fault**: An error that stops the CPU, recorded with a code and the address of the guilty instruction. *In TRIADA:* fault 1 = invalid JIF condition (D-010). First seen: M3.
 
@@ -212,7 +218,7 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Interface (Java)**: A list of methods a class promises to provide, so code can work with any class that keeps the promise. First seen: M2.
 
-**Interpreter**: An emulator that handles one instruction at a time: fetch, decode, execute, repeat. First seen: M3.
+**Interpreter**: A program that carries out another program step by step instead of translating it first. *In TRIADA:* the CPU emulator interprets machine code (M3); TRIBASIC interprets BASIC lines (M14). First seen: M3.
 
 **Invulnerability**: A short time after being hit in which a game's hero can't be hit again, usually shown by blinking. *In TRIADA:* two seconds in OBLAKA. First seen: M10.
 
@@ -232,6 +238,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Kernel**: The core built-in software of a computer. *In TRIADA:* lives in ROM, written in TRIADA assembly (M8). First seen: M2.
 
+**Kleene logic**: A logic with a third value, "unknown": "no AND unknown" is no, "yes AND unknown" is unknown. *In TRIADA:* TRIBASIC's AND, OR and NOT, which are the CPU's MIN, MAX and NEG. First seen: M14.
+
 **Label**: A name for an address in a program, written `name:` at the start of a line. First seen: M4.
 
 **Latency**: The delay between a cause and its effect, e.g. pressing a key and hearing the note. First seen: M7.
@@ -243,6 +251,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Lexer**: The part of a translator that cuts text into tokens. First seen: M4.
 
 **libGDX**: A free Java library for games. It opens windows, draws pictures with the graphics card, plays sound and reads the keyboard. *In TRIADA:* used only by `triada-desktop`. First seen: M0.
+
+**Line number**: The number in front of a TRIBASIC program line; it decides the line's place in the program and is the target of GOTO and GOSUB. First seen: M14.
 
 **Listing**: A printout of the source next to the address and words each line produced. *In TRIADA:* the `.lst` file. First seen: M4.
 
@@ -322,6 +332,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Power-on state**: How a machine looks the instant it is switched on. *In TRIADA:* RAM all 0, registers 0, PC = −19,683 (SPEC §2.4). First seen: M2.
 
+**Precedence**: Which operator is worked out first, as × before + in school. *In TRIADA:* SPEC §10.2's seven levels. First seen: M14.
+
 **Program counter (PC)**: The register holding the address of the next instruction, like a bookmark. *In TRIADA:* starts at −19,683 (SPEC §2.4). First seen: M3.
 
 **Pseudo-instruction**: A convenient spelling the assembler translates into a real instruction, e.g. `INC R0` → `ADDI R0, 1`. First seen: M4.
@@ -338,7 +350,7 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **RAM (random-access memory)**: Memory that can be read and written. *In TRIADA:* addresses 0 … 59,048. First seen: M2.
 
-**Recursive descent**: A way of writing a parser with one function per grammar rule; the functions call each other as the rules nest. First seen: M4.
+**Recursive descent**: A way of writing a parser with one function per grammar rule; the functions call each other as the rules nest. *In TRIADA:* the assembler (M4) and TRIBASIC's expressions, one routine per precedence level (M14). First seen: M4.
 
 **Reference implementation**: A slow but obviously correct version of an algorithm, used only in tests to check the fast version. First seen: M1.
 
@@ -434,11 +446,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Time-out**: Stopping something because it took longer than allowed. *In TRIADA:* `triada run` gives up after 3,600 frames without `--frames` (exit code 4). First seen: M5.
 
-**Token**: One piece of a source line after the lexer has cut it up: a name, a number, a comma … First seen: M4.
+**Token**: One piece of a source line after the lexer has cut it up: a name, a number, a comma … *In TRIBASIC:* a keyword stored as one negative word, −1 for PRINT … −68 for TERN$ (M14). First seen: M4.
+
+**Tokenizer**: The part of TRIBASIC that turns typed keywords into tokens when a line is entered (`b_tokenize`). First seen: M14.
 
 **Toolchain (Gradle)**: Gradle's setting for "compile and test with exactly this Java version", even if a different one is installed as the default. First seen: M0.
 
 **Transparency**: A colour that is not drawn, so whatever is behind shows through. *In TRIADA:* gray (value 0) in sprites. First seen: M6.
+
+**TRIBASIC**: The TRIADA-85's built-in programming language, with three-valued IF … THEN … MAYBE … ELSE; written in TRIADA assembly in the extension ROM. First seen: M14.
 
 **Triskette**: The TRIADA-85's floppy disk: a flat list of named files, with no tracks or folders. *In TRIADA:* `TrisketteDevice` on I/O registers 23–27 (SPEC §5.1); a folder on the desktop, browser storage on the web. First seen: M13 (as a word for "a program file" since M9).
 

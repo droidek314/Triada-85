@@ -79,11 +79,37 @@ class KernelTest {
     void bootIsQuick() {
         Triada t = new Triada();
         int frames = 0;
-        while (!(t.cursorX() == 2 && t.row(3).startsWith(">"))) {
+        while (!t.atPrompt() && frames < 600) {
             t.frames(1);
             frames++;
         }
-        assertTrue(frames < 60, "boot to prompt in " + frames + " frames (under a second)");
+        assertTrue(frames < 60, "boot to READY. in " + frames + " frames (under a second)");
+    }
+
+    /** SPEC 10.8: the machine boots straight into TRIBASIC (M14). */
+    @Test
+    void bootScreenIsTribasics() {
+        Triada t = Triada.basic();
+        assertEquals("TRIADA-85 NPO \"TRIADA\" 1985", t.row(0));
+        assertEquals("TRIBASIC V1.0", t.row(1));
+        assertEquals("39757 WORDS FREE", t.row(2));
+        assertEquals("READY.", t.row(3));
+        assertEquals(0, t.cursorX());
+        assertEquals(4, t.cursorY());
+    }
+
+    @Test
+    void theExtensionRomStartsWithTribasicsTwoEntryPoints() {
+        var ext = Rom.extensionImage();
+        assertEquals(MemoryMap.EXT_ROM_START, ext.loadAddress());
+        int jmp = org.triada.core.cpu.Instruction.encode(org.triada.core.cpu.Instruction.JMP, 0, 0, 0);
+        assertEquals(jmp, ext.word(0), "BASIC_COLD at -59,048");
+        assertEquals(Rom.address("b_cold"), ext.word(1));
+        assertEquals(jmp, ext.word(2), "BASIC_WARM at -59,046");
+        assertEquals(Rom.address("b_warm"), ext.word(3));
+        assertEquals(-59_048, Rom.address("BASIC_COLD"));
+        assertEquals(-59_046, Rom.address("BASIC_WARM"));
+        assertTrue(ext.size() < MemoryMap.EXT_ROM_SIZE / 4, "plenty of room left: " + ext.size());
     }
 
     private static int reg(Triada t, int k) {
@@ -261,7 +287,7 @@ class KernelTest {
         assertEquals("10", t.row(0));
         assertEquals("25", t.row(15));
         assertEquals("READY.", t.row(16));
-        assertEquals(">", t.row(17));
+        assertEquals("", t.row(17), "TRIBASIC's READY. puts the cursor on the next line (M14)");
     }
 
     @Test
@@ -337,9 +363,9 @@ class KernelTest {
 
     @Test
     void goldenBootScreen() throws Exception {
-        Triada t = Triada.booted();
+        Triada t = Triada.basic();                 // since M14: TRIBASIC's boot screen (SPEC 10.8)
         // Freeze the blinking cursor so the picture doesn't depend on the frame number.
-        t.m.bus().write(MemoryMap.MAP + 3 * 27 + 2, ' ');
+        t.m.bus().write(MemoryMap.MAP + 4 * 27, ' ');
         t.m.video().render();
         java.awt.image.BufferedImage actual = new java.awt.image.BufferedImage(240, 168,
                 java.awt.image.BufferedImage.TYPE_INT_RGB);

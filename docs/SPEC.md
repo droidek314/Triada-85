@@ -390,7 +390,7 @@ Unknown command → `?SYNTAX ERROR`.
 ### 8.4 Details settled while building the ROM
 These follow from D-026 … D-028 in `docs/DECISIONS.md`.
 - **Font:** font8x8 (public domain), light cyan (4) on dark blue (−12); blue border (−11).
-- **System variables:** AUTORUN = 0, CURSOR_X = 1, CURSOR_Y = 2, RUN_DONE = 3 (programs finished by RUN/AUTORUN), LINEBUF = 162 … 242.
+- **System variables:** AUTORUN = 0, CURSOR_X = 1, CURSOR_Y = 2, RUN_DONE = 3 (programs finished by RUN/AUTORUN), LINEBUF = 162 … 242. Since M14, TRIBASIC's state is at 4 … 37 (`rom/sysvars.tasm`).
 - **PUTCHAR:** 10 = newline, 8 = backspace. A full line wraps only when the next character arrives ("pending wrap"). The screen scrolls at the bottom. LOCATE clamps to the screen.
 - **Monitor:** prompt `> `; at most 24 characters per line; letters made upper case; blinking `_` cursor. `PEEK` prints `ADDR: VALUE 0tTRITS` per word, `TERN` prints `N = 0tTRITS`, and trits are shown without leading zeros. Missing or extra arguments, counts below 1 and out-of-range numbers are `?SYNTAX ERROR`.
 
@@ -597,7 +597,7 @@ Format: `?<MESSAGE> ERROR IN <line>` (no `IN …` in direct mode), then `READY.`
 
 `SYNTAX`, `UNDEFINED LINE`, `RETURN WITHOUT GOSUB`, `NEXT WITHOUT FOR`, `OUT OF MEMORY`, `DIVISION BY ZERO`, `OVERFLOW`, `TYPE MISMATCH`, `BAD SUBSCRIPT`, `STRING TOO LONG`, `FILE NOT FOUND`, `DISK`.
 
-Esc while running prints `BREAK IN <line>`. The frontends map the Esc key to KEY code 27 (already the case since D-024).
+Esc while running prints `BREAK IN <line>`. The frontends map the Esc key to KEY code 27: D-024 gave Escape the code, and since M14 `InputMapper` sends it when the Esc key goes down (the libGDX backends make no typed character for Esc).
 
 ### 10.8 Boot
 The machine boots straight into TRIBASIC, as most 1980s home computers did:
@@ -607,4 +607,16 @@ TRIBASIC V1.0
 39757 WORDS FREE
 READY.
 ```
-The first line keeps the released single spacing, exactly 27 characters (D-027, D-044). `MON` switches to the machine-code monitor. The monitor's `BASIC` command returns to TRIBASIC through `BASIC_WARM`, with the program kept.
+The first line keeps the released single spacing, exactly 27 characters (D-027, D-044). `MON` switches to the machine-code monitor. The monitor's `BASIC` command returns to TRIBASIC through `BASIC_WARM`, with the program kept. A program the host starts through AUTORUN returns to TRIBASIC too, with an empty program (it may have used the program area).
+
+### 10.9 Details settled while building TRIBASIC (M14, D-048)
+- **Memory:** each program line is a record `[length][line number][text][0]` from 243 up, in line-number order, ended by a single 0 word. Variables follow the program, 9 words each (8 name characters, 0-padded, and the value). The FOR/GOSUB control stack grows up from 45,000 (limit 49,990), and INPUT reads into 50,000 … 50,080. "WORDS FREE" at boot is 39,757; the end marker isn't counted.
+- **Tokens:** every keyword of §10 (68 of them, including those only M15 uses) is one negative word, −1 for PRINT … −68 for TERN$, in the order of the M14 milestone document's table. A keyword is a whole word: `FORM` is a variable, not `FOR M`, so keywords must be separated from names and numbers by a space or another sign. Text in quotes and after `REM` is stored as typed; everything else in upper case. `0t` is stored as `0T`.
+- **Lines:** up to 80 characters; Backspace works across screen rows. Editing a line clears the variables. `BASIC_WARM` checks that RAM from 243 still holds a valid program and does `NEW` if not.
+- **READY.** always starts on a new line. A direct-mode error has no `IN …`; Esc before a direct line has run prints `BREAK` without a line number.
+- **Keys** that arrive while a program runs (Esc is checked before every statement) wait in a buffer of 16 for INPUT and ASK.
+- **FOR:** the body always runs at least once (as on the home computers of 1985); `NEXT` then adds the step and compares. A new `FOR` over the same variable ends the old loop and every loop inside it; `RETURN` ends loops started inside the subroutine. `NEXT` past the word's range ends the loop.
+- **IF:** a nested `IF` owns the rest of its line, so `MAYBE`/`ELSE` after it belong to it.
+- **Overflow:** no instruction can branch on the O flag, so `+` and `-` compare before adding (§10.2's rule, same result).
+- **INPUT** accepts a whole number with an optional sign, in decimal or `0t` trits; anything else prints `?REDO` and asks again. **ASK** echoes the key (Y, N or ?).
+- In M14, a text in quotes is only allowed after `PRINT` and as a prompt; elsewhere it is `?TYPE MISMATCH` (strings: M15). Keywords of M15 statements give `?SYNTAX ERROR` until then.

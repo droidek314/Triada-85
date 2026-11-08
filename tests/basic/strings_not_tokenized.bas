@@ -1,0 +1,4 @@
+10 PRINT "PRINT IF THEN: A"
+---
+LIST
+RUN

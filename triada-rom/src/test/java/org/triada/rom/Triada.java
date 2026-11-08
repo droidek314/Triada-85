@@ -24,8 +24,15 @@ final class Triada {
     private final int cursorX = Rom.address("CURSOR_X");
     private final int cursorY = Rom.address("CURSOR_Y");
 
-    /** Boots to the monitor prompt. */
+    /** Boots to the monitor prompt: since M14 that means TRIBASIC's READY., then MON. */
     static Triada booted() {
+        Triada t = basic();
+        t.type("MON\n");
+        return t;
+    }
+
+    /** Boots to TRIBASIC's READY. (M14). */
+    static Triada basic() {
         Triada t = new Triada();
         t.waitForPrompt();
         return t;
@@ -71,17 +78,43 @@ final class Triada {
         }
     }
 
-    /** Runs frames until the monitor waits at an empty prompt: "> " with the cursor right after it. */
+    /**
+     * Runs frames until the machine waits for a command line: the monitor's
+     * "> " with the cursor right after it, or TRIBASIC's "READY." with the
+     * cursor at the start of the next line (M14) -- and every typed key has
+     * been taken.
+     */
     void waitForPrompt() {
-        for (int f = 0; f < 600; f++) {
+        waitForPrompt(600);
+    }
+
+    void waitForPrompt(int maxFrames) {
+        for (int f = 0; f < maxFrames; f++) {
             frames(1);
-            int x = m.bus().peek(cursorX);
-            int y = m.bus().peek(cursorY);
-            if (m.input().queuedKeys() == 0 && x == 2 && row(y).startsWith(">")) {
+            if (atPrompt()) {
                 return;
             }
         }
-        fail("no prompt after 600 frames; screen:\n" + String.join("\n", screen()));
+        fail("no prompt after " + maxFrames + " frames; screen:\n" + String.join("\n", screen()));
+    }
+
+    boolean atPrompt() {
+        int x = m.bus().peek(cursorX);
+        int y = m.bus().peek(cursorY);
+        boolean keysTaken = m.input().queuedKeys() == 0 && m.bus().peek(Rom.address("B_KEYN")) == 0;
+        boolean monitor = x == 2 && row(y).startsWith(">");
+        // (a machine-code program may leave text before READY.: "7READY.")
+        boolean basic = x == 0 && y > 0 && row(y - 1).endsWith("READY.") && row(y).isEmpty();
+        return keysTaken && (monitor || basic);
+    }
+
+    /** Clears the screen behind the machine's back (tests only): spaces everywhere, cursor home. */
+    void clearScreen() {
+        for (int i = 0; i < 27 * 18; i++) {
+            m.bus().write(MemoryMap.MAP + i, ' ');
+        }
+        m.bus().write(cursorX, 0);
+        m.bus().write(cursorY, 0);
     }
 
     /** Text row r (0 ... 17), trailing spaces removed; the blinking cursor '_' is ignored. */

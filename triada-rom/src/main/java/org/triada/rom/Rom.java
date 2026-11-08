@@ -24,6 +24,7 @@ public final class Rom {
     static final String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQ";
 
     private static TriImage image;
+    private static TriImage extension;
     private static Map<String, Integer> symbols;
 
     private Rom() {
@@ -32,20 +33,32 @@ public final class Rom {
     /** The ROM image: it starts at the first ROM address, −19,683. */
     public static synchronized TriImage image() {
         if (image == null) {
-            int[] words = new int[RomData.SIZE];
-            int i = 0;
-            for (String chunk : RomData.WORDS) {
-                for (int c = 0; c < chunk.length(); c += 4) {
-                    int u = 0;
-                    for (int k = 0; k < 4; k++) {
-                        u = u * 27 + ALPHABET.indexOf(chunk.charAt(c + k));
-                    }
-                    words[i++] = u - Word.MAX;
-                }
-            }
-            image = new TriImage(MemoryMap.ROM_START, words);
+            image = new TriImage(MemoryMap.ROM_START, decode(RomData.SIZE, RomData.WORDS));
         }
         return image;
+    }
+
+    /** The extension ROM (TRIBASIC, M14), starting at {@code EXT_ROM_START}. */
+    public static synchronized TriImage extensionImage() {
+        if (extension == null) {
+            extension = new TriImage(MemoryMap.EXT_ROM_START, decode(RomData.EXT_SIZE, RomData.EXT_WORDS));
+        }
+        return extension;
+    }
+
+    private static int[] decode(int size, String[] chunks) {
+        int[] words = new int[size];
+        int i = 0;
+        for (String chunk : chunks) {
+            for (int c = 0; c < chunk.length(); c += 4) {
+                int u = 0;
+                for (int k = 0; k < 4; k++) {
+                    u = u * 27 + ALPHABET.indexOf(chunk.charAt(c + k));
+                }
+                words[i++] = u - Word.MAX;
+            }
+        }
+        return words;
     }
 
     /** All labels and constants of the ROM source, e.g. "AUTORUN" or "putchar". */
@@ -73,6 +86,7 @@ public final class Rom {
     public static Machine newMachine() {
         Machine m = new Machine();
         m.bus().loadRom(image().words());
+        m.bus().loadExtensionRom(extensionImage().words());
         m.powerOn();
         return m;
     }

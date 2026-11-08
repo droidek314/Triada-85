@@ -37,8 +37,12 @@ class MemoryMapTest {
         // first and last address of every region, and one step beyond each
         "-265720, UNMAPPED",
         "-265719, UNMAPPED",
-        "-20414, UNMAPPED",
-        "-20413, UNMAPPED",
+        "-59050, UNMAPPED",
+        "-59049, UNMAPPED",
+        "-59048, ROM",
+        "-59047, ROM",
+        "-20414, ROM",
+        "-20413, ROM",
         "-20412, IO",
         "-20411, IO",
         "-19685, IO",
@@ -70,8 +74,10 @@ class MemoryMapTest {
     void everyAddressIsInExactlyTheRegionTheSpecSays() {
         for (int a = -265_720; a <= 265_720; a++) {
             Region expected;
-            if (a <= -20_413) {
+            if (a <= -59_049) {
                 expected = Region.UNMAPPED;
+            } else if (a <= -20_413) {
+                expected = Region.ROM;                  // extension ROM (M14)
             } else if (a <= -19_684) {
                 expected = Region.IO;
             } else if (a <= -1) {

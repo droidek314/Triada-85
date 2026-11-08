@@ -25,13 +25,14 @@ This project builds that whole machine as a program you can run on a normal PC o
 - **Its own assembly language and assembler,** which also turns machine code back into text.
 - **A video chip** (tiles, 27 sprites, scrolling) and **a sound chip** (three voices, including the machine's own "ternary square" wave).
 - **A ROM written in TRIADA assembly:** boot chime, boot screen, and a monitor with `HELP`, `TERN`, `PEEK`, `POKE`, `RUN`, `CLS`.
+- **TRIBASIC** (M14), the built-in programming language the machine greets you with, written in TRIADA assembly too. Its `IF` has three answers: `IF R THEN … MAYBE … ELSE …`.
 - **A debugger** (F1): stop, step, step over, breakpoints, registers in decimal and ternary.
 - **Three games**, written in TRIADA assembly: TRIZMEYKA (a snake whose food comes in three trit colours), TROIKA (a puzzle whose moves are the CPU's own trit-wise instructions) and OBLAKA (a scrolling shooter).
 - **The [owner's manual](docs/manual/README.md),** written as if printed in 1985, with a type-in listing from *Trit & Tryte*. Its examples are checked by tests against the real machine.
 - **An optional CRT look** (F2): curved glass, scanlines, phosphor stripes.
 - **[A web version](https://droidek314.github.io/Triada-85/)**: the same machine in a browser, with everything except the debugger, published by GitHub after every change that passes the tests.
 - **A triskette drive** (M13): programs can save, load, list and delete files. On the desktop the triskette is the folder `triskettes/`; on the web page it lives in your browser, with import and export.
-- **563 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
+- **639 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
 
 ## How to run
 
@@ -45,7 +46,7 @@ Build everything and run all tests:
 ./gradlew build
 ```
 
-Switch the machine on. It plays its chime and waits at `READY.` (try `HELP`, `TERN 42`, `PEEK 243 3`):
+Switch the machine on. It plays its chime and greets you with TRIBASIC at `READY.` (try `PRINT 6 * 7`; `MON` reaches the monitor, where `HELP`, `TERN 42` and `PEEK 243 3` work, and `BASIC` comes back):
 
 ```bash
 ./gradlew :triada-desktop:run
@@ -131,4 +132,4 @@ The desktop can also save a picture without opening a visible window, for exampl
 | `programs/` | Example programs and the three games, in TRIADA assembly. |
 | `docs/` | Everything written about it. |
 
-Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2 is under way: the triskette drive (**M13**) is done; TRIBASIC, the built-in programming language, comes in M14–M15. See [docs/PROGRESS.md](docs/PROGRESS.md).
+Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2 is under way: the triskette drive (**M13**) and TRIBASIC's core (**M14**) are done; strings, arrays, machine statements and SAVE/LOAD come in M15. See [docs/PROGRESS.md](docs/PROGRESS.md).

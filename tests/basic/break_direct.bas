@@ -1,0 +1,4 @@
+10 PRINT "NEVER"
+---
+RUN
+{ESC}

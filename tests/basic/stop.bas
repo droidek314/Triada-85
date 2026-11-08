@@ -1,0 +1,3 @@
+10 PRINT "A"
+20 STOP
+30 PRINT "B"

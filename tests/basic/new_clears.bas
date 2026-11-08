@@ -1,0 +1,5 @@
+10 PRINT 1
+---
+NEW
+LIST
+RUN

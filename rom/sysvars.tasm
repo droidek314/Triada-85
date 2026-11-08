@@ -19,7 +19,20 @@ CURSOR_Y    = 2         ; text cursor row, 0 ... 17
 RUN_DONE    = 3         ; how many programs started by RUN or AUTORUN have
                         ; returned (RET) to the monitor; the headless runner
                         ; watches it to know a program has finished
-LINEBUF     = 162       ; monitor input line, up to 81 words (162 ... 242)
+LINEBUF     = 162       ; input line of the monitor and TRIBASIC, up to 81 words
+                        ; (162 ... 242)
+
+; --- TRIBASIC's variables (M14) ----------------------------------------------
+B_PROGEND   = 4         ; address of the program's end marker (a 0 word)
+B_VAREND    = 5         ; first free word after the variables
+B_CSP       = 6         ; next free word of the FOR/GOSUB control stack
+B_LINE      = 7         ; number of the line being run (0 = direct mode)
+B_LINEPTR   = 8         ; address of that line's record (0 = direct mode)
+B_RUNNING   = 9         ; 1 while a program runs
+B_ERRSP     = 10        ; the statement loop's SP: errors and jumps reset it
+B_KEYN      = 11        ; keys waiting in B_KEYS
+B_KEYS      = 12        ; ... 27: keys read while checking for Esc
+B_IDENT     = 28        ; ... 37: a word being looked up (9 chars + 0)
 LINE_MAX    = 24        ; longest command line: 27 columns minus "> " minus cursor
 
 ; --- constants --------------------------------------------------------------
@@ -32,3 +45,5 @@ FRAME_COLOUR = -11      ; blue border, trits --+
 STACK_TOP   = 59049     ; SP after boot: the stack grows down from the top of RAM
 PROGRAM_START = 243     ; where programs load, and the default of RUN
 FREE_WORDS  = 39757     ; 243 ... 39,999: shown on the boot screen
+BASIC_COLD  = -59048    ; TRIBASIC's entry points in the extension ROM (SPEC 2.5)
+BASIC_WARM  = -59046

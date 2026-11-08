@@ -1,0 +1,2 @@
+10 PRINT 2+3*4;" ";(2+3)*4;" ";-2*3;" ";10-2-3
+20 PRINT 1+1=2;" ";TRUE OR FALSE AND FALSE;" ";NOT 1 = -1

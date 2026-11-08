@@ -26,15 +26,39 @@ class MonitorTest {
 
     // ================================================================ boot
 
+    /** Since M14 the machine boots into TRIBASIC; MON brings the monitor. */
     @Test
-    void bootScreen() {
+    void monFromTribasicShowsTheMonitorPrompt() {
         assertEquals("TRIADA-85 NPO \"TRIADA\" 1985", t.row(0));
-        assertEquals("39757 WORDS FREE", t.row(1));
-        assertEquals("READY.", t.row(2));
-        assertEquals(">", t.row(3));
+        assertEquals("TRIBASIC V1.0", t.row(1));
+        assertEquals("39757 WORDS FREE", t.row(2));
+        assertEquals("READY.", t.row(3));
+        assertEquals("MON", t.row(4));
+        assertEquals("READY.", t.row(5));
+        assertEquals(">", t.row(6));
         assertEquals(2, t.cursorX());
-        assertEquals(3, t.cursorY());
-        assertEquals("", t.row(4));
+        assertEquals(6, t.cursorY());
+        assertEquals("", t.row(7));
+    }
+
+    @Test
+    void basicGoesBackToTribasicWithTheProgramKept() {
+        Triada b = Triada.basic();
+        b.type("10 PRINT \"KEPT\"\nMON\n");
+        b.type("BASIC\n");
+        b.type("RUN\n");
+        assertEquals("KEPT", b.row(b.cursorY() - 2));
+        assertEquals("READY.", b.row(b.cursorY() - 1));
+    }
+
+    @Test
+    void basicForgetsAProgramThatTheMonitorDestroyed() {
+        Triada b = Triada.basic();
+        b.type("10 PRINT \"KEPT\"\nMON\n");
+        b.type("POKE 243 -5\n");                  // a record length can't be negative
+        b.type("BASIC\n");
+        b.type("LIST\n");
+        assertEquals("LIST", b.row(b.cursorY() - 2), "nothing listed: NEW");
     }
 
     // ================================================================ commands
@@ -42,7 +66,7 @@ class MonitorTest {
     @Test
     void help() {
         assertEquals(List.of("COMMANDS:", " PEEK ADDR [COUNT]", " POKE ADDR VALUE", " RUN [ADDR]", " CLS",
-                " TERN N", " HELP", "NUMBERS: 123  -5  0T+-0"), run("HELP"));
+                " TERN N", " BASIC", " HELP", "NUMBERS: 123  -5  0T+-0"), run("HELP"));
     }
 
     @Test
@@ -109,8 +133,8 @@ class MonitorTest {
     @Test
     void anEmptyLineJustPromptsAgain() {
         t.type("\n");
-        assertEquals(">", t.row(3));
-        assertEquals(">", t.row(4));
+        assertEquals(">", t.row(6));
+        assertEquals(">", t.row(7));
     }
 
     @ParameterizedTest(name = "\"{0}\"")
@@ -189,7 +213,7 @@ class MonitorTest {
         for (int i = 0; i < 12; i++) {
             t.type("TERN " + i + "\n");
         }
-        // 4 boot lines + 12 x 2 lines > 18 rows: the boot banner has scrolled away.
+        // 7 lines of boot and MON + 12 x 2 lines > 18 rows: the boot banner has scrolled away.
         assertTrue(!t.row(0).startsWith("TRIADA"), t.row(0));
         assertEquals(17, t.cursorY());
         assertEquals("> TERN 11", t.row(15));
@@ -209,10 +233,12 @@ class MonitorTest {
                 """);
         a.waitForPrompt();
         assertEquals("TRIADA-85 NPO \"TRIADA\" 1985", a.row(0));
-        assertEquals("39757 WORDS FREE", a.row(1));
-        assertEquals("AUTORUN!", a.row(2));
-        assertEquals("READY.", a.row(3));
-        assertEquals(">", a.row(4));
+        assertEquals("TRIBASIC V1.0", a.row(1));
+        assertEquals("39757 WORDS FREE", a.row(2));
+        assertEquals("AUTORUN!", a.row(3));
+        assertEquals("READY.", a.row(4));
+        assertEquals(5, a.cursorY(), "back in TRIBASIC (M14), at the start of the next line");
+        assertEquals(0, a.cursorX());
         assertEquals(0, a.m.bus().read(Rom.address("AUTORUN")), "cleared, so it runs only once");
     }
 

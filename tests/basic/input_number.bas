@@ -1,0 +1,5 @@
+10 INPUT "AGE"; A
+20 PRINT A * 2
+---
+RUN
+42

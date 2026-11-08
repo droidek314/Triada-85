@@ -4,7 +4,8 @@
 ;     READY.
 ;     > PEEK 243 3
 ;
-;  Commands: HELP, PEEK addr [count], POKE addr value, RUN [addr], CLS, TERN n.
+;  Commands: HELP, PEEK addr [count], POKE addr value, RUN [addr], CLS, TERN n,
+;  and since M14 BASIC (back to TRIBASIC, which reaches the monitor with MON).
 ;  Numbers: decimal (123, -5) or balanced ternary (0T+-0). Letters may be typed
 ;  in lower case; the monitor works in upper case. Anything it doesn't
 ;  understand gets the classic answer: ?SYNTAX ERROR
@@ -126,6 +127,7 @@ commands: .word name_help, cmd_help
           .word name_run, cmd_run
           .word name_cls, cmd_cls
           .word name_tern, cmd_tern
+          .word name_basic, cmd_basic
           .word 0
 name_help: .str "HELP"
 name_peek: .str "PEEK"
@@ -133,12 +135,18 @@ name_poke: .str "POKE"
 name_run:  .str "RUN"
 name_cls:  .str "CLS"
 name_tern: .str "TERN"
+name_basic: .str "BASIC"
 
 ; --- HELP --------------------------------------------------------------------
 cmd_help: JSR atend
         JNZ syntax
         LDI R0, msg_help
         JMP print
+
+; --- BASIC: back to TRIBASIC, keeping its program (M14) -------------------------
+cmd_basic: JSR atend
+        JNZ syntax
+        JMP BASIC_WARM
 
 ; --- CLS ---------------------------------------------------------------------
 cmd_cls: JSR atend
@@ -414,4 +422,4 @@ msg_syntax: .str "?SYNTAX ERROR\n"
 msg_colon:  .str ": "
 msg_0t:     .str " 0t"
 msg_eq0t:   .str " = 0t"
-msg_help:   .str "COMMANDS:\n PEEK ADDR [COUNT]\n POKE ADDR VALUE\n RUN [ADDR]\n CLS\n TERN N\n HELP\nNUMBERS: 123  -5  0T+-0\n"
+msg_help:   .str "COMMANDS:\n PEEK ADDR [COUNT]\n POKE ADDR VALUE\n RUN [ADDR]\n CLS\n TERN N\n BASIC\n HELP\nNUMBERS: 123  -5  0T+-0\n"

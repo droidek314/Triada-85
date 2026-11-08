@@ -1,0 +1,5 @@
+LIST
+10 PRINT "Hi", A
+20 FOR I = 1 TO 3: NEXT
+30 REM keep  this
+READY.

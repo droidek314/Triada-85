@@ -1,0 +1,4 @@
+10 INPUT A
+---
+RUN
+{WAIT}{ESC}

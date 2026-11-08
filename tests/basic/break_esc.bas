@@ -1,0 +1,4 @@
+10 GOTO 10
+---
+RUN
+{WAIT}{ESC}

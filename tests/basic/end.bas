@@ -1,0 +1,2 @@
+10 PRINT "A": END: PRINT "B"
+20 PRINT "C"

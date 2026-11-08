@@ -34,6 +34,7 @@ public final class Bus {
 
     private final int[] ram = new int[RAM_SIZE];
     private final int[] rom = new int[ROM_SIZE];
+    private final int[] extRom = new int[MemoryMap.EXT_ROM_SIZE];
     private final IoDevice[] devices = new IoDevice[IoRegisters.COUNT];
 
     /** A new bus in power-on state: RAM and ROM all 0, no devices (SPEC §2.4). */
@@ -59,6 +60,9 @@ public final class Bus {
             int k = address - IO_BASE;
             IoDevice device = devices[k];
             return device == null ? 0 : device.read(k);
+        }
+        if (address >= MemoryMap.EXT_ROM_START && address <= MemoryMap.EXT_ROM_END) {
+            return extRom[address - MemoryMap.EXT_ROM_START];
         }
         MemoryMap.checkAddress(address);
         return 0;
@@ -151,6 +155,20 @@ public final class Bus {
         checkWords(image);
         Arrays.fill(rom, 0);
         System.arraycopy(image, 0, rom, 0, image.length);
+    }
+
+    /**
+     * Replaces the whole extension ROM (SPEC §2.5, M14) with {@code image}:
+     * word {@code i} goes to {@code EXT_ROM_START + i}, the rest becomes 0.
+     */
+    public void loadExtensionRom(int[] image) {
+        if (image.length > MemoryMap.EXT_ROM_SIZE) {
+            throw new IllegalArgumentException("extension ROM image has " + image.length
+                    + " words, the extension ROM holds " + MemoryMap.EXT_ROM_SIZE);
+        }
+        checkWords(image);
+        Arrays.fill(extRom, 0);
+        System.arraycopy(image, 0, extRom, 0, image.length);
     }
 
     /**

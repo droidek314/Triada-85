@@ -1,0 +1,2 @@
+10 FOR A = 1 TO 2: FOR B = 1 TO 2: PRINT A*10+B;" ";: NEXT: NEXT
+20 PRINT

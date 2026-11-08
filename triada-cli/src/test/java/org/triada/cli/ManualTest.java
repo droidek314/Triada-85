@@ -79,6 +79,18 @@ class ManualTest {
         fail("no prompt; screen:\n" + String.join("\n", screen()));
     }
 
+    /**
+     * Switches on and goes to the monitor, as the manual says: the machine
+     * boots into TRIBASIC (M14), and MON reaches the monitor.
+     */
+    private void bootToMonitor() {
+        int cy = Rom.address("CURSOR_Y");
+        for (int f = 0; f < 600 && !(m.bus().peek(cy) > 0 && row(m.bus().peek(cy) - 1).equals("READY.")); f++) {
+            frames(1);
+        }
+        type("MON\n");
+    }
+
     /** Row r as text, trailing spaces and the blinking cursor removed. */
     private String row(int r) {
         StringBuilder sb = new StringBuilder();
@@ -126,7 +138,7 @@ class ManualTest {
 
     private static void replay(String block) {
         ManualTest t = new ManualTest();
-        t.waitForPrompt();
+        t.bootToMonitor();
         t.type("CLS\n");
         List<String> expected = block.lines().map(String::stripTrailing).toList();
         for (String line : expected) {
@@ -147,7 +159,7 @@ class ManualTest {
         for (String cmd : List.of("POKE 44000 65", "POKE -20403 5", "POKE -20402 440", "POKE -20401 10")) {
             assertTrue(page.contains("`" + cmd + "`"), cmd + " is in chapter 5");
         }
-        waitForPrompt();
+        bootToMonitor();
         type("CLS\n");
         type("POKE 44000 65\n");
         assertTrue(row(0).startsWith("A"), "an A in the top left corner: " + row(0));
@@ -187,7 +199,7 @@ class ManualTest {
 
     @Test
     void typingTheListingInAndRunningItDrawsTheTriangle() throws Exception {
-        waitForPrompt();
+        bootToMonitor();
         TreeMap<Integer, Integer> pokes = pokes(read("07-type-in-listing.md"));
         StringBuilder all = new StringBuilder();
         Matcher mp = POKE.matcher(read("07-type-in-listing.md"));

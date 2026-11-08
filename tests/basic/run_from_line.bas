@@ -1,0 +1,4 @@
+10 PRINT "A"
+20 PRINT "B"
+---
+RUN 20

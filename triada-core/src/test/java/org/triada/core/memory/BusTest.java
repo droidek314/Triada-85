@@ -138,7 +138,7 @@ class BusTest {
     void addressesJustOutsideIoDoNotReachTheDevice() {
         RecordingDevice dev = new RecordingDevice();
         bus.attach(0, 729, dev);
-        assertEquals(0, bus.read(-20_413));   // unmapped
+        assertEquals(0, bus.read(-20_413));   // extension ROM (empty)
         assertEquals(0, bus.read(-19_683));   // ROM (all 0)
         bus.write(-20_413, 5);
         bus.write(-19_683, 5);
@@ -190,7 +190,7 @@ class BusTest {
     // ------------------------------------------------------------ unmapped
 
     @ParameterizedTest(name = "unmapped address {0} reads 0 and ignores writes")
-    @ValueSource(ints = {-265_720, -265_719, -20_414, -20_413, 59_049, 59_050, 265_719, 265_720})
+    @ValueSource(ints = {-265_720, -265_719, -59_050, -59_049, 59_049, 59_050, 265_719, 265_720})
     void unmappedReadsZeroAndIgnoresWrites(int address) {
         bus.write(address, 99);
         assertEquals(0, bus.read(address));
@@ -240,5 +240,17 @@ class BusTest {
         bus.clearRam();
         assertEquals(0, bus.read(1000));
         assertEquals(77, bus.read(-19_683));
+    }
+
+    @Test
+    void theExtensionRomIsReadOnlyAndLoadedByTheHost() {
+        bus.loadExtensionRom(new int[] {11, 22, 33});
+        assertEquals(11, bus.read(-59_048), "first word");
+        assertEquals(33, bus.read(-59_046));
+        assertEquals(0, bus.read(-20_413), "last word, not loaded: 0");
+        bus.write(-59_048, 5);
+        assertEquals(11, bus.read(-59_048), "the CPU can't write it");
+        assertEquals(0, bus.read(-59_049), "one below: unmapped");
+        assertThrows(IllegalArgumentException.class, () -> bus.loadExtensionRom(new int[38_637]));
     }
 }
