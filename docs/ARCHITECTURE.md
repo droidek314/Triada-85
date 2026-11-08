@@ -41,7 +41,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
 
-## Current state (after M9)
+## Current state (after M10)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -59,7 +59,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `org.triada.core.sound.SoundChip`: registers V1–V3 FREQ/VOL/WAVE; 735 samples per frame at 44,100 Hz (`renderFrame()`, `frameSamples()`).
 - `triada-cli` can save the picture and the sound: `run --dump-screen out.png` (`ScreenDump`, javax.imageio) and `--dump-audio out.wav` (`WavRecorder`).
 - `triada-desktop`: `DesktopLauncher` (`--load`, drag-and-drop, window focus listener), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons), `SoundOutput` + `SampleRing` (audio thread, D-025). Package `debug`: `Debugger` (pause/step/step over/breakpoints, tested logic), `DebuggerView` (scene2d.ui panel, F1) and `TriadaFont` (the ROM font as a BitmapFont), D-031.
-- `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm` and `piano.tasm`.
+- `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm`, `piano.tasm` and the three M10 games `trizmeyka.tasm` (snake), `troika.tasm` (ternary puzzle) and `oblaka.tasm` (scrolling shooter). They share `programs/lib/game.tasm`, an include library (D-033). The games run on the ROM: they are started through AUTORUN and call PRINT and LOCATE. Their tests (`GameHarness` and one test class per game in `triada-cli`) boot the ROM and play them through `InputDevice`.
 - `rom/` holds the ROM source (`rom.tasm`, `sysvars.tasm`, `kernel.tasm`, `monitor.tasm`, generated `font.tasm`), the public-domain font in `third_party/`, and the font converter in `tools/`. `triada-rom` assembles it at every build (D-029); the CLI and desktop boot through it and start programs via the AUTORUN system variable (D-028).
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
 

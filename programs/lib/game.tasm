@@ -1,0 +1,131 @@
+; ============================================================================
+;  LIB/GAME.TASM -- small helpers shared by the games (M10)
+;
+;  Include it at the END of a game (it contains code):   .include "lib/game.tasm"
+;  Calling convention as in the ROM: arguments in R0 ... R2, result in R0;
+;  R3 ... R8 are kept.
+; ============================================================================
+
+; copywords: copies R2 words (R2 >= 1) from address R0 to address R1.
+copywords: PUSH R3
+cw_loop: LD R3, [R0]
+        ST R3, [R1]
+        INC R0
+        INC R1
+        DEC R2
+        JNZ cw_loop
+        POP R3
+        RET
+
+; solidtile: fills tile R0 with the pixel word R1 (e.g. c * 20440 = four pixels of colour c).
+solidtile: LDI R2, 16
+        MUL R0, R2
+        LDI R2, TILES
+        ADD R0, R2                      ; R0 = address of the tile
+        LDI R2, 16
+st_loop: ST R1, [R0]
+        INC R0
+        DEC R2
+        JNZ st_loop
+        RET
+
+; fillmap: puts tile R0 into every one of the 486 tile map cells.
+fillmap: LDI R1, MAP
+        LDI R2, 486
+fm_loop: ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ fm_loop
+        RET
+
+; random: R0 = a random number from 0 to R0 - 1 (R0 >= 1), taken from RAND.
+; TRIADA's MOD rounds, so RAND MOD n lies between -n/2 and n/2; adding n to
+; the negative ones gives 0 ... n - 1.
+random: LDI R1, IO_BASE
+        LD R1, [R1+RAND]
+        MOD R1, R0
+        JGE rn_ok
+        ADD R1, R0
+rn_ok:  MOV R0, R1
+        RET
+
+; printat: prints the string at address R0 at column R1, row R2.
+printat: PUSH R0
+        MOV R0, R1
+        MOV R1, R2
+        JSR LOCATE
+        POP R0
+        JMP PRINT                       ; tail call: PRINT returns to our caller
+
+; numat: prints the number R0 at column R1, row R2.
+numat:  PUSH R0
+        MOV R0, R1
+        MOV R1, R2
+        JSR LOCATE
+        POP R0
+        JMP PRINTNUM
+
+; waitframes: waits R0 frames (R0 >= 1).
+waitframes: WAIT
+        DEC R0
+        JNZ waitframes
+        RET
+
+; maskpaint: colours R2 words of a "mask" at R0 into tile words at R1.
+; A mask is tile data whose pixels are only 0 and 1. A tile word is just
+; p0*19683 + p1*729 + p2*27 + p3, so colouring a mask is plain arithmetic:
+;     word = paint_bg * 20440 + (paint_fg - paint_bg) * mask
+; (20440 = 19683 + 729 + 27 + 1 puts one colour into all four pixels).
+; Set paint_bg and paint_fg first; paint_bg = 0 gives a sprite tile whose
+; background is transparent.
+maskpaint: PUSH R3
+        PUSH R4
+        PUSH R5
+        LDI R3, paint_fg
+        LD R3, [R3]
+        LDI R4, paint_bg
+        LD R4, [R4]
+        SUB R3, R4                      ; fg - bg
+        LDI R5, 20440
+        MUL R4, R5                      ; bg in all four pixels
+mp_loop: LD R5, [R0]
+        MUL R5, R3
+        ADD R5, R4
+        ST R5, [R1]
+        INC R0
+        INC R1
+        DEC R2
+        JNZ mp_loop
+        POP R5
+        POP R4
+        POP R3
+        RET
+paint_bg: .word 0
+paint_fg: .word 0
+
+; glyphmask: turns the ROM font's character R0 back into a mask in glyph_mask.
+; The ROM draws a font pixel as TEXT_BG + 16 * m (m = 0 or 1, TEXT_BG = -12,
+; TEXT_FG = 4), so a font word is -12 * 20440 + 16 * mask, and
+; mask = word DIV 16 + 15330 (both divisions are exact).
+glyphmask: PUSH R3
+        LDI R1, 16
+        MUL R0, R1
+        LDI R1, TILES
+        ADD R0, R1                      ; the character's tile
+        LDI R1, glyph_mask
+        LDI R2, 16
+gm_loop: LD R3, [R0]
+        PUSH R2
+        LDI R2, 16
+        DIV R3, R2
+        LDI R2, 15330
+        ADD R3, R2
+        POP R2
+        ST R3, [R1]
+        INC R0
+        INC R1
+        DEC R2
+        JNZ gm_loop
+        POP R3
+        RET
+glyph_mask: .fill 16, 0

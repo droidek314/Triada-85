@@ -14,6 +14,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Auto-start (AUTORUN)**: A program started by the ROM right after boot. *In TRIADA:* the host writes the program's address into the system variable AUTORUN (D-028). First seen: M8.
 
+**Autopilot (in tests)**: A few lines of test code that play a game by themselves, choosing joystick and button inputs from what they read in the machine's memory. *In TRIADA:* plays TRIZMEYKA and OBLAKA for two minutes each. First seen: M10.
+
 **Balanced ternary**: Base 3 with the digits −1, 0 and +1 instead of 0, 1 and 2. Negative numbers need no minus sign, and flipping every digit negates a number. *In TRIADA:* how every number is stored (SPEC §1.1). First seen: M1.
 
 **Benchmark**: A program that measures how fast something runs. *In TRIADA:* `./gradlew :triada-core:benchmark` (M3). First seen: M3.
@@ -58,7 +60,11 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Code generation**: A build step that writes source code from other files. *In TRIADA:* `generateRom` turns the assembled ROM into a Java class (D-029). First seen: M8.
 
+**Collision box (hit box)**: The area around a game object that counts as "touching". *In TRIADA:* OBLAKA's `near` test, x and y closer than 6 pixels. First seen: M10.
+
 **Commit**: A saved snapshot of the whole project in version control (git), with a message saying what changed. *In TRIADA:* at least one commit per milestone. First seen: M0.
+
+**Commutative**: Said of operations whose order doesn't matter, like 2 + 3 = 3 + 2. *In TRIADA:* TROIKA's flip and rotate moves are not commutative, which makes the puzzle harder. First seen: M10.
 
 **Compile**: Translate source code that people write (here, Java) into a form the computer can run. First seen: M0.
 
@@ -80,6 +86,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Dependency**: A ready-made library your project uses instead of writing that code itself. *In TRIADA:* libGDX (window, sound, input) and JUnit (tests), and nothing else without a DECISIONS.md entry. First seen: M0.
 
+**Depth-first search**: A way of searching by following one possibility all the way down before trying the next. *In TRIADA:* a test uses it to find TROIKA solutions within par. First seen: M10.
+
 **Device**: A piece of hardware the processor talks to through I/O registers. *In TRIADA:* anything implementing `IoDevice`, such as `InputDevice`. First seen: M2.
 
 **Directive**: A line that tells the assembler what to do (`.org`, `.str`, `.include` …) rather than producing a CPU instruction. First seen: M4.
@@ -87,6 +95,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Disassembler**: A program that turns machine words back into assembly text. *In TRIADA:* the `Disassembler` class, used by the debugger. First seen: M4.
 
 **Drag and drop**: Moving a file onto a window with the mouse to open it there. *In TRIADA:* "inserting a triskette" (D-032). First seen: M9.
+
+**Edge-triggered input**: Reacting when a button *becomes* pressed, instead of for as long as it is held. *In TRIADA:* the games compare a button with its value in the previous frame. First seen: M10.
 
 **Emulator**: A program that imitates a different computer closely enough to run its programs. First seen: M3.
 
@@ -152,11 +162,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Host**: The real computer the emulator runs on, as opposed to the imaginary TRIADA-85. First seen: M5.
 
+**HUD (head-up display)**: The score, lives and similar information drawn on top of a game's picture. *In TRIADA:* OBLAKA draws it with sprites so it doesn't scroll. First seen: M10.
+
 **I/O register**: An address that isn't storage but a doorbell or window to hardware: reading or writing it talks to a device. *In TRIADA:* 729 slots from −20,412, 23 of them defined (SPEC §5). First seen: M2.
 
 **Image (program image)**: The block of words a program occupies, together with its load address. *In TRIADA:* `TriImage`, stored in a `.tri` file. First seen: M4.
 
 **Immediate**: A small number built into the instruction itself instead of coming from a register. *In TRIADA:* the imm5 field, −121 … +121. First seen: M3.
+
+**Include library**: A source file of shared routines that programs paste into themselves with `.include`. *In TRIADA:* `programs/lib/game.tasm`. First seen: M10.
 
 **Input focus**: Which window currently receives the keyboard. *In TRIADA:* losing it releases all joystick directions and buttons. First seen: M7.
 
@@ -169,6 +183,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Interface (Java)**: A list of methods a class promises to provide, so code can work with any class that keeps the promise. First seen: M2.
 
 **Interpreter**: An emulator that handles one instruction at a time: fetch, decode, execute, repeat. First seen: M3.
+
+**Invulnerability**: A short time after being hit in which a game's hero can't be hit again, usually shown by blinking. *In TRIADA:* two seconds in OBLAKA. First seen: M10.
 
 **JAVA_HOME**: An environment variable telling scripts which Java installation to use. The `triada` launcher needs it to point to Java 25. First seen: M5.
 
@@ -208,6 +224,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Magic number**: Fixed bytes at the start of a file that identify its format. *In TRIADA:* `TRIADA85`. First seen: M4.
 
+**Mask**: A picture or word made only of "on" and "off" values that selects which parts of something else to use or colour. *In TRIADA:* TROIKA's move masks (+1 = this cell) and the games' tile masks (pixels 0/1). First seen: M10.
+
 **Maven Central**: The big public warehouse of Java libraries that Gradle downloads dependencies from. First seen: M0.
 
 **Memory map**: The plan of which addresses are RAM, ROM, I/O or empty. *In TRIADA:* SPEC §2.2 and `MemoryMap`. First seen: M2.
@@ -245,6 +263,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Option (command line)**: A setting given on a command line, such as `--frames 10` or `-o out.tri`. First seen: M5.
 
 **Palette**: The list of colours a machine can show. *In TRIADA:* 27 colours, each one's three trits giving red, green and blue (SPEC §4.2). First seen: M6.
+
+**Par**: A number of moves within which a puzzle is known to be solvable, as in golf. *In TRIADA:* TROIKA's scramble length. First seen: M10.
 
 **Parameterized test**: One test method run once for every row of a table of inputs. First seen: M2.
 
@@ -383,6 +403,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Underrun / Overrun**: The sound card running out of samples (a gap) / more samples waiting than allowed (delay). *In TRIADA:* `SampleRing` holds the last value on underrun and drops the oldest on overrun. First seen: M7.
 
 **Unmapped**: An address with nothing behind it: reads 0, writes have no effect. First seen: M2.
+
+**Up to date (build tool)**: A build tool's judgement that a task's inputs haven't changed since the last run, so the task can be skipped. Wrong when the tool doesn't know all the inputs. First seen: M10.
 
 **Version catalog**: One file (`gradle/libs.versions.toml`) that lists every external library and its version, so they aren't scattered across build files. First seen: M0.
 

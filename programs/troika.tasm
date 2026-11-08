@@ -1,0 +1,663 @@
+; ============================================================================
+;  TROIKA -- a puzzle made of trits (M10)
+;
+;  The board is 5 x 5 cells; every cell is a trit: blue "-" (-1), grey "0"
+;  or red "+" (+1). Goal: make every cell 0.
+;  A move hits the cell under the yellow cursor AND its four neighbours
+;  (a "+" shaped cross):
+;     Z (button A)  rotate up:    -  ->  0  ->  +  ->  -
+;     X (button B)  rotate down:  +  ->  0  ->  -  ->  +
+;     C (button C)  flip:         -  <->  +   (0 stays 0)
+;  Joystick (arrow keys) moves the cursor; R starts the level again.
+;  Every level is scrambled from a solved board with (level + 2) random
+;  moves, so it can always be solved, and that number is shown as PAR.
+;
+;  The ternary trick: each board row is ONE machine word, the column-c cell
+;  being trit 4 - c. A move changes a whole row with the CPU's own trit-wise
+;  instructions -- ROT rotates every trit, TMUL multiplies trit by trit --
+;  and a mask word saying which trits the move touches. No loop over cells.
+;
+;  R6 = IO_BASE and R7 = the variables for the whole program. The game's own
+;  routines use R0 ... R5 freely (unlike the ROM's, which keep R3 ... R8).
+;
+;  Window:  ./gradlew :triada-desktop:run --args="--load programs/troika.tasm"
+; ============================================================================
+
+        .org 243
+
+ALL5      = 121         ; 0t+++++ : the five trits of a board row
+BOARD_MAP = MAP + 60    ; map cell of the board's top-left (row 2, column 6)
+T_CURSOR  = 19          ; cursor corner tile; the cell tiles are 1 ... 18
+TEXT_BG   = -12         ; the ROM font's background (dark blue)
+
+; offsets of the variables (R7 points at 'vars')
+V_CX     = 0            ; cursor column 0 ... 4
+V_CY     = 1            ; cursor row 0 ... 4
+V_PJX    = 2            ; joystick and buttons in the previous frame,
+V_PJY    = 3            ; to react to a new press only
+V_PA     = 4
+V_PB     = 5
+V_PC     = 6
+V_LEVEL  = 7
+V_MOVES  = 8
+V_PAR    = 9
+V_SOLVED = 10           ; 1 once the board is all 0
+V_SND    = 11           ; sound volume x 4, fading
+V_OP     = 12           ; applymove: +1 up, -1 down, 0 flip
+V_MX     = 13           ; applymove: the cross's centre
+V_MY     = 14
+V_MASK   = 15
+V_I      = 16           ; a loop counter
+V_DST    = 17           ; maketiles: the first tile of a set
+
+start:  LDI R6, IO_BASE
+        LDI R7, vars
+        LDI R0, TEXT_BG
+        ST R0, [R6+BORDER]
+        JSR maketiles
+        LDI R0, ' '                     ; the font's space is plain dark blue
+        JSR fillmap
+        JSR drawlabels
+        JSR cursorsprites
+        LDI R0, 1
+        ST R0, [R7+V_LEVEL]
+        JSR newlevel
+
+; ---------------------------------------------------------------------------
+; the frame loop
+; ---------------------------------------------------------------------------
+frame:  WAIT
+        JSR fade
+        LD R0, [R7+V_SOLVED]
+        JNZ solved
+        JSR joystick
+        JSR buttons
+        JSR keys
+        JMP frame
+
+; Solved: Z goes to the next level.
+solved: LD R1, [R7+V_PA]
+        LD R0, [R6+BTN_A]
+        ST R0, [R7+V_PA]
+        MOV R0, R0
+        JZ frame
+        MOV R1, R1
+        JNZ frame
+        LD R0, [R7+V_LEVEL]
+        INC R0
+        ST R0, [R7+V_LEVEL]
+        JSR newlevel
+        JMP frame
+
+; ---------------------------------------------------------------------------
+; joystick: a new push moves the cursor one cell (holding it doesn't repeat)
+; ---------------------------------------------------------------------------
+joystick: LD R0, [R6+JOY_X]
+        LD R1, [R7+V_PJX]
+        ST R0, [R7+V_PJX]
+        CMP R0, R1
+        JZ js_y                         ; unchanged
+        MOV R0, R0
+        JZ js_y                         ; released
+        LD R1, [R7+V_CX]
+        ADD R1, R0
+        JSR clamp
+        ST R1, [R7+V_CX]
+js_y:   LD R0, [R6+JOY_Y]
+        LD R1, [R7+V_PJY]
+        ST R0, [R7+V_PJY]
+        CMP R0, R1
+        JZ js_end
+        MOV R0, R0
+        JZ js_end
+        LD R1, [R7+V_CY]
+        ADD R1, R0
+        JSR clamp
+        ST R1, [R7+V_CY]
+js_end: JMP placecursor                 ; tail call
+
+; clamp: R1 into 0 ... 4
+clamp:  MOV R1, R1
+        JGE cl_high
+        LDI R1, 0
+        RET
+cl_high: LDI R2, 4
+        CMP R1, R2
+        JLE cl_ok
+        MOV R1, R2
+cl_ok:  RET
+
+; ---------------------------------------------------------------------------
+; buttons: a new press of Z, X or C makes a move under the cursor
+; ---------------------------------------------------------------------------
+buttons: LD R0, [R6+BTN_A]
+        LDI R1, V_PA
+        LDI R2, 1                       ; Z: rotate up
+        JSR press
+        LD R0, [R6+BTN_B]
+        LDI R1, V_PB
+        LDI R2, -1                      ; X: rotate down
+        JSR press
+        LD R0, [R6+BTN_C]
+        LDI R1, V_PC
+        LDI R2, 0                       ; C: flip
+                                        ; fall through into press
+; press: R0 = the button now, R1 = offset of its "before" variable, R2 = move
+press:  ADD R1, R7
+        LD R3, [R1]
+        ST R0, [R1]
+        MOV R0, R0
+        JZ pr_ret                       ; not pressed
+        MOV R3, R3
+        JNZ pr_ret                      ; held from before
+        MOV R0, R2
+        JMP playermove                  ; tail call
+pr_ret: RET
+
+; keys: R (or r) restarts the level; other keys are ignored
+keys:   LD R0, [R6+KEY]                 ; reading takes the key out of the queue
+        JZ ky_ret
+        LDI R1, 'R'
+        CMP R0, R1
+        JZ ky_reset
+        LDI R1, 'r'
+        CMP R0, R1
+        JNZ keys
+ky_reset: LDI R0, startboard
+        LDI R1, board
+        LDI R2, 5
+        JSR copywords
+        JMP showlevel                   ; tail call
+ky_ret: RET
+
+; ---------------------------------------------------------------------------
+; playermove: move R0 (+1 up, -1 down, 0 flip) at the cursor, with a click
+; ---------------------------------------------------------------------------
+playermove: PUSH R0
+        LD R1, [R7+V_CX]
+        LD R2, [R7+V_CY]
+        JSR applymove
+        LD R0, [R7+V_MOVES]
+        INC R0
+        ST R0, [R7+V_MOVES]
+        POP R0                          ; click: 440 Hz up, 330 flip, 220 down
+        LDI R1, 110
+        MUL R0, R1
+        LDI R1, 330
+        ADD R0, R1
+        ST R0, [R6+V1_FREQ]
+        LDI R0, 0
+        ST R0, [R6+V1_WAVE]             ; triangle
+        ST R0, [R6+V2_FREQ]
+        ST R0, [R6+V3_FREQ]
+        LDI R0, 24
+        ST R0, [R7+V_SND]
+        JSR drawboard
+        JSR drawhud
+        JSR issolved
+        MOV R0, R0
+        JZ pm_ret
+        ST R0, [R7+V_SOLVED]            ; solved! a chord and a message
+        LDI R0, 262
+        ST R0, [R6+V1_FREQ]
+        LDI R0, 330
+        ST R0, [R6+V2_FREQ]
+        LDI R0, 392
+        ST R0, [R6+V3_FREQ]
+        LDI R0, 1
+        ST R0, [R6+V1_WAVE]
+        ST R0, [R6+V2_WAVE]
+        ST R0, [R6+V3_WAVE]
+        LDI R0, 52
+        ST R0, [R7+V_SND]
+        LDI R0, txt_solved
+        LDI R1, 3
+        LDI R2, 1
+        JSR printat
+pm_ret: RET
+
+; fade: all three voices at volume V_SND / 4, counting down once per frame
+fade:   LD R0, [R7+V_SND]
+        JLE fd_ret
+        DEC R0
+        ST R0, [R7+V_SND]
+        LDI R1, 4
+        DIV R0, R1
+        ST R0, [R6+V1_VOL]
+        ST R0, [R6+V2_VOL]
+        ST R0, [R6+V3_VOL]
+fd_ret: RET
+
+; ---------------------------------------------------------------------------
+; applymove: move R0 (+1 up, -1 down, 0 flip) on the cross centred on
+; column R1, row R2. The centre row gets a mask of three trits (columns
+; c-1, c, c+1), the rows above and below a mask of one trit (column c).
+; 'pow' has zeros on both ends, so masks simply lose the trits that would
+; fall off the board, and applyrow ignores rows -1 and 5.
+; ---------------------------------------------------------------------------
+applymove: ST R0, [R7+V_OP]
+        ST R1, [R7+V_MX]
+        ST R2, [R7+V_MY]
+        LDI R3, pow
+        ADD R3, R1                      ; pow[c] is column c-1's trit
+        LD R1, [R3]
+        LD R4, [R3+1]
+        ADD R1, R4
+        LD R4, [R3+2]
+        ADD R1, R4                      ; R1 = the mask of the centre row
+        LD R4, [R3+1]
+        ST R4, [R7+V_MASK]              ; the mask of the rows above and below
+        MOV R0, R2
+        JSR applyrow
+        LD R0, [R7+V_MY]
+        DEC R0
+        LD R1, [R7+V_MASK]
+        JSR applyrow
+        LD R0, [R7+V_MY]
+        INC R0
+        LD R1, [R7+V_MASK]
+                                        ; fall through for the row below
+; applyrow: applies V_OP to board row R0 (ignored unless 0 ... 4), on the
+; trits where the mask R1 is +1:
+;   rotate:  new = TMUL(ROT(old), mask) + TMUL(old, ALL5 - mask)
+;   flip:    new = TMUL(old, ALL5 - mask - mask)    (+1 keeps, -1 flips)
+; The two TMULs of "rotate" keep different trits, so the ADD never carries.
+applyrow: MOV R0, R0
+        JN ar_ret
+        LDI R2, 4
+        CMP R0, R2
+        JP ar_ret
+        LDI R2, board
+        ADD R2, R0                      ; R2 = the row's address
+        LD R3, [R2]                     ; R3 = the row
+        LDI R4, ALL5
+        SUB R4, R1                      ; R4 = the trits the move leaves alone
+        LD R5, [R7+V_OP]
+        JZ ar_flip
+        MOV R0, R3
+        MOV R5, R5
+        JN ar_down
+        ROT R0, 1                       ; every trit up ...
+        JMP ar_mix
+ar_down: ROT R0, -1                     ; ... or down
+ar_mix: TMUL R0, R1                     ; keep the rotated trits inside the mask
+        TMUL R3, R4                     ; and the old ones outside it
+        ADD R3, R0
+        ST R3, [R2]
+ar_ret: RET
+ar_flip: SUB R4, R1
+        TMUL R3, R4
+        ST R3, [R2]
+        RET
+
+; issolved: R0 = 1 if every row is 0, else 0
+issolved: LDI R1, board
+        LDI R2, 5
+is_loop: LD R0, [R1]
+        JNZ is_no
+        INC R1
+        DEC R2
+        JNZ is_loop
+        LDI R0, 1
+        RET
+is_no:  LDI R0, 0
+        RET
+
+; ---------------------------------------------------------------------------
+; newlevel: a fresh board scrambled with (level + 2) random moves
+; ---------------------------------------------------------------------------
+newlevel: LD R0, [R7+V_LEVEL]
+        ADDI R0, 2
+        ST R0, [R7+V_PAR]
+nl_again: LDI R0, 0
+        LDI R1, board
+        LDI R2, 5
+nl_clear: ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ nl_clear
+        LD R0, [R7+V_PAR]
+        ST R0, [R7+V_I]
+nl_move: LDI R0, 3
+        JSR random
+        ADDI R0, -1                     ; the move: -1, 0 or +1
+        PUSH R0
+        LDI R0, 5
+        JSR random
+        PUSH R0                         ; column
+        LDI R0, 5
+        JSR random
+        MOV R2, R0                      ; row
+        POP R1
+        POP R0
+        JSR applymove
+        LD R0, [R7+V_I]
+        DEC R0
+        ST R0, [R7+V_I]
+        JNZ nl_move
+        JSR issolved                    ; the moves may cancel out:
+        MOV R0, R0
+        JNZ nl_again                    ; then scramble again
+        LDI R0, board                   ; keep a copy for R
+        LDI R1, startboard
+        LDI R2, 5
+        JSR copywords
+; showlevel: moves to 0, cursor to the centre, everything redrawn
+showlevel: LDI R0, 0
+        ST R0, [R7+V_MOVES]
+        ST R0, [R7+V_SOLVED]
+        LDI R0, 2
+        ST R0, [R7+V_CX]
+        ST R0, [R7+V_CY]
+        LDI R0, ' '                     ; clear the message row
+        LDI R1, MAP + 27
+        LDI R2, 27
+sl_clear: ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ sl_clear
+        JSR drawboard
+        JSR drawhud
+        JMP placecursor                 ; tail call
+
+; ---------------------------------------------------------------------------
+; drawboard: every cell from its trit. The trit of column c is
+; (row DIV 3^(4-c)) MOD 3: the division drops the lower trits (exactly --
+; they are worth less than half of 3^(4-c)) and TRIADA's rounding MOD 3
+; returns the lowest trit as -1, 0 or +1.
+; ---------------------------------------------------------------------------
+drawboard: LDI R3, 0                    ; R3 = row
+db_row: LDI R2, board
+        ADD R2, R3
+        LD R4, [R2]                     ; R4 = the row's word
+        LDI R5, 0                       ; R5 = column
+db_col: LDI R2, pow+1
+        ADD R2, R5
+        LD R1, [R2]                     ; 3^(4-c)
+        MOV R0, R4
+        DIV R0, R1
+        LDI R1, 3
+        MOD R0, R1                      ; R0 = the cell's trit
+        JSR drawcell
+        INC R5
+        LDI R1, 5
+        CMP R5, R1
+        JN db_col
+        INC R3
+        LDI R1, 5
+        CMP R3, R1
+        JN db_row
+        RET
+
+; drawcell: the 3 x 3 tiles of the cell at column R5, row R3 for trit R0.
+; Trit v uses tiles 6v + 7 ... 6v + 12: top-left, top, left, centre,
+; bottom-left, bottom. The right column is the left one mirrored
+; (a negative tile number), so each set needs only 6 tiles. Keeps R3 ... R5.
+drawcell: LDI R1, 6
+        MUL R0, R1
+        ADDI R0, 7                      ; R0 = top-left tile of the set
+        LDI R2, 81                      ; 3 map rows per cell
+        MUL R2, R3
+        LDI R1, BOARD_MAP
+        ADD R2, R1
+        ADD R2, R5
+        ADD R2, R5
+        ADD R2, R5                      ; R2 = the cell's top-left map entry
+        MOV R1, R0
+        NEG R1                          ; R1 = the same tile, mirrored
+        ST R0, [R2]                     ; top row: TL, T, TL mirrored
+        ST R1, [R2+2]
+        INC R0
+        ST R0, [R2+1]
+        INC R0                          ; middle row: L, centre, L mirrored
+        ADDI R1, -2
+        ST R0, [R2+27]
+        ST R1, [R2+29]
+        INC R0
+        ST R0, [R2+28]
+        INC R0                          ; bottom row: BL, B, BL mirrored
+        ADDI R1, -2
+        ST R0, [R2+54]
+        ST R1, [R2+56]
+        INC R0
+        ST R0, [R2+55]
+        RET
+
+; ---------------------------------------------------------------------------
+; maketiles: builds the 18 cell tiles (6 per trit) and the cursor tile.
+; The cells are painted from black-and-white "masks" with maskpaint, and the
+; signs come from the ROM font through glyphmask (both in lib/game.tasm).
+; ---------------------------------------------------------------------------
+maketiles: LDI R0, -1
+        ST R0, [R7+V_I]
+mt_set: LD R0, [R7+V_I]                 ; trit v: tiles 6v + 7 ...
+        LDI R1, 6
+        MUL R0, R1
+        ADDI R0, 7
+        LDI R1, 16
+        MUL R0, R1
+        LDI R1, TILES
+        ADD R0, R1
+        ST R0, [R7+V_DST]
+        LD R0, [R7+V_I]
+        LDI R1, colours+1
+        ADD R1, R0
+        LD R0, [R1]
+        LDI R1, paint_bg
+        ST R0, [R1]                     ; the cell's colour ...
+        LDI R0, -13
+        LDI R1, paint_fg
+        ST R0, [R1]                     ; ... with black edges
+        LDI R0, masks                   ; TL, T, L
+        LD R1, [R7+V_DST]
+        LDI R2, 48
+        JSR maskpaint
+        LDI R0, masks+48                ; BL, B
+        LD R1, [R7+V_DST]
+        ADDI R1, 64
+        LDI R2, 32
+        JSR maskpaint
+        LD R0, [R7+V_I]                 ; the centre: the trit's sign, ...
+        LDI R1, glyphs+1
+        ADD R1, R0
+        LD R0, [R1]
+        JSR glyphmask
+        LDI R0, 13                      ; ... in white
+        LDI R1, paint_fg
+        ST R0, [R1]
+        LDI R0, glyph_mask
+        LD R1, [R7+V_DST]
+        ADDI R1, 48
+        LDI R2, 16
+        JSR maskpaint
+        LD R0, [R7+V_I]
+        INC R0
+        ST R0, [R7+V_I]
+        LDI R1, 2
+        CMP R0, R1
+        JN mt_set
+        LDI R0, cursortile
+        LDI R1, TILES + 304             ; tile 19 = TILES + 16 * 19
+        LDI R2, 16
+        JMP copywords                   ; tail call
+
+; ---------------------------------------------------------------------------
+; the cursor: four sprites with one corner tile, mirrored and flipped
+; ---------------------------------------------------------------------------
+cursorsprites: LDI R0, SPRITES
+        LDI R1, T_CURSOR
+        LDI R2, 1
+        ST R1, [R0+2]                   ; 0: top-left
+        ST R2, [R0+3]
+        ST R2, [R0+7]                   ; 1: top-right, mirrored
+        LDI R2, -1
+        ST R2, [R0+11]                  ; 2: bottom-left, flipped
+        ST R2, [R0+15]                  ; 3: bottom-right, both
+        ST R1, [R0+10]
+        NEG R1
+        ST R1, [R0+6]
+        ST R1, [R0+14]
+        RET
+
+; placecursor: the sprites around cell (V_CX, V_CY); a cell is 24 pixels
+; and the board starts at x = 48, y = 16
+placecursor: LD R0, [R7+V_CX]
+        LDI R1, 24
+        MUL R0, R1
+        ADDI R0, 48
+        LD R2, [R7+V_CY]
+        MUL R2, R1
+        ADDI R2, 16
+        LDI R1, SPRITES
+        ST R0, [R1]                     ; top-left
+        ST R2, [R1+1]
+        ST R0, [R1+8]                   ; bottom-left
+        ADDI R2, 16
+        ST R2, [R1+9]
+        ADDI R0, 16
+        ST R0, [R1+12]                  ; bottom-right
+        ST R2, [R1+13]
+        ST R0, [R1+4]                   ; top-right
+        ADDI R2, -16
+        ST R2, [R1+5]
+        RET
+
+; ---------------------------------------------------------------------------
+; texts
+; ---------------------------------------------------------------------------
+drawlabels: LDI R3, labels              ; a list of (column, row, text address)
+dl_loop: LD R1, [R3]
+        JN dl_end
+        LD R2, [R3+1]
+        LD R0, [R3+2]
+        JSR printat
+        ADDI R3, 3
+        JMP dl_loop
+dl_end: RET
+
+drawhud: LD R0, [R7+V_LEVEL]
+        LDI R1, 25
+        LDI R2, 0
+        JSR numat
+        LDI R0, txt_num                 ; blank the old numbers first
+        LDI R1, 7
+        LDI R2, 17
+        JSR printat
+        LD R0, [R7+V_MOVES]
+        LDI R1, 7
+        LDI R2, 17
+        JSR numat
+        LDI R0, txt_num
+        LDI R1, 15
+        LDI R2, 17
+        JSR printat
+        LD R0, [R7+V_PAR]
+        LDI R1, 15
+        LDI R2, 17
+        JMP numat                       ; tail call
+
+labels: .word 0, 0, txt_title
+        .word 19, 0, txt_level
+        .word 0, 4, txt_goal1
+        .word 0, 5, txt_goal2
+        .word 21, 4, txt_z
+        .word 21, 6, txt_x
+        .word 21, 8, txt_c
+        .word 1, 17, txt_moves
+        .word 11, 17, txt_par
+        .word 20, 17, txt_r
+        .word -1
+
+txt_title:  .str "TROIKA"
+txt_level:  .str "LEVEL"
+txt_goal1:  .str "GOAL:"
+txt_goal2:  .str "ALL 0"
+txt_z:      .str "Z UP"
+txt_x:      .str "X DOWN"
+txt_c:      .str "C FLIP"
+txt_moves:  .str "MOVES"
+txt_par:    .str "PAR"
+txt_r:      .str "R AGAIN"
+txt_num:    .str "   "
+txt_solved: .str "SOLVED!  Z: NEXT LEVEL"
+
+; --- data -------------------------------------------------------------------
+pow:      .word 0, 81, 27, 9, 3, 1, 0   ; pow[c + 1] = 3^(4 - c), zero off the board
+colours:  .word -11, 0, 5               ; cell colour for -1, 0, +1
+glyphs:   .word '-', '0', '+'           ; and its sign
+board:    .fill 5, 0                    ; the rows, as words of 5 trits
+startboard: .fill 5, 0                  ; the level as scrambled, for R
+vars:     .fill 18, 0
+
+; masks for the cell edges: 1 = black. TL, T, L, BL, B (16 words each).
+masks:
+        .pix 1, 1, 1, 1                 ; TL
+        .pix 1, 1, 1, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 1, 1, 1                 ; T
+        .pix 1, 1, 1, 1
+        .fill 14, 0
+        .pix 1, 0, 0, 0                 ; L
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0                 ; BL
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .fill 14, 0                     ; B
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+
+; the cursor's corner: yellow (11); 0 is transparent in sprites
+cursortile:
+        .pix 11, 11, 11, 11
+        .pix 11,  0,  0,  0
+        .pix 11, 11, 11, 11
+        .pix 11,  0,  0,  0
+        .pix 11, 11,  0,  0
+        .pix  0,  0,  0,  0
+        .pix 11, 11,  0,  0
+        .pix  0,  0,  0,  0
+        .pix 11, 11,  0,  0
+        .pix  0,  0,  0,  0
+        .fill 6, 0
+
+        .include "lib/game.tasm"

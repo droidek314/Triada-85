@@ -1,0 +1,457 @@
+; ============================================================================
+;  TRIZMEYKA -- the ternary snake (M10)
+;
+;  Steer the snake with the joystick (arrow keys). Food comes in three trit
+;  colours:   blue (-1) = 1 point,  white (0) = 2 points,  red (+1) = 3 points,
+;  and the snake grows by as many segments. Don't hit the walls or yourself.
+;  Z (button A) starts a game and restarts after GAME OVER.
+;
+;  How it works:
+;  - The playing field is the tile map; every map cell is floor, wall, snake
+;    or food, so "what is in front of the head?" is one LD from the map.
+;  - The snake's body is a ring buffer of map cell addresses (BODY): the head
+;    index moves forward on every step, and the tail index follows unless the
+;    snake is still growing.
+;  - The snake steps every STEP frames; in between, the joystick only chooses
+;    the next direction (a cell offset: +1 right, -1 left, +27 down, -27 up).
+;  - R6 = IO_BASE and R7 = the game's variables, for the whole program;
+;    the ROM routines and lib/game.tasm keep them (R3 ... R8 are preserved).
+;
+;  Window:  ./gradlew :triada-desktop:run --args="--load programs/trizmeyka.tasm"
+; ============================================================================
+
+        .org 243
+
+T_FLOOR  = 1
+T_WALL   = 2
+T_BODY   = 3
+T_HEAD   = 4
+T_FOOD   = 6            ; food tiles are T_FOOD + trit: 5 blue, 6 white, 7 red
+STEP     = 6            ; frames per snake step: 10 steps per second
+BODY     = 20000        ; ring buffer of the snake's cells
+RING     = 480          ; its size (more than the 375 cells of the field)
+
+; offsets of the variables (R7 points at 'vars')
+V_HEAD   = 0            ; ring index of the head
+V_TAIL   = 1            ; ring index of the tail
+V_DELTA  = 2            ; current direction (cell offset)
+V_NEXT   = 3            ; direction chosen for the next step
+V_GROW   = 4            ; segments still to grow
+V_SCORE  = 5
+V_HI     = 6
+V_TIMER  = 7            ; frames until the next step
+V_ALIVE  = 8            ; 1 while a game runs
+V_FOOD   = 9            ; trit value of the food on the field
+V_ATE    = 10           ; 1 if this step ate the food
+V_EATVOL = 11           ; volume of the "eat" sound, fading
+V_DIEVOL = 12           ; volume of the "crash" sound, fading
+V_PREVA  = 13           ; button A in the previous frame (to see a new press)
+
+start:  LDI R6, IO_BASE
+        LDI R7, vars
+        LDI R0, -13
+        ST R0, [R6+BORDER]              ; black border
+
+        LDI R0, T_FLOOR                 ; tile 1: black floor
+        LDI R1, -265720                 ; .pix -13, -13, -13, -13
+        JSR solidtile
+        LDI R0, tiles                   ; tiles 2 ... 7 from the data below
+        LDI R1, TILES + 32
+        LDI R2, 96
+        JSR copywords
+
+        JSR drawfield
+        JSR drawhud
+        LDI R0, txt_start
+        LDI R1, 5
+        LDI R2, 9
+        JSR printat                     ; "PRESS Z TO START"; V_ALIVE is 0, so ...
+                                        ; ... the frame loop waits for Z
+; ---------------------------------------------------------------------------
+; the frame loop: once per frame
+; ---------------------------------------------------------------------------
+frame:  WAIT
+        JSR sounds
+        LD R0, [R7+V_ALIVE]
+        JZ waiting
+        JSR steer
+        LD R0, [R7+V_TIMER]
+        DEC R0
+        ST R0, [R7+V_TIMER]
+        JNZ frame
+        LDI R0, STEP
+        ST R0, [R7+V_TIMER]
+        JSR move
+        JMP frame
+
+; Between games: start a new one when button A is pressed (not just held).
+waiting: LD R1, [R7+V_PREVA]
+        LD R0, [R6+BTN_A]
+        ST R0, [R7+V_PREVA]
+        MOV R0, R0
+        JZ frame                        ; not pressed
+        MOV R1, R1
+        JNZ frame                       ; still held from before
+        JMP newgame
+
+; ---------------------------------------------------------------------------
+; newgame: an empty field and a 3-segment snake on row 9, heading right
+; ---------------------------------------------------------------------------
+newgame: JSR drawfield
+        LDI R0, MAP + 248               ; row 9, column 5 (9 * 27 + 5)
+        LDI R1, BODY
+        LDI R2, T_BODY
+        ST R0, [R1]                     ; ring[0] = tail
+        ST R2, [R0]
+        INC R0
+        ST R0, [R1+1]
+        ST R2, [R0]
+        INC R0
+        ST R0, [R1+2]                   ; ring[2] = head
+        LDI R2, T_HEAD
+        ST R2, [R0]
+        LDI R0, 0
+        ST R0, [R7+V_TAIL]
+        ST R0, [R7+V_GROW]
+        ST R0, [R7+V_SCORE]
+        ST R0, [R7+V_ATE]
+        LDI R0, 2
+        ST R0, [R7+V_HEAD]
+        LDI R0, 1
+        ST R0, [R7+V_DELTA]
+        ST R0, [R7+V_NEXT]
+        ST R0, [R7+V_ALIVE]
+        LDI R0, STEP
+        ST R0, [R7+V_TIMER]
+        JSR placefood
+        JSR drawhud
+        JMP frame
+
+; ---------------------------------------------------------------------------
+; steer: the joystick picks the next direction (a cell offset). Reversing
+; straight into the snake's own neck is ignored.
+; ---------------------------------------------------------------------------
+steer:  LD R0, [R6+JOY_X]               ; -1 left, +1 right
+        JNZ st_have
+        LD R0, [R6+JOY_Y]               ; -1 up, +1 down
+        JZ st_ret
+        LDI R1, 27                      ; one row = 27 cells
+        MUL R0, R1
+st_have: LD R1, [R7+V_DELTA]
+        ADD R1, R0
+        JZ st_ret                       ; exactly the opposite direction
+        ST R0, [R7+V_NEXT]
+st_ret: RET
+
+; ---------------------------------------------------------------------------
+; move: one snake step
+; ---------------------------------------------------------------------------
+move:   LD R0, [R7+V_NEXT]
+        ST R0, [R7+V_DELTA]
+        LD R1, [R7+V_HEAD]              ; R1 = head index
+        LDI R2, BODY
+        ADD R2, R1                      ; R2 = &ring[head]
+        LD R3, [R2]
+        ADD R3, R0                      ; R3 = the cell in front of the head
+        LD R4, [R3]                     ; what is there?
+        LDI R5, T_FLOOR
+        CMP R4, R5
+        JZ mv_go
+        LDI R5, T_FOOD - 1              ; food is tile 5, 6 or 7 ...
+        CMP R4, R5
+        JN mv_die                       ; ... below: wall, body or head
+        LDI R5, T_FOOD + 1
+        CMP R4, R5
+        JP mv_die
+
+        LD R5, [R7+V_FOOD]              ; eat: gain = trit + 2 (1, 2 or 3)
+        ADDI R5, 2
+        LD R4, [R7+V_SCORE]
+        ADD R4, R5
+        ST R4, [R7+V_SCORE]
+        LD R4, [R7+V_GROW]
+        ADD R4, R5
+        ST R4, [R7+V_GROW]
+        LDI R4, 220                     ; eat sound: 440 + 220 x gain Hz,
+        MUL R4, R5                      ; the ternary square on voice 1
+        LDI R0, 440
+        ADD R4, R0
+        ST R4, [R6+V1_FREQ]
+        LDI R4, 1
+        ST R4, [R6+V1_WAVE]
+        ST R4, [R7+V_ATE]
+        LDI R4, 13
+        ST R4, [R6+V1_VOL]
+        ST R4, [R7+V_EATVOL]
+
+mv_go:  LD R4, [R2]                     ; the old head becomes body
+        LDI R5, T_BODY
+        ST R5, [R4]
+        INC R1                          ; head index + 1, wrapping
+        LDI R5, RING
+        CMP R1, R5
+        JN mv_h
+        LDI R1, 0
+mv_h:   ST R1, [R7+V_HEAD]
+        LDI R2, BODY
+        ADD R2, R1
+        ST R3, [R2]                     ; ring[head] = the new cell
+        LDI R5, T_HEAD
+        ST R5, [R3]
+
+        LD R4, [R7+V_GROW]              ; growing? then the tail stays
+        JLE mv_tail
+        DEC R4
+        ST R4, [R7+V_GROW]
+        JMP mv_food
+mv_tail: LD R1, [R7+V_TAIL]             ; otherwise the tail moves on
+        LDI R2, BODY
+        ADD R2, R1
+        LD R4, [R2]
+        LDI R5, T_FLOOR
+        ST R5, [R4]
+        INC R1
+        LDI R5, RING
+        CMP R1, R5
+        JN mv_t
+        LDI R1, 0
+mv_t:   ST R1, [R7+V_TAIL]
+
+mv_food: LD R4, [R7+V_ATE]              ; new food after eating
+        JZ mv_ret
+        LDI R4, 0
+        ST R4, [R7+V_ATE]
+        JSR placefood
+        JSR drawhud
+mv_ret: RET
+
+mv_die: LDI R4, 0                       ; crash!
+        ST R4, [R7+V_ALIVE]
+        LD R4, [R7+V_SCORE]
+        LD R5, [R7+V_HI]
+        CMP R4, R5
+        JLE md_snd
+        ST R4, [R7+V_HI]                ; a new hi-score
+md_snd: LDI R4, 150                     ; crash sound: noise on voice 2
+        ST R4, [R6+V2_FREQ]
+        LDI R4, -1
+        ST R4, [R6+V2_WAVE]
+        LDI R4, 13
+        ST R4, [R6+V2_VOL]
+        ST R4, [R7+V_DIEVOL]
+        JSR drawhud
+        LDI R0, txt_over
+        LDI R1, 9
+        LDI R2, 8
+        JSR printat
+        LDI R0, txt_press
+        LDI R1, 10
+        LDI R2, 10
+        JSR printat
+        RET
+
+; ---------------------------------------------------------------------------
+; placefood: food of a random trit colour on a random free floor cell
+; ---------------------------------------------------------------------------
+placefood: LDI R0, 459                  ; any cell of rows 1 ... 17 ...
+        JSR random
+        LDI R1, MAP + 27
+        ADD R1, R0
+        LD R2, [R1]
+        LDI R0, T_FLOOR
+        CMP R2, R0
+        JNZ placefood                   ; ... that is free floor
+        PUSH R1
+        LDI R0, 3
+        JSR random                      ; 0, 1 or 2
+        ADDI R0, -1                     ; the food's trit: -1, 0 or +1
+        ST R0, [R7+V_FOOD]
+        ADDI R0, T_FOOD
+        POP R1
+        ST R0, [R1]
+        RET
+
+; ---------------------------------------------------------------------------
+; sounds: both sound effects fade by one volume step per frame
+; ---------------------------------------------------------------------------
+sounds: LD R0, [R7+V_EATVOL]
+        JLE sn_two
+        DEC R0
+        ST R0, [R7+V_EATVOL]
+        ST R0, [R6+V1_VOL]
+sn_two: LD R0, [R7+V_DIEVOL]
+        JLE sn_ret
+        DEC R0
+        ST R0, [R7+V_DIEVOL]
+        ST R0, [R6+V2_VOL]
+sn_ret: RET
+
+; ---------------------------------------------------------------------------
+; drawfield: row 0 blank (for the score), walls around rows 1 ... 17
+; ---------------------------------------------------------------------------
+drawfield: LDI R0, T_FLOOR
+        JSR fillmap
+        LDI R0, ' '
+        LDI R1, MAP
+        LDI R2, 27
+df_top: ST R0, [R1]
+        INC R1
+        DEC R2
+        JNZ df_top
+        LDI R0, T_WALL
+        LDI R1, MAP + 27                ; row 1
+        LDI R2, MAP + 459               ; row 17
+        LDI R3, 27
+df_h:   ST R0, [R1]
+        ST R0, [R2]
+        INC R1
+        INC R2
+        DEC R3
+        JNZ df_h
+        LDI R1, MAP + 54                ; rows 2 ... 16, columns 0 and 26
+        LDI R3, 15
+df_v:   ST R0, [R1]
+        ST R0, [R1+26]
+        ADDI R1, 27
+        DEC R3
+        JNZ df_v
+        RET
+
+; drawhud: "TRIZMEYKA  SCORE n  HI n" on row 0
+drawhud: LDI R0, txt_title
+        LDI R1, 0
+        LDI R2, 0
+        JSR printat
+        LDI R0, txt_score
+        LDI R1, 11
+        LDI R2, 0
+        JSR printat
+        LD R0, [R7+V_SCORE]
+        LDI R1, 17
+        LDI R2, 0
+        JSR numat
+        LDI R0, txt_hi
+        LDI R1, 21
+        LDI R2, 0
+        JSR printat
+        LD R0, [R7+V_HI]
+        LDI R1, 24
+        LDI R2, 0
+        JSR numat
+        RET
+
+; --- texts and variables -------------------------------------------------------
+txt_title: .str "TRIZMEYKA"
+txt_score: .str "SCORE    "
+txt_hi:    .str "HI    "
+txt_start: .str "PRESS Z TO START"
+txt_over:  .str "GAME OVER"
+txt_press: .str "PRESS Z"
+vars:      .fill 14, 0
+
+; --- tiles 2 ... 7, 8 rows x 2 words each ------------------------------------
+tiles:
+; 2: wall -- dark red bricks (-4) in grey mortar (0)
+        .pix  0,  0,  0,  0
+        .pix  0,  0,  0,  0
+        .pix -4, -4, -4,  0
+        .pix -4, -4, -4, -4
+        .pix -4, -4, -4,  0
+        .pix -4, -4, -4, -4
+        .pix -4, -4, -4,  0
+        .pix -4, -4, -4, -4
+        .pix  0,  0,  0,  0
+        .pix  0,  0,  0,  0
+        .pix -4, -4, -4, -4
+        .pix -4, -4, -4,  0
+        .pix -4, -4, -4, -4
+        .pix -4, -4, -4,  0
+        .pix -4, -4, -4, -4
+        .pix -4, -4, -4,  0
+; 3: body -- green (-7) with a dark green rim (-10)
+        .pix -13,-10,-10,-10
+        .pix -10,-10,-10,-13
+        .pix -10, -7, -7, -7
+        .pix  -7, -7, -7,-10
+        .pix -10, -7, -7, -7
+        .pix  -7, -7, -7,-10
+        .pix -10, -7, -7, -7
+        .pix  -7, -7, -7,-10
+        .pix -10, -7, -7, -7
+        .pix  -7, -7, -7,-10
+        .pix -10, -7, -7, -7
+        .pix  -7, -7, -7,-10
+        .pix -10, -7, -7, -7
+        .pix  -7, -7, -7,-10
+        .pix -13,-10,-10,-10
+        .pix -10,-10,-10,-13
+; 4: head -- bright green with two black eyes
+        .pix -13, -7, -7, -7
+        .pix  -7, -7, -7,-13
+        .pix  -7, -7, -7, -7
+        .pix  -7, -7, -7, -7
+        .pix  -7,-13,-13, -7
+        .pix  -7,-13,-13, -7
+        .pix  -7,-13,-13, -7
+        .pix  -7,-13,-13, -7
+        .pix  -7, -7, -7, -7
+        .pix  -7, -7, -7, -7
+        .pix  -7, -7, -7, -7
+        .pix  -7, -7, -7, -7
+        .pix  -7, -7, -7, -7
+        .pix  -7, -7, -7, -7
+        .pix -13, -7, -7, -7
+        .pix  -7, -7, -7,-13
+; 5: food -1 -- a blue (-11) fruit with a green stalk
+        .pix -13,-13,-13,-13
+        .pix -10,-13,-13,-13
+        .pix -13,-13,-11,-11
+        .pix -11,-11,-13,-13
+        .pix -13,-11,-11,-11
+        .pix -11,-11,-11,-13
+        .pix -13,-11,-11,-11
+        .pix -11,-11,-11,-13
+        .pix -13,-11,-11,-11
+        .pix -11,-11,-11,-13
+        .pix -13,-11,-11,-11
+        .pix -11,-11,-11,-13
+        .pix -13,-13,-11,-11
+        .pix -11,-11,-13,-13
+        .pix -13,-13,-13,-13
+        .pix -13,-13,-13,-13
+; 6: food 0 -- white (13)
+        .pix -13,-13,-13,-13
+        .pix -10,-13,-13,-13
+        .pix -13,-13, 13, 13
+        .pix  13, 13,-13,-13
+        .pix -13, 13, 13, 13
+        .pix  13, 13, 13,-13
+        .pix -13, 13, 13, 13
+        .pix  13, 13, 13,-13
+        .pix -13, 13, 13, 13
+        .pix  13, 13, 13,-13
+        .pix -13, 13, 13, 13
+        .pix  13, 13, 13,-13
+        .pix -13,-13, 13, 13
+        .pix  13, 13,-13,-13
+        .pix -13,-13,-13,-13
+        .pix -13,-13,-13,-13
+; 7: food +1 -- red (5)
+        .pix -13,-13,-13,-13
+        .pix -10,-13,-13,-13
+        .pix -13,-13,  5,  5
+        .pix   5,  5,-13,-13
+        .pix -13,  5,  5,  5
+        .pix   5,  5,  5,-13
+        .pix -13,  5,  5,  5
+        .pix   5,  5,  5,-13
+        .pix -13,  5,  5,  5
+        .pix   5,  5,  5,-13
+        .pix -13,  5,  5,  5
+        .pix   5,  5,  5,-13
+        .pix -13,-13,  5,  5
+        .pix   5,  5,-13,-13
+        .pix -13,-13,-13,-13
+        .pix -13,-13,-13,-13
+
+        .include "lib/game.tasm"

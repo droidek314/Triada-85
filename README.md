@@ -10,7 +10,7 @@ This project builds that whole machine as a program you can run on a normal PC: 
 
 ## Status
 
-Milestones **M0 to M9** are done: project setup, ternary math, memory, the processor, the assembler, a command-line tool that runs programs without a window, the video chip (27 colours, tiles, scrolling, sprites), keyboard, joystick and a three-voice sound chip, its own built-in software (switched on, it plays a chime, shows its boot screen and waits for commands), and a debugger: press F1 to stop the machine, step through a program one instruction at a time and look at every register in decimal and balanced ternary. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. `programs/colors.tasm` shows all 27 colours and a bouncing ball; `programs/piano.tasm` turns your keyboard into a piano (A–K and W, E, T, Y, U play notes; the arrow keys change the sound). The built-in software (the "ROM") is itself written in TRIADA assembly. Games written in TRIADA assembly come next (M10). See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
+Milestones **M0 to M10** are done: project setup, ternary math, memory, the processor, the assembler, a command-line tool that runs programs without a window, the video chip (27 colours, tiles, scrolling, sprites), keyboard, joystick and a three-voice sound chip, its own built-in software (switched on, it plays a chime, shows its boot screen and waits for commands), and a debugger: press F1 to stop the machine, step through a program one instruction at a time and look at every register in decimal and balanced ternary. The machine's three-valued arithmetic has been checked for every one of its 531,441 possible numbers. Its memory and its processor work: the CPU runs all 27 instructions, about 13 times faster than the real machine would need. With M4, programs can be written in TRIADA assembly language (`LDI R0, 5`, `JMP loop`) and are translated by our own assembler, which also turns machine code back into text. The first program, `programs/hello.tasm`, prints HELLO, WORLD. `programs/colors.tasm` shows all 27 colours and a bouncing ball; `programs/piano.tasm` turns your keyboard into a piano (A–K and W, E, T, Y, U play notes; the arrow keys change the sound). The built-in software (the "ROM") is itself written in TRIADA assembly. And it has games, written in TRIADA assembly: **TRIZMEYKA**, a snake whose food comes in three trit colours; **TROIKA**, a puzzle of −1, 0 and +1 cells that you rotate and flip back to zero (the machine computes each move with its own trit-wise instructions); and **OBLAKA**, a shooter over a scrolling night sky. The user manual and finishing touches come next (M11). See [docs/PROGRESS.md](docs/PROGRESS.md) for the full checklist.
 
 ## Where to start reading
 
@@ -57,6 +57,20 @@ To see a program in a window:
 
 ```bash
 ./gradlew :triada-desktop:run --args="--load programs/piano.tasm"
+```
+
+Play the games (arrow keys to move, Z to start; TROIKA also uses X, C and R):
+
+```bash
+./gradlew :triada-desktop:run --args="--load programs/trizmeyka.tasm"
+```
+
+```bash
+./gradlew :triada-desktop:run --args="--load programs/troika.tasm"
+```
+
+```bash
+./gradlew :triada-desktop:run --args="--load programs/oblaka.tasm"
 ```
 
 You can also drop a `.tri` or `.tasm` file onto the window ("insert a triskette"). In the window, **F1** opens the debugger: **F5** pause/continue, **F11** step, **F10** step over; click a program line to set a breakpoint.

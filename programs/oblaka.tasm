@@ -1,0 +1,866 @@
+; ============================================================================
+;  OBLAKA -- a scrolling shooter above the clouds (M10)
+;
+;  Fly through the night sky (arrow keys), hold Z to fire. Enemies come in
+;  three trit kinds: azure (-1) 10 points, white (0) 20, red (+1) 30 and
+;  faster. Every enemy drifts sideways with a "ternary wobble": now and then
+;  it picks a random trit, -1, 0 or +1, as its new sideways speed.
+;  Touching an enemy costs one of three ships. Z starts and restarts.
+;
+;  How it works:
+;  - The sky is the tile map (stars and clouds), and SCROLL_Y moves it down
+;    one pixel per frame; the map wraps around, so the flight never ends.
+;  - Everything else is a sprite, because sprites don't scroll:
+;      0        the player's ship
+;      1 ... 4  shots
+;      5 ... 16 enemies (an exploding enemy shows the explosion tiles)
+;      17 ... 21 the score, five digits
+;      22 ... 24 the ships left
+;    The sprite table itself holds the positions: X, Y, TILE, FLAGS; an
+;    object with FLAGS = 0 is hidden, and that also means "this slot is free".
+;  - Texts (title, GAME OVER) go into the tile map while the sky stands still.
+;  - R6 = IO_BASE and R7 = the variables for the whole program. The game's own
+;    routines use R0 ... R5 freely (unlike the ROM's, which keep R3 ... R8).
+;
+;  Window:  ./gradlew :triada-desktop:run --args="--load programs/oblaka.tasm"
+; ============================================================================
+
+        .org 243
+
+T_STAR    = 1           ; tiles; 32 (the font's space) is the empty sky
+T_STAR2   = 2
+T_CLOUDL  = 3           ; a cloud is left, middle, left mirrored
+T_CLOUDM  = 4
+T_SHIP    = 5
+T_SHOT    = 6
+T_ENEMY   = 8           ; enemy of kind k (-1, 0, +1) is tile T_ENEMY + k
+T_BOOM    = 10          ; explosion, two frames: 10 and 11
+T_DIGIT   = 100         ; digits 0 ... 9: tiles 100 ... 109
+SKY       = -12         ; dark blue, the same as the font's background
+
+S_PLAYER  = SPRITES     ; sprite 0
+S_SHOTS   = SPRITES + 4 ; sprites 1 ... 4
+S_ENEMIES = SPRITES + 20 ; sprites 5 ... 16
+S_SCORE   = SPRITES + 68 ; sprites 17 ... 21
+S_LIVES   = SPRITES + 88 ; sprites 22 ... 24
+N_SHOTS   = 4
+N_ENEMIES = 12
+BOOM_TIME = 12          ; frames an explosion lasts
+
+; offsets of the variables (R7 points at 'vars')
+V_PLAYING = 0           ; 1 during a game
+V_PA      = 1           ; button A in the previous frame (title / game over)
+V_SCORE   = 2
+V_HI      = 3
+V_LIVES   = 4
+V_COOL    = 5           ; frames until the next shot
+V_SPAWN   = 6           ; frames until the next enemy
+V_INV     = 7           ; frames the ship is still invulnerable (blinking)
+V_SCROLL  = 8           ; our copy of SCROLL_Y, 0 ... 143
+V_TICK    = 9           ; 0 ... 15, one step per frame
+V_WAIT    = 10          ; frames before Z works after GAME OVER
+V_S1      = 11          ; the three sound effects' fading volumes
+V_S2      = 12
+V_S3      = 13
+V_F1      = 14          ; the shot sound's falling pitch
+
+start:  LDI R6, IO_BASE
+        LDI R7, vars
+        LDI R0, -13
+        ST R0, [R6+BORDER]
+        JSR maketiles
+        JSR initsprites
+        JSR drawsky
+        JSR drawscore
+        LDI R0, txt_title
+        LDI R1, 8
+        LDI R2, 5
+        JSR printat
+        LDI R0, txt_keys
+        LDI R1, 3
+        LDI R2, 8
+        JSR printat
+        LDI R0, txt_start
+        LDI R1, 6
+        LDI R2, 11
+        JSR printat
+
+; ---------------------------------------------------------------------------
+; the frame loop
+; ---------------------------------------------------------------------------
+frame:  WAIT
+        JSR sounds
+        LD R0, [R7+V_PLAYING]
+        JZ idle
+        JSR play
+        JMP frame
+
+; Title or GAME OVER: a new press of Z starts a game.
+idle:   LD R0, [R7+V_WAIT]
+        JLE id_ready
+        DEC R0
+        ST R0, [R7+V_WAIT]
+        JMP frame
+id_ready: LD R1, [R7+V_PA]
+        LD R0, [R6+BTN_A]
+        ST R0, [R7+V_PA]
+        MOV R0, R0
+        JZ frame
+        MOV R1, R1
+        JNZ frame
+        JSR newgame
+        JMP frame
+
+; one frame of the game
+play:   LD R0, [R7+V_SCROLL]            ; the sky moves down one pixel
+        DEC R0
+        JGE pl_scroll
+        LDI R0, 143
+pl_scroll: ST R0, [R7+V_SCROLL]
+        ST R0, [R6+SCROLL_Y]
+        LD R0, [R7+V_TICK]
+        INC R0
+        LDI R1, 16
+        CMP R0, R1
+        JN pl_tick
+        LDI R0, 0
+pl_tick: ST R0, [R7+V_TICK]
+        JSR moveplayer
+        JSR fire
+        JSR moveshots
+        JSR moveenemies
+        JSR spawn
+        JSR drawscore
+        LD R0, [R7+V_PLAYING]           ; the last ship lost?
+        JZ gameover                     ; tail call
+        RET
+
+; ---------------------------------------------------------------------------
+; newgame and gameover
+; ---------------------------------------------------------------------------
+newgame: LDI R0, 0
+        ST R0, [R7+V_SCORE]
+        ST R0, [R7+V_COOL]
+        ST R0, [R7+V_SCROLL]
+        ST R0, [R6+SCROLL_Y]
+        LDI R0, 3
+        ST R0, [R7+V_LIVES]
+        LDI R0, 60                      ; a quiet moment, and safe from the start
+        ST R0, [R7+V_SPAWN]
+        ST R0, [R7+V_INV]
+        JSR hideobjects
+        LDI R1, S_PLAYER
+        LDI R0, 104
+        ST R0, [R1]
+        LDI R0, 120
+        ST R0, [R1+1]
+        LDI R0, 1
+        ST R0, [R1+3]
+        ST R0, [R7+V_PLAYING]
+        JSR drawsky                     ; without the texts
+        JSR drawlives
+        JMP drawscore                   ; tail call
+
+gameover: LD R0, [R7+V_SCORE]
+        LD R1, [R7+V_HI]
+        CMP R0, R1
+        JLE go_show
+        ST R0, [R7+V_HI]
+go_show: JSR hideobjects
+        LDI R1, S_PLAYER
+        LDI R0, 0
+        ST R0, [R1+3]
+        ST R0, [R7+V_SCROLL]            ; the sky stops, so text can stand on it
+        ST R0, [R6+SCROLL_Y]
+        JSR drawsky
+        LDI R0, txt_over
+        LDI R1, 9
+        LDI R2, 6
+        JSR printat
+        LDI R0, txt_hi
+        LDI R1, 9
+        LDI R2, 8
+        JSR printat
+        LD R0, [R7+V_HI]
+        LDI R1, 12
+        LDI R2, 8
+        JSR numat
+        LDI R0, txt_again
+        LDI R1, 10
+        LDI R2, 11
+        JSR printat
+        LDI R0, 60                      ; a held fire button mustn't restart at once
+        ST R0, [R7+V_WAIT]
+        LDI R0, 1
+        ST R0, [R7+V_PA]
+        RET
+
+; hideobjects: hides the shots and enemies (sprites 1 ... 16)
+hideobjects: LDI R1, S_SHOTS
+        LDI R2, 16
+        LDI R0, 0
+ho_loop: ST R0, [R1+3]
+        ADDI R1, 4
+        DEC R2
+        JNZ ho_loop
+        RET
+
+; ---------------------------------------------------------------------------
+; the player
+; ---------------------------------------------------------------------------
+moveplayer: LDI R5, S_PLAYER
+        LD R0, [R6+JOY_X]               ; 2 pixels per frame
+        ADD R0, R0
+        LD R1, [R5]
+        ADD R1, R0
+        LDI R2, 0
+        LDI R3, 208
+        JSR clamp
+        ST R1, [R5]
+        LD R0, [R6+JOY_Y]
+        ADD R0, R0
+        LD R1, [R5+1]
+        ADD R1, R0
+        LDI R2, 64                      ; the lower half of the screen
+        LDI R3, 132
+        JSR clamp
+        ST R1, [R5+1]
+        LD R0, [R7+V_INV]               ; invulnerable: blink
+        JLE mp_show
+        DEC R0
+        ST R0, [R7+V_INV]
+        LDI R1, 4
+        DIV R0, R1
+        LDI R1, 2
+        MOD R0, R1                      ; for n >= 0, n MOD 2 is 0 or 1
+        ST R0, [R5+3]
+        RET
+mp_show: LDI R0, 1
+        ST R0, [R5+3]
+        RET
+
+; clamp: R1 into R2 ... R3
+clamp:  CMP R1, R2
+        JGE cl_high
+        MOV R1, R2
+        RET
+cl_high: CMP R1, R3
+        JLE cl_ok
+        MOV R1, R3
+cl_ok:  RET
+
+; fire: while Z is held, a shot every 8 frames (if one of the 4 is free)
+fire:   LD R0, [R7+V_COOL]
+        JLE fi_ready
+        DEC R0
+        ST R0, [R7+V_COOL]
+        RET
+fi_ready: LD R0, [R6+BTN_A]
+        JZ fi_ret
+        LDI R1, S_SHOTS
+        LDI R2, N_SHOTS
+fi_find: LD R0, [R1+3]
+        JZ fi_got
+        ADDI R1, 4
+        DEC R2
+        JNZ fi_find
+fi_ret: RET                             ; all four are flying
+fi_got: LDI R2, S_PLAYER
+        LD R0, [R2]
+        ST R0, [R1]
+        LD R0, [R2+1]
+        ADDI R0, -6
+        ST R0, [R1+1]
+        LDI R0, 1
+        ST R0, [R1+3]
+        LDI R0, 7                       ; 7 frames of waiting: a shot every 8th frame
+        ST R0, [R7+V_COOL]
+        LDI R0, 1200                    ; "pew": a falling ternary square
+        ST R0, [R7+V_F1]
+        ST R0, [R6+V1_FREQ]
+        LDI R0, 1
+        ST R0, [R6+V1_WAVE]
+        LDI R0, 8
+        ST R0, [R7+V_S1]
+        ST R0, [R6+V1_VOL]              ; sound now (sounds fades it from the next frame)
+        RET
+
+; moveshots: 4 pixels up per frame; gone above the screen
+moveshots: LDI R1, S_SHOTS
+        LDI R2, N_SHOTS
+ms_loop: LD R0, [R1+3]
+        JZ ms_next
+        LD R0, [R1+1]
+        ADDI R0, -4
+        ST R0, [R1+1]
+        LDI R3, -8
+        CMP R0, R3
+        JGE ms_next
+        LDI R0, 0
+        ST R0, [R1+3]
+ms_next: ADDI R1, 4
+        DEC R2
+        JNZ ms_loop
+        RET
+
+; ---------------------------------------------------------------------------
+; the enemies. R4 = enemy number 0 ... 11, R5 = its sprite.
+; ---------------------------------------------------------------------------
+moveenemies: LDI R4, 0
+me_loop: LDI R5, 4
+        MUL R5, R4
+        LDI R0, S_ENEMIES
+        ADD R5, R0
+        LD R0, [R5+3]
+        JZ me_next                      ; a free slot
+        LDI R3, e_boom
+        ADD R3, R4
+        LD R0, [R3]
+        JLE me_alive
+        DEC R0                          ; exploding
+        ST R0, [R3]
+        JNZ me_boom
+        ST R0, [R5+3]                   ; the explosion is over: free the slot
+        JMP me_next
+me_boom: LDI R1, 6                      ; second half: the second explosion tile
+        CMP R0, R1
+        JP me_next
+        LDI R1, T_BOOM + 1
+        ST R1, [R5+2]
+        JMP me_next
+me_alive: LD R0, [R7+V_TICK]            ; enemy i changes course when TICK = i:
+        CMP R0, R4                      ; a new random trit every 16 frames
+        JNZ me_move
+        LDI R0, 3
+        JSR random
+        ADDI R0, -1
+        LDI R3, e_dx
+        ADD R3, R4
+        ST R0, [R3]
+me_move: LDI R3, e_dx
+        ADD R3, R4
+        LD R0, [R3]
+        LD R1, [R5]
+        ADD R1, R0
+        LDI R2, 0
+        LDI R3, 208
+        JSR clamp
+        ST R1, [R5]
+        LDI R3, e_kind                  ; down: 2 pixels for kind +1, else 1
+        ADD R3, R4
+        LD R0, [R3]
+        JP me_fast
+        LDI R0, 1
+        JMP me_down
+me_fast: LDI R0, 2
+me_down: LD R1, [R5+1]
+        ADD R1, R0
+        ST R1, [R5+1]
+        LDI R2, 144
+        CMP R1, R2
+        JN me_hits
+        LDI R0, 0                       ; below the screen: gone
+        ST R0, [R5+3]
+        JMP me_next
+me_hits: JSR shotcheck
+        JSR playercheck
+me_next: INC R4
+        LDI R0, N_ENEMIES
+        CMP R4, R0
+        JN me_loop
+        RET
+
+; shotcheck: did a shot hit enemy R4 (sprite R5)? Then both are used up.
+shotcheck: LDI R3, S_SHOTS
+        LDI R2, N_SHOTS
+sc_loop: LD R0, [R3+3]
+        JZ sc_next
+        LD R0, [R3]
+        LD R1, [R5]
+        SUB R0, R1
+        JSR near
+        JZ sc_next
+        LD R0, [R3+1]
+        LD R1, [R5+1]
+        SUB R0, R1
+        JSR near
+        JZ sc_next
+        LDI R0, 0
+        ST R0, [R3+3]                   ; the shot is gone ...
+        JSR boom                        ; ... the enemy explodes ...
+        LDI R1, e_kind                  ; ... worth 10 x (kind + 2) points
+        ADD R1, R4
+        LD R0, [R1]
+        ADDI R0, 2
+        LDI R1, 10
+        MUL R0, R1
+        LD R1, [R7+V_SCORE]
+        ADD R1, R0
+        ST R1, [R7+V_SCORE]
+        RET
+sc_next: ADDI R3, 4
+        DEC R2
+        JNZ sc_loop
+        RET
+
+; near: R0 = 1 if -6 < R0 < 6 (two 8-pixel sprites overlap enough), else 0
+near:   MOV R0, R0
+        JGE nr_pos
+        NEG R0
+nr_pos: LDI R1, 6
+        CMP R0, R1
+        JN nr_yes
+        LDI R0, 0
+        RET
+nr_yes: LDI R0, 1
+        RET
+
+; playercheck: did enemy R4 (sprite R5) ram the ship?
+playercheck: LDI R1, e_boom
+        ADD R1, R4
+        LD R0, [R1]
+        JP pc_ret                       ; it is already exploding
+        LD R0, [R7+V_INV]
+        JP pc_ret                       ; the ship is invulnerable
+        LDI R3, S_PLAYER
+        LD R0, [R3]
+        LD R1, [R5]
+        SUB R0, R1
+        JSR near
+        JZ pc_ret
+        LD R0, [R3+1]
+        LD R1, [R5+1]
+        SUB R0, R1
+        JSR near
+        JZ pc_ret
+        JSR boom                        ; hit: the enemy explodes, a ship is lost
+        LDI R0, 120
+        ST R0, [R7+V_INV]
+        LDI R0, 90                      ; a long, low crash
+        ST R0, [R6+V3_FREQ]
+        LDI R0, -1
+        ST R0, [R6+V3_WAVE]
+        LDI R0, 39                      ; volume 39 / 3 = 13, fading over 39 frames
+        ST R0, [R7+V_S3]
+        LDI R0, 13
+        ST R0, [R6+V3_VOL]
+        LD R0, [R7+V_LIVES]
+        DEC R0
+        ST R0, [R7+V_LIVES]
+        JNZ pc_lives
+        ST R0, [R7+V_PLAYING]           ; the last one: game over after this frame
+pc_lives: JMP drawlives                 ; tail call
+pc_ret: RET
+
+; boom: enemy R4 (sprite R5) starts exploding, with a noise burst
+boom:   LDI R0, BOOM_TIME
+        LDI R1, e_boom
+        ADD R1, R4
+        ST R0, [R1]
+        LDI R0, T_BOOM
+        ST R0, [R5+2]
+        LDI R0, 400
+        ST R0, [R6+V2_FREQ]
+        LDI R0, -1
+        ST R0, [R6+V2_WAVE]
+        LDI R0, 13
+        ST R0, [R7+V_S2]
+        ST R0, [R6+V2_VOL]
+        RET
+
+; spawn: a new enemy at the top every V_SPAWN frames; the gap shrinks from
+; 40 frames by one for every 100 points, down to 12
+spawn:  LD R0, [R7+V_SPAWN]
+        DEC R0
+        ST R0, [R7+V_SPAWN]
+        JP sp_ret
+        LD R0, [R7+V_SCORE]
+        LDI R1, 100
+        DIV R0, R1
+        LDI R1, 40
+        SUB R1, R0
+        LDI R0, 12
+        CMP R1, R0
+        JGE sp_gap
+        MOV R1, R0
+sp_gap: ST R1, [R7+V_SPAWN]
+        LDI R4, 0                       ; find a free slot
+sp_find: LDI R5, 4
+        MUL R5, R4
+        LDI R0, S_ENEMIES
+        ADD R5, R0
+        LD R0, [R5+3]
+        JZ sp_got
+        INC R4
+        LDI R0, N_ENEMIES
+        CMP R4, R0
+        JN sp_find
+sp_ret: RET                             ; all twelve are busy
+sp_got: LDI R0, 209
+        JSR random
+        ST R0, [R5]                     ; x = 0 ... 208
+        LDI R0, -8
+        ST R0, [R5+1]                   ; just above the screen
+        LDI R0, 3
+        JSR random
+        ADDI R0, -1                     ; its kind: a random trit
+        LDI R1, e_kind
+        ADD R1, R4
+        ST R0, [R1]
+        ADDI R0, T_ENEMY
+        ST R0, [R5+2]
+        LDI R0, 0
+        LDI R1, e_dx
+        ADD R1, R4
+        ST R0, [R1]
+        LDI R1, e_boom
+        ADD R1, R4
+        ST R0, [R1]
+        LDI R0, 1
+        ST R0, [R5+3]
+        RET
+
+; ---------------------------------------------------------------------------
+; the score and the ships left, in sprites
+; ---------------------------------------------------------------------------
+drawscore: LD R0, [R7+V_SCORE]
+        LDI R3, S_SCORE + 16            ; the last digit's sprite
+        LDI R2, 5
+ds_loop: JSR divmod10
+        ADDI R1, T_DIGIT
+        ST R1, [R3+2]
+        ADDI R3, -4
+        DEC R2
+        JNZ ds_loop
+        RET
+
+; divmod10: R0 = R0 / 10 rounded down, R1 = the last decimal digit (R0 >= 0).
+; TRIADA's DIV rounds to nearest, so 17 DIV 10 = 2 and 17 - 20 = -3: then
+; the digit is -3 + 10 = 7 and the quotient one less.
+divmod10: PUSH R2
+        MOV R1, R0
+        LDI R2, 10
+        DIV R0, R2
+        MUL R2, R0
+        SUB R1, R2
+        JGE dm_ok
+        ADDI R1, 10
+        DEC R0
+dm_ok:  POP R2
+        RET
+
+drawlives: LDI R3, S_LIVES
+        LDI R2, 0
+dl_loop: LDI R0, 0
+        LD R1, [R7+V_LIVES]
+        CMP R2, R1
+        JGE dl_set
+        LDI R0, 1
+dl_set: ST R0, [R3+3]
+        ADDI R3, 4
+        INC R2
+        LDI R1, 3
+        CMP R2, R1
+        JN dl_loop
+        RET
+
+; ---------------------------------------------------------------------------
+; sounds: every effect fades by one step per frame; the shot also falls in pitch
+; ---------------------------------------------------------------------------
+sounds: LD R0, [R7+V_S1]
+        JLE so_two
+        DEC R0
+        ST R0, [R7+V_S1]
+        ST R0, [R6+V1_VOL]
+        LD R0, [R7+V_F1]
+        ADDI R0, -90
+        ST R0, [R7+V_F1]
+        ST R0, [R6+V1_FREQ]
+so_two: LD R0, [R7+V_S2]
+        JLE so_three
+        DEC R0
+        ST R0, [R7+V_S2]
+        ST R0, [R6+V2_VOL]
+so_three: LD R0, [R7+V_S3]
+        JLE so_ret
+        DEC R0
+        ST R0, [R7+V_S3]
+        LDI R1, 3
+        DIV R0, R1
+        ST R0, [R6+V3_VOL]
+so_ret: RET
+
+; ---------------------------------------------------------------------------
+; drawsky: dark blue with 60 random stars and 7 clouds
+; ---------------------------------------------------------------------------
+drawsky: LDI R0, ' '
+        JSR fillmap
+        LDI R3, 60
+sky_star: LDI R0, 486
+        JSR random
+        LDI R1, MAP
+        ADD R1, R0
+        PUSH R1
+        LDI R0, 4
+        JSR random                      ; one star in four is a bright one
+        POP R1
+        LDI R2, T_STAR
+        MOV R0, R0
+        JNZ sky_put
+        LDI R2, T_STAR2
+sky_put: ST R2, [R1]
+        DEC R3
+        JNZ sky_star
+        LDI R3, 7
+sky_cloud: LDI R0, 18
+        JSR random
+        LDI R1, 27
+        MUL R0, R1
+        PUSH R0                         ; the row's first cell
+        LDI R0, 25
+        JSR random                      ; column 0 ... 24 (3 tiles wide)
+        POP R1
+        ADD R1, R0
+        LDI R0, MAP
+        ADD R1, R0
+        LDI R0, T_CLOUDL
+        ST R0, [R1]
+        NEG R0
+        ST R0, [R1+2]
+        LDI R0, T_CLOUDM
+        ST R0, [R1+1]
+        DEC R3
+        JNZ sky_cloud
+        RET
+
+; ---------------------------------------------------------------------------
+; setting up: tiles and sprites
+; ---------------------------------------------------------------------------
+; maketiles: the tiles from masks (a table of mask, tile, background,
+; foreground), the ship from pixel data and the digits from the ROM font
+maketiles: LDI R3, tiledefs
+mt_loop: LD R0, [R3]
+        JZ mt_ship
+        LD R1, [R3+2]
+        LDI R2, paint_bg
+        ST R1, [R2]
+        LD R1, [R3+3]
+        LDI R2, paint_fg
+        ST R1, [R2]
+        LD R1, [R3+1]                   ; tile number -> its address
+        LDI R2, 16
+        MUL R1, R2
+        LDI R2, TILES
+        ADD R1, R2
+        LDI R2, 16
+        JSR maskpaint
+        ADDI R3, 4
+        JMP mt_loop
+mt_ship: LDI R0, shipdata
+        LDI R1, TILES + 80              ; tile 5
+        LDI R2, 16
+        JSR copywords
+        LDI R0, 0                       ; digits: white on transparent
+        LDI R1, paint_bg
+        ST R0, [R1]
+        LDI R0, 13
+        LDI R1, paint_fg
+        ST R0, [R1]
+        LDI R3, 0
+mt_digit: LDI R0, '0'
+        ADD R0, R3
+        JSR glyphmask
+        LDI R1, 16
+        MUL R1, R3
+        LDI R0, TILES + 1600            ; tile 100
+        ADD R1, R0
+        LDI R0, glyph_mask
+        LDI R2, 16
+        JSR maskpaint
+        INC R3
+        LDI R0, 10
+        CMP R3, R0
+        JN mt_digit
+        RET
+
+; initsprites: the tiles and places that never change
+initsprites: LDI R1, S_PLAYER
+        LDI R0, T_SHIP
+        ST R0, [R1+2]
+        LDI R1, S_SHOTS
+        LDI R2, N_SHOTS
+        LDI R0, T_SHOT
+is_shot: ST R0, [R1+2]
+        ADDI R1, 4
+        DEC R2
+        JNZ is_shot
+        LDI R1, S_SCORE                 ; score: x = 4, 12, ... 36; y = 3
+        LDI R0, 4
+        LDI R2, 5
+is_score: ST R0, [R1]
+        LDI R3, 3
+        ST R3, [R1+1]
+        LDI R3, 1
+        ST R3, [R1+3]
+        ADDI R0, 8
+        ADDI R1, 4
+        DEC R2
+        JNZ is_score
+        LDI R1, S_LIVES                 ; ships left: x = 180, 192, 204; y = 3
+        LDI R0, 180
+        LDI R2, 3
+is_life: ST R0, [R1]
+        LDI R3, 3
+        ST R3, [R1+1]
+        LDI R3, T_SHIP
+        ST R3, [R1+2]
+        ADDI R0, 12
+        ADDI R1, 4
+        DEC R2
+        JNZ is_life
+        RET
+
+; --- texts, variables, tables -------------------------------------------------
+txt_title: .str "O B L A K A"
+txt_keys:  .str "ARROWS: FLY   Z: FIRE"
+txt_start: .str "PRESS Z TO START"
+txt_over:  .str "GAME OVER"
+txt_hi:    .str "HI"
+txt_again: .str "PRESS Z"
+vars:      .fill 15, 0
+e_kind:    .fill 12, 0          ; per enemy: its trit kind
+e_dx:      .fill 12, 0          ; its sideways speed, a trit
+e_boom:    .fill 12, 0          ; > 0 while it explodes
+
+tiledefs: .word m_star,   T_STAR,    SKY, 13       ; mask, tile, background, colour
+        .word m_star2,  T_STAR2,   SKY, 11
+        .word m_cloudl, T_CLOUDL,  SKY, 1
+        .word m_cloudm, T_CLOUDM,  SKY, 1
+        .word m_shot,   T_SHOT,    0, 11           ; background 0: transparent
+        .word m_enemy,  T_ENEMY-1, 0, -8           ; azure, kind -1
+        .word m_enemy,  T_ENEMY,   0, 13           ; white, kind 0
+        .word m_enemy,  T_ENEMY+1, 0, 5            ; red, kind +1
+        .word m_boom1,  T_BOOM,    0, 11
+        .word m_boom2,  T_BOOM+1,  0, 5
+        .word 0
+
+; --- masks (1 = colour) and the ship's pixels ------------------------------------
+m_star: .fill 6, 0
+        .pix 0, 0, 0, 1
+        .pix 0, 0, 0, 0
+        .fill 8, 0
+m_star2: .fill 4, 0
+        .pix 0, 0, 0, 1
+        .pix 0, 0, 0, 0
+        .pix 0, 0, 1, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 0, 0, 0, 0
+        .fill 6, 0
+m_cloudl: .fill 2, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 1, 1, 1
+        .pix 0, 0, 0, 1
+        .pix 1, 1, 1, 1
+        .pix 0, 0, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 0, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 0, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .fill 2, 0
+m_cloudm: .pix 0, 0, 0, 1
+        .pix 1, 1, 0, 0
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .fill 2, 0
+m_shot: .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .fill 6, 0
+m_enemy: .pix 0, 0, 1, 1
+        .pix 1, 1, 0, 0
+        .pix 0, 1, 1, 1
+        .pix 1, 1, 1, 0
+        .pix 1, 1, 0, 1
+        .pix 1, 0, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 1, 1, 1, 1
+        .pix 0, 1, 1, 0
+        .pix 0, 1, 1, 0
+        .pix 1, 1, 0, 1
+        .pix 1, 0, 1, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 0, 1, 0, 0
+        .pix 0, 0, 1, 0
+m_boom1: .fill 2, 0
+        .pix 0, 1, 0, 0
+        .pix 0, 0, 1, 0
+        .pix 0, 0, 1, 0
+        .pix 0, 1, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 1, 0
+        .pix 0, 1, 0, 0
+        .pix 0, 1, 0, 0
+        .pix 0, 0, 1, 0
+        .fill 2, 0
+m_boom2: .pix 1, 0, 0, 0
+        .pix 1, 0, 0, 1
+        .pix 0, 0, 1, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 1, 0, 1
+        .pix 1, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 0, 0, 1
+        .pix 1, 0, 1, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 0, 0, 0
+        .pix 0, 1, 0, 0
+        .pix 1, 0, 0, 1
+        .pix 0, 0, 0, 1
+
+; the ship: white (13) with light cyan (4) windows, a red (5) stripe and
+; yellow (11) flames; 0 is transparent
+shipdata: .pix  0,  0,  0, 13
+        .pix 13,  0,  0,  0
+        .pix  0,  0,  0, 13
+        .pix 13,  0,  0,  0
+        .pix  0,  0, 13,  4
+        .pix  4, 13,  0,  0
+        .pix  0,  0, 13,  4
+        .pix  4, 13,  0,  0
+        .pix  0, 13, 13, 13
+        .pix 13, 13, 13,  0
+        .pix 13, 13,  5, 13
+        .pix 13,  5, 13, 13
+        .pix 13,  0, 13, 13
+        .pix 13, 13,  0, 13
+        .pix  0,  0, 11,  0
+        .pix  0, 11,  0,  0
+
+        .include "lib/game.tasm"

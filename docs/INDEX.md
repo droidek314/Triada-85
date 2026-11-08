@@ -22,6 +22,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M7 | [Input and sound](milestones/M07-input-and-sound.md) | Keyboard, joystick and buttons; a three-voice sound chip with the ternary square wave; exact pitch; an audio thread fed through a ring buffer; and a playable piano. |
 | M8 | [ROM: kernel and monitor](milestones/M08-rom.md) | The built-in software, written in TRIADA assembly: boot, font, chime, the kernel routines and the monitor; bits on a machine without bits; building the ROM into the emulator. |
 | M9 | [Debugger](milestones/M09-debugger.md) | Stopping a machine at exactly the right instruction and continuing as if nothing happened; step, step over (even through recursion), breakpoints; a debugger panel in the machine's own font; inserting triskettes. |
+| M10 | [Games](milestones/M10-games.md) | Three games in TRIADA assembly: a snake with trit-coloured food, a puzzle whose moves are the CPU's own trit-wise instructions, and a scrolling shooter with two dozen sprites; painting tiles with arithmetic; tests that play. |
 
 ## Reference documents
 
