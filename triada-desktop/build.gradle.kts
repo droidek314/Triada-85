@@ -9,7 +9,7 @@ dependencies {
     implementation(project(":triada-core"))
     implementation(project(":triada-assembler"))
     implementation(project(":triada-rom"))
-    implementation(libs.gdx.core)
+    implementation(project(":triada-app"))
     implementation(libs.gdx.backend.lwjgl3)
     // Native libraries (OpenGL, OpenAL, GLFW glue) for Windows, Linux and macOS.
     runtimeOnly(variantOf(libs.gdx.platform) { classifier("natives-desktop") })

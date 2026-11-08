@@ -53,7 +53,7 @@ In twelve milestones (M0 to M11) we built the TRIADA-85: a ternary home computer
 CLAUDE.md lists three stretch goals, and the foundations for each are in place:
 - **A small high-level language** (Pascal- or BASIC-like) compiling to TRIADA assembly. The assembler, the ROM routines and the test harnesses are ready for it.
 - **A cassette-loading effect:** screeching sound and stripes in the border while a program loads. The sound chip's noise wave and the BORDER register are all it needs.
-- **A web build.** `triada-core` and the assembler were kept free of threads, reflection and file access, and M6 showed that TeaVM compiles them.
+- **A web build.** `triada-core` and the assembler were kept free of threads, reflection and file access, and M6 showed that TeaVM compiles them. *Done since, in [M12](milestones/M12-web-version.md): the TRIADA-85 now runs on GitHub Pages.*
 
 ## The end
 The TRIADA-85 never existed, but now it boots, plays its chime, counts in threes, and runs a snake, a puzzle and a shooter, all written in a language that only it understands. If you have read this far: switch it on and type `TERN 42`.

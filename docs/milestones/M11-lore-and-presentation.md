@@ -64,9 +64,9 @@ A test plays each game for a while (the autopilots from M10 do the playing), enl
    - `theListingIsTheProgramInBothForms` compares the page's POKE values, the page's assembled source and the assembled program file.
    - `typingTheListingInAndRunningItDrawsTheTriangle` types every POKE line as printed, 27 keys per frame. Then it runs the program, compares rows 0–16 with Pascal's triangle computed in Java, waits for the first turn, and presses a key to get back to `READY.`.
 3. **The CRT look:**
-   - [`CrtEffect.java`](../../triada-desktop/src/main/java/org/triada/desktop/CrtEffect.java) compiles the shader pair from [`crt.vert`](../../triada-desktop/src/main/resources/shaders/crt.vert) and [`crt.frag`](../../triada-desktop/src/main/resources/shaders/crt.frag), with `ShaderProgram.pedantic = false` because the driver may optimise unused uniforms away.
+   - [`CrtEffect.java`](../../triada-app/src/main/java/org/triada/app/CrtEffect.java) compiles the shader pair (until M12 the files `crt.vert` and `crt.frag`; since M12 the text constants `CrtEffect.VERTEX` and `CrtEffect.FRAGMENT`, D-040), with `ShaderProgram.pedantic = false` because the driver may optimise unused uniforms away.
    - `CrtEffect.setUniforms()` passes the picture size (240 × 168), `CURVATURE` and `SCANLINES`.
-   - In [`TriadaApp.java`](../../triada-desktop/src/main/java/org/triada/desktop/TriadaApp.java), `TriadaApp.drawPicture()` sets the shader on the SpriteBatch (or `null` for the default) before `begin()`, and sets the uniforms after it. Uniforms can only be set while the shader is bound.
+   - In [`TriadaApp.java`](../../triada-desktop/src/main/java/org/triada/desktop/TriadaApp.java), the method that draws the picture (`drawPicture()` in M11; since M12 `MachineScreen.draw()`) sets the shader on the SpriteBatch (or `null` for the default) before `begin()`, and sets the uniforms after it. Uniforms can only be set while the shader is bound.
    - The heart of `crt.frag`:
 
 ```glsl

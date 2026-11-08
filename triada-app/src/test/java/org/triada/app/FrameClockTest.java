@@ -1,4 +1,4 @@
-package org.triada.desktop;
+package org.triada.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,10 +43,10 @@ class FrameClockTest {
 
     @Test
     void integerScaleFitsTheWindow() {
-        assertEquals(4, TriadaApp.scaleFor(960, 672));
-        assertEquals(3, TriadaApp.scaleFor(959, 672));
-        assertEquals(3, TriadaApp.scaleFor(1920, 600), "height limits");
-        assertEquals(8, TriadaApp.scaleFor(1920, 1344));
-        assertEquals(1, TriadaApp.scaleFor(100, 100), "never smaller than 1");
+        assertEquals(4, MachineScreen.scaleFor(960, 672));
+        assertEquals(3, MachineScreen.scaleFor(959, 672));
+        assertEquals(3, MachineScreen.scaleFor(1920, 600), "height limits");
+        assertEquals(8, MachineScreen.scaleFor(1920, 1344));
+        assertEquals(1, MachineScreen.scaleFor(100, 100), "never smaller than 1");
     }
 }

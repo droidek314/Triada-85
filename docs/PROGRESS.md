@@ -16,9 +16,10 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M9 | Debugger | ✅ done | 2026-11-07 |
 | M10 | Games | ✅ done | 2026-11-08 |
 | M11 | Lore and presentation | ✅ done | 2026-11-08 |
+| M12 | The web version (stretch goal) | ✅ done | 2026-11-08 |
 
 ## Stretch goals (only after M11)
 
 - [ ] A small high-level language compiling to TRIADA assembly
 - [ ] Cassette-loading effect
-- [ ] Web build
+- [x] Web build (M12): https://droidek314.github.io/Triada-85/

@@ -41,7 +41,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
 
-## Current state (after M11)
+## Current state (after M12)
 
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
@@ -58,10 +58,12 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `org.triada.core.video`: `Palette` (27 colours) and `VideoChip` (registers SCROLL_X, SCROLL_Y, BORDER; `render()` turns tile map, tiles and sprites into a 240 × 168 RGB `int[]`). `Machine.runFrame()` renders after the CPU; `Machine.loadProgram()` loads a `TriImage` and starts it.
 - `org.triada.core.sound.SoundChip`: registers V1–V3 FREQ/VOL/WAVE; 735 samples per frame at 44,100 Hz (`renderFrame()`, `frameSamples()`).
 - `triada-cli` can save the picture and the sound: `run --dump-screen out.png` (`ScreenDump`, javax.imageio) and `--dump-audio out.wav` (`WavRecorder`).
-- `triada-desktop`: `DesktopLauncher` (`--load`, drag-and-drop, window focus listener), `TriadaApp` (texture with nearest filtering, integer scale), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons), `SoundOutput` + `SampleRing` (audio thread, D-025). Since M11: `LaunchOptions` (the command line), `CrtEffect` (the optional CRT shader, `shaders/crt.vert` and `crt.frag`, F2 or `--crt`) and `Capture` (`--capture`: draw into an off-screen frame buffer of a hidden window, save a PNG, quit), D-037. Package `debug`: `Debugger` (pause/step/step over/breakpoints, tested logic), `DebuggerView` (scene2d.ui panel, F1) and `TriadaFont` (the ROM font as a BitmapFont), D-031.
+- `triada-app` (M12, D-039): the frontend parts every platform shares, on libGDX's core API only: `MachineScreen` (texture with nearest filtering, integer scale, CRT), `CrtEffect` (the shader, its GLSL in the code, D-040), `FrameClock` (fixed 60 Hz step), `InputMapper` (keys → KEY queue, arrows → joystick, Z/X/C → buttons).
+- `triada-desktop`: `DesktopLauncher` (`--load`, drag-and-drop, window focus listener), `TriadaApp` (runs the machine through the debugger, draws with `MachineScreen`), `SoundOutput` + `SampleRing` (audio thread, D-025). Since M11: `LaunchOptions` (the command line), F2 or `--crt` for the CRT look, and `Capture` (`--capture`: draw into an off-screen frame buffer of a hidden window, save a PNG, quit), D-037. Package `debug`: `Debugger` (pause/step/step over/breakpoints, tested logic), `DebuggerView` (scene2d.ui panel, F1) and `TriadaFont` (the ROM font as a BitmapFont), D-031.
 - `programs/` has `hello.tasm`, `countdown.tasm`, `ternary.tasm`, `colors.tasm`, `piano.tasm` and the three M10 games `trizmeyka.tasm` (snake), `troika.tasm` (ternary puzzle) and `oblaka.tasm` (scrolling shooter). They share `programs/lib/game.tasm`, an include library (D-033). The games run on the ROM: they are started through AUTORUN and call PRINT and LOCATE. Their tests (`GameHarness` and one test class per game in `triada-cli`) boot the ROM and play them through `InputDevice`. M11 added `triangle.tasm`, the manual's type-in listing.
 - `docs/manual/` is the owner's manual (M11). `ManualTest` replays its monitor examples and types its listing in (D-036). `DocImagesTest` makes and checks the pictures in `docs/images/` (D-038). The CLI tests declare `programs/`, `docs/manual/` and `docs/images/` as Gradle inputs.
 - `rom/` holds the ROM source (`rom.tasm`, `sysvars.tasm`, `kernel.tasm`, `monitor.tasm`, generated `font.tasm`), the public-domain font in `third_party/`, and the font converter in `tools/`. `triada-rom` assembles it at every build (D-029); the CLI and desktop boot through it and start programs via the AUTORUN system variable (D-028).
+- `triada-web` (M12): the browser version, compiled to JavaScript by gdx-teavm. `WebLauncher` → `WebApp` (the same machine, `MachineScreen` and `InputMapper`, no debugger; programs from `?program=NAME` or a dropped file, assembled in the browser) and `WebPage` (one-line JavaScript glue). Its `index.html` holds the sound player (D-041) and the file drop. `.github/workflows/pages.yml` tests, builds and publishes it to GitHub Pages (D-042).
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
 
 ## Inside triada-core: the bus
@@ -118,6 +120,9 @@ The `Disassembler` goes the other way (words -> text) and will be used by the de
  --capture: run N frames -> draw into an off-screen FrameBuffer at 3x -> Capture.writePng -> exit
 
  input: F-keys -> debugger | panel (Stage) | InputMapper -> InputDevice (KEY queue, joystick, buttons)
+
+ web (triada-web): FrameClock -> Machine.runFrame() -> WebPage.playSamples -> page's Web Audio player
+                   MachineScreen.upload + drawCentred -> canvas (WebGL); keys -> InputMapper; F2 -> CRT
  drop a file -> TriadaApp.insertTriskette -> Debugger.insertTriskette -> powerOn + Rom.autorun
 ```
 

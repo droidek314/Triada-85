@@ -6,15 +6,21 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Address**: The number of a memory cell, like a house number on a street. *In TRIADA:* a word, −265,720 … +265,720, with 0 in the middle (SPEC §2.1). First seen: M2.
 
+**Annotation**: A note in Java code, starting with `@`, that a tool reads, e.g. `@Test` for JUnit. *In TRIADA:* `@JSBody` and `@JSByRef` tell TeaVM how to call JavaScript. First seen: M12.
+
 **Assembler**: A program that turns assembly language text into machine words. *In TRIADA:* `tasm`, the `Assembler` class (M4). First seen: M4.
 
 **Assembly language**: The thinnest layer above machine code: one line per instruction, written with mnemonics and names instead of numbers. First seen: M4.
+
+**Asset**: A file an app reads at run time, like a picture or a text. *In TRIADA:* the web version's assets are the program sources in `programs/`, downloaded with the page. First seen: M12.
 
 **Audio thread**: A separate worker inside a program that does nothing but feed the sound card. *In TRIADA:* `SoundOutput`'s thread `triada-audio` (D-025). First seen: M7.
 
 **Auto-start (AUTORUN)**: A program started by the ROM right after boot. *In TRIADA:* the host writes the program's address into the system variable AUTORUN (D-028). First seen: M8.
 
 **Autopilot (in tests)**: A few lines of test code that play a game by themselves, choosing joystick and button inputs from what they read in the machine's memory. *In TRIADA:* plays TRIZMEYKA and OBLAKA for two minutes each. First seen: M10.
+
+**Backend (libGDX)**: The part of libGDX that connects it to one platform. *In TRIADA:* LWJGL3 for the desktop window, gdx-teavm for the browser. First seen: M12.
 
 **Balanced ternary**: Base 3 with the digits −1, 0 and +1 instead of 0, 1 and 2. Negative numbers need no minus sign, and flipping every digit negates a number. *In TRIADA:* how every number is stored (SPEC §1.1). First seen: M1.
 
@@ -42,17 +48,23 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Bus**: The path that carries every read and write between the processor and memory or devices. *In TRIADA:* the `Bus` class. First seen: M2.
 
+**Bytecode**: The compact instructions that the Java compiler produces and the Java virtual machine runs. TeaVM translates bytecode, not source, into JavaScript. First seen: M6.
+
 **Call depth**: How many subroutine calls deep a program currently is. *In TRIADA:* visible in SP, which is lower the deeper the calls go. First seen: M9.
 
 **Calling convention**: The agreement on which registers carry a routine's arguments and result, and which it must keep unchanged. *In TRIADA:* in R0–R2, out R0, R3–R8 preserved (SPEC §8.1). First seen: M8.
 
 **Canonical form**: The one standard way of writing something. *In TRIADA:* an instruction word whose unused fields are all 0. First seen: M4.
 
+**Canvas**: The drawing area of a web page. *In TRIADA:* the web version shows the machine's screen in one, 1 to 4 times its size. First seen: M12.
+
 **Capture (mode)**: Saving a program's picture to a file instead of showing it. *In TRIADA:* the desktop's `--capture FILE` (M11, D-037). First seen: M11.
 
 **Carry**: The digit that falls off the top when a result is too big for its space. *In TRIADA:* a trit (−1, 0 or +1), stored in flag O by ADD, SUB and ADDI. First seen: M1.
 
 **Cartridge**: A plug-in module that adds memory or software to a computer. *In TRIADA:* lore only; addresses 59,049 and up are reserved for them. First seen: M2.
+
+**Class path**: The list of places (folders and jar files) where Java looks for classes and resource files. A browser has none. First seen: M12.
 
 **CLI (command-line interface)**: A program you control by typing commands in a terminal instead of clicking. *In TRIADA:* the `triada` tool in `triada-cli`. First seen: M0.
 
@@ -69,6 +81,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Commutative**: Said of operations whose order doesn't matter, like 2 + 3 = 3 + 2. *In TRIADA:* TROIKA's flip and rotate moves are not commutative, which makes the puzzle harder. First seen: M10.
 
 **Compile**: Translate source code that people write (here, Java) into a form the computer can run. First seen: M0.
+
+**Compiler**: A program that translates a program from one language into another, usually into one a machine can run. *In TRIADA:* `javac` (Java to bytecode), TeaVM (bytecode to JavaScript); the assembler does the same job for TRIADA assembly. First seen: M6.
 
 **Conditional jump**: A jump that only happens if a condition on the flags holds. *In TRIADA:* JIF and its aliases JN, JZ, JP, JNZ, JLE, JGE. First seen: M3.
 
@@ -136,7 +150,7 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Forward reference**: Using a label before the line that defines it, e.g. `JMP end` above `end:`. Two passes make it possible. First seen: M4.
 
-**Fragment shader**: The part of a shader that decides the colour of each pixel. *In TRIADA:* `crt.frag`. First seen: M11.
+**Fragment shader**: The part of a shader that decides the colour of each pixel. *In TRIADA:* `CrtEffect.FRAGMENT`. First seen: M11.
 
 **Frame**: One complete picture on the screen. Showing many frames per second makes movement. *In TRIADA:* 60 frames per second (SPEC §6). First seen: M0.
 
@@ -149,6 +163,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Garbage collector**: The part of Java that finds objects no longer used and frees their memory. It costs time, so fast code creates few objects. First seen: M1.
 
 **GIF**: An old image format with a palette of at most 256 colours that can also hold an animation. *In TRIADA:* the README's `oblaka.gif`, with exactly the machine's 27 colours. First seen: M11.
+
+**GitHub Actions**: GitHub's service that runs a *workflow* (a list of automatic steps) on its own computers, for example on every push. *In TRIADA:* builds, tests and publishes the web version (`pages.yml`). First seen: M12.
+
+**GitHub Pages**: GitHub's free hosting for static websites. *In TRIADA:* https://droidek314.github.io/Triada-85/. First seen: M12.
 
 **Glyph**: The picture of one character in a font. First seen: M8.
 
@@ -195,6 +213,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Invulnerability**: A short time after being hit in which a game's hero can't be hit again, usually shown by blinking. *In TRIADA:* two seconds in OBLAKA. First seen: M10.
 
 **JAVA_HOME**: An environment variable telling scripts which Java installation to use. The `triada` launcher needs it to point to Java 25. First seen: M5.
+
+**JavaScript**: The programming language that web browsers run. *In TRIADA:* TeaVM translates the Java program into one JavaScript file, `app.js`. First seen: M12.
 
 **JDK (Java Development Kit)**: The tools needed to compile and run Java programs. *In TRIADA:* JDK 25. First seen: M0.
 
@@ -244,7 +264,7 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Mnemonic**: The short name of an instruction, such as `ADD` or `JSR`. First seen: M3.
 
-**Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-cli` and `triada-desktop`. First seen: M0.
+**Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-rom`, `triada-cli`, `triada-app`, `triada-desktop` and `triada-web`. First seen: M0.
 
 **Monitor (program)**: A tiny built-in command line for looking at and changing memory and running programs. *In TRIADA:* HELP, PEEK, POKE, RUN, CLS, TERN (SPEC §8.3). First seen: M8.
 
@@ -304,6 +324,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Public domain**: Free of copyright: anyone may use, change and share it for any purpose. First seen: M8.
 
+**Push (git)**: Sending new commits from your computer to a shared repository such as GitHub. *In TRIADA:* every push to `master` rebuilds the web version. First seen: M12.
+
+**Query string**: The part of a web address after `?`, which the page can read. *In TRIADA:* `?program=oblaka` picks the program to start. First seen: M12.
+
 **Queue (FIFO)**: A waiting line: first in, first out. *In TRIADA:* the KEY queue. First seen: M2.
 
 **RAM (random-access memory)**: Memory that can be read and written. *In TRIADA:* addresses 0 … 59,048. First seen: M2.
@@ -362,6 +386,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Stack pointer**: The register that remembers where the top of the stack is. *In TRIADA:* R8, also called SP. First seen: M2.
 
+**Static website**: A site made only of files that the server hands out unchanged; everything runs in the visitor's browser. First seen: M12.
+
 **stderr (standard error)**: A program's second output channel, for messages about the run (errors, notes), kept apart from its real output. First seen: M5.
 
 **stdout (standard output)**: A program's main output channel. *In TRIADA:* `triada run` prints the debug-port text there. First seen: M5.
@@ -385,6 +411,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Ternary square**: TRIADA's signature waveform: three levels, +1, 0, −1, 0, in four equal quarters of each period (SPEC §7). First seen: M7.
 
 **Test (automatic test)**: A small program that checks whether another piece of code does what it should, and complains loudly if not. First seen: M0.
+
+**Text block**: A Java string written between `"""` marks over several lines, keeping its line breaks. *In TRIADA:* the CRT shader's source in `CrtEffect`. First seen: M12.
 
 **Texture**: A picture uploaded to the graphics card so it can be drawn quickly. First seen: M6.
 
@@ -418,6 +446,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Type-in listing**: A program printed in a magazine for readers to type into their computers. *In TRIADA:* "Triangle of Threes" in chapter 7 of the manual, as 143 POKE lines. First seen: M11.
 
+**Typed array**: A JavaScript array that holds only plain numbers of one kind, compactly, like a Java `short[]`. *In TRIADA:* each frame's sound samples are passed to the page as one. First seen: M12.
+
 **Underrun / Overrun**: The sound card running out of samples (a gap) / more samples waiting than allowed (delay). *In TRIADA:* `SampleRing` holds the last value on underrun and drops the oldest on overrun. First seen: M7.
 
 **Uniform (shader)**: A setting a program passes to a shader, the same for every pixel. *In TRIADA:* `u_curvature`, `u_scanlines`. First seen: M11.
@@ -442,8 +472,14 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Waveform**: The shape of a sound's repeating pattern. *In TRIADA:* ternary square, triangle or noise. First seen: M7.
 
+**Web Audio**: The browser's built-in sound system (`AudioContext`). It stays silent until the visitor clicks or types. *In TRIADA:* the page's `triadaSound` player (D-041). First seen: M12.
+
+**WebGL**: The browser's version of OpenGL, for drawing with the graphics card. *In TRIADA:* libGDX draws the screen and the CRT shader with it on the web. First seen: M12.
+
 **Widget**: One piece of a user interface: a label, a button, a text field … First seen: M9.
 
 **Word**: The amount of data a computer handles in one piece. *In TRIADA:* 12 trits, −265,720 … +265,720; every register and memory cell holds one word. First seen: M1.
+
+**Workflow**: A list of automatic steps in a file in `.github/workflows/`, run by GitHub Actions. *In TRIADA:* `pages.yml`. First seen: M12.
 
 **Wrap (overflow)**: When a result is too big for its space and rolls around to the other end, like a car's odometer. *In TRIADA:* SPEC §1.3. First seen: M1.

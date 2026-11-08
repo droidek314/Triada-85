@@ -1,4 +1,4 @@
-package org.triada.desktop;
+package org.triada.app;
 
 /**
  * Turns real elapsed time into a whole number of machine frames, so the
@@ -11,7 +11,7 @@ package org.triada.desktop;
  * two per refresh. To avoid a burst of catch-up frames after a long pause
  * (for example while the window is dragged), very long steps are capped.
  */
-final class FrameClock {
+public final class FrameClock {
 
     private final double frameTime;
     private final double maxStep;
@@ -21,13 +21,13 @@ final class FrameClock {
      * @param framesPerSecond the machine's frame rate
      * @param maxCatchUp      the most frames one call may return
      */
-    FrameClock(int framesPerSecond, int maxCatchUp) {
+    public FrameClock(int framesPerSecond, int maxCatchUp) {
         this.frameTime = 1.0 / framesPerSecond;
         this.maxStep = maxCatchUp * frameTime;
     }
 
     /** Adds {@code seconds} of real time; returns how many machine frames are now due. */
-    int advance(double seconds) {
+    public int advance(double seconds) {
         accumulator += Math.min(Math.max(seconds, 0), maxStep);
         int frames = (int) (accumulator / frameTime);
         accumulator -= frames * frameTime;

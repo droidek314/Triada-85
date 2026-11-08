@@ -137,9 +137,9 @@ System.arraycopy(bg, bgRow, screen, out + first, sx);
 [`TriadaApp.java`](../../triada-desktop/src/main/java/org/triada/desktop/TriadaApp.java):
 - `create()` makes a `Pixmap` (RGBA8888), a `Texture` with `TextureFilter.Nearest`, and a `SpriteBatch`.
 - `resize()` works in back-buffer pixels, the real screen pixels, so integer scaling stays exact when Windows scales windows to 125 %.
-- `render()` asks the `FrameClock` how many machine frames are due, runs them, uploads the newest picture (`upload()` writes R, G, B, 255 bytes into the pixmap and calls `texture.draw`), and draws it centred at `TriadaApp.scaleFor()` scale. The texture is drawn as is: libGDX shows a `Pixmap` upright. (The first M6 version flipped it vertically, and the picture was upside down. M7 found and fixed this; see its "Problems" section.)
+- `render()` asks the `FrameClock` how many machine frames are due, runs them, uploads the newest picture (`upload()` writes R, G, B, 255 bytes into the pixmap and calls `texture.draw`), and draws it centred at `MachineScreen.scaleFor()` scale. (Since M12, uploading and drawing live in `MachineScreen` in `triada-app`, shared with the web version, and `FrameClock` moved there too.) The texture is drawn as is: libGDX shows a `Pixmap` upright. (The first M6 version flipped it vertically, and the picture was upside down. M7 found and fixed this; see its "Problems" section.)
 
-[`FrameClock.java`](../../triada-desktop/src/main/java/org/triada/desktop/FrameClock.java): `FrameClock.advance(seconds)` adds the elapsed time (capped at 4 frames' worth) to an accumulator and returns the number of whole frames it now holds.
+[`FrameClock.java`](../../triada-app/src/main/java/org/triada/app/FrameClock.java): `FrameClock.advance(seconds)` adds the elapsed time (capped at 4 frames' worth) to an accumulator and returns the number of whole frames it now holds.
 
 [`DesktopLauncher.java`](../../triada-desktop/src/main/java/org/triada/desktop/DesktopLauncher.java) builds the `Machine`, loads a `.tasm` or `.tri` given as the first argument, and opens the window.
 
@@ -170,7 +170,7 @@ Expected: `BUILD SUCCESSFUL`, with 224 tests in `triada-core`, 98 in `triada-ass
 | [`GoldenImageTest`](../../triada-core/src/test/java/org/triada/core/video/GoldenImageTest.java) | 3 | Whole scenes against stored PNGs: the palette, random mirrored tiles scrolled by (13, 7), and a sprite scene with all orientations, overlaps and clipping. |
 | [`ColorsProgramTest`](../../triada-cli/src/test/java/org/triada/cli/ColorsProgramTest.java) | 3 | `colors.tasm` through the real CLI: all 27 colours are on screen and the border is blue; the ball moves exactly 20 pixels in 20 frames and its highlight changes side at the bounce; frame 60 matches the golden image. |
 | [`RunCommandTest`](../../triada-cli/src/test/java/org/triada/cli/RunCommandTest.java) | 14 (2 new) | `--dump-screen` writes a 240 × 168 PNG with the right border and tile pixels, and reports an unwritable path. |
-| [`FrameClockTest`](../../triada-desktop/src/test/java/org/triada/desktop/FrameClockTest.java) | 3 | 60 frames per second at 30, 60, 75 and 144 Hz, ±1 frame after 10 seconds *and* after an hour (no drift). Pauses are capped. Integer scale. |
+| [`FrameClockTest`](../../triada-app/src/test/java/org/triada/app/FrameClockTest.java) | 3 | 60 frames per second at 30, 60, 75 and 144 Hz, ±1 frame after 10 seconds *and* after an hour (no drift). Pauses are capped. Integer scale. |
 
 See the demo in a window:
 

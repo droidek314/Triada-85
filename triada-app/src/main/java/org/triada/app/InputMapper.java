@@ -1,4 +1,4 @@
-package org.triada.desktop;
+package org.triada.app;
 
 import com.badlogic.gdx.Input;
 import org.triada.core.io.InputDevice;
@@ -17,7 +17,7 @@ import org.triada.core.io.InputDevice;
  * <p>This class has no libGDX window or listener of its own; the app forwards
  * events to it. That keeps it testable without opening a window.
  */
-final class InputMapper {
+public final class InputMapper {
 
     private final InputDevice input;
     private boolean left;
@@ -25,17 +25,17 @@ final class InputMapper {
     private boolean up;
     private boolean down;
 
-    InputMapper(InputDevice input) {
+    public InputMapper(InputDevice input) {
         this.input = input;
     }
 
     /** A key went down; returns true if it is one of ours. */
-    boolean keyDown(int keycode) {
+    public boolean keyDown(int keycode) {
         return setKey(keycode, true);
     }
 
     /** A key went up; returns true if it is one of ours. */
-    boolean keyUp(int keycode) {
+    public boolean keyUp(int keycode) {
         return setKey(keycode, false);
     }
 
@@ -72,7 +72,7 @@ final class InputMapper {
     }
 
     /** A character was typed; it goes into the KEY queue if it has a TRIADA key code. */
-    boolean keyTyped(char c) {
+    public boolean keyTyped(char c) {
         int code = keyCode(c);
         if (code == 0) {
             return false;
@@ -102,7 +102,7 @@ final class InputMapper {
     }
 
     /** Lets go of everything, e.g. when the window loses focus and key-up events would be missed. */
-    void releaseAll() {
+    public void releaseAll() {
         left = false;
         right = false;
         up = false;

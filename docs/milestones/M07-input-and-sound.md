@@ -109,10 +109,12 @@ Then it advances `phase += FREQ` with wrap-around. `SoundChip.foldWave()` keeps 
 [`WavRecorder.java`](../../triada-cli/src/main/java/org/triada/cli/WavRecorder.java): `WavRecorder.add()` appends each frame's samples as little-endian bytes, and `WavRecorder.write()` prepends the 44-byte WAV header (RIFF, fmt = PCM mono 44,100 Hz 16-bit, data). [`RunCommand`](../../triada-cli/src/main/java/org/triada/cli/RunCommand.java) records every frame when `--dump-audio` is given.
 
 ### 3. Desktop input
-[`InputMapper.java`](../../triada-desktop/src/main/java/org/triada/desktop/InputMapper.java):
+[`InputMapper.java`](../../triada-app/src/main/java/org/triada/app/InputMapper.java):
 - `InputMapper.keyDown()` / `keyUp()` track the four arrows, set JOY_X = right − left and JOY_Y = down − up, and set the buttons for Z/X/C.
 - `InputMapper.keyTyped()` translates a character with `InputMapper.keyCode()` (D-024) and calls `InputDevice.pushKey`.
 - `InputMapper.releaseAll()` clears everything.
+
+(Since M12, `InputMapper` lives in `triada-app`, so the web version uses the same keyboard mapping.)
 
 [`TriadaApp.java`](../../triada-desktop/src/main/java/org/triada/desktop/TriadaApp.java) installs a libGDX `InputAdapter` that forwards the three events. [`DesktopLauncher.java`](../../triada-desktop/src/main/java/org/triada/desktop/DesktopLauncher.java) registers a window listener whose `focusLost` calls `TriadaApp.focusLost()`.
 
@@ -154,7 +156,7 @@ Expected: `BUILD SUCCESSFUL`, with 239 tests in `triada-core`, 98 in `triada-ass
 | [`SoundChipTest`](../../triada-core/src/test/java/org/triada/core/sound/SoundChipTest.java) | 15 | The registers at the spec's addresses. Silence at power-on and for FREQ 0, negative FREQ or VOL 0. **The ternary square sample by sample**: 25 × +10,000, 25 × 0, 25 × −10,000, 25 × 0. The triangle's peaks, slope and symmetry. Volume scaling and clamping. Three voices summing to exactly ±30,000. 440 Hz over a full second. Frame-by-frame = all at once. Noise has three levels changing only at quarters, is repeatable and roughly even. WAVE folding. One frame per machine frame. No allocation. |
 | [`AudioDumpTest`](../../triada-cli/src/test/java/org/triada/cli/AudioDumpTest.java) | 4 | The WAV header field by field. Java Sound reads the file as 44.1 kHz 16-bit mono PCM. The samples are the chip's. An unwritable path is reported. |
 | [`PianoProgramTest`](../../triada-cli/src/test/java/org/triada/cli/PianoProgramTest.java) | 10 | The real `programs/piano.tasm`, played through the KEY queue and joystick: silent at start, keyboard drawn, notes on voices 1 → 2 → 3 → 1, several keys in one frame, other keys ignored, the fade to 0 in 52 frames, the joystick → waveform → border colour, the marker position, and a golden screenshot. **`aNoteActuallySoundsAtItsPitch`** counts exactly 146 periods of A4 in 14,700 samples. |
-| [`InputMapperTest`](../../triada-desktop/src/test/java/org/triada/desktop/InputMapperTest.java) | 6 | Arrows → JOY_X/Y with cancelling. Z/X/C → buttons. Typed keys in order. Special key codes. Foreign keys ignored. Focus loss releases everything. |
+| [`InputMapperTest`](../../triada-app/src/test/java/org/triada/app/InputMapperTest.java) | 6 | Arrows → JOY_X/Y with cancelling. Z/X/C → buttons. Typed keys in order. Special key codes. Foreign keys ignored. Focus loss releases everything. |
 | [`SampleRingTest`](../../triada-desktop/src/test/java/org/triada/desktop/SampleRingTest.java) | 5 | Order. Full → oldest dropped. Empty → last value held. 1,000 wrap-arounds. A writer and a reader thread at once lose nothing when there's room. |
 
 Play the piano (the window must have focus; the letter keys play, the arrows change the sound):

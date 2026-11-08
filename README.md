@@ -8,7 +8,9 @@ In our world, computers count in *binary*: every tiny switch inside them is eith
 
 TRIADA-85 imagines the other timeline. Ternary won in Eastern Europe, and by 1985 a (fictional) factory, NPO "Triada", sells a beige home computer called the TRIADA-85: a membrane keyboard, a three-position joystick, a cassette port and a "triskette" drive. Children type in game listings from the (fictional) magazine *Trit & Tryte*.
 
-This project builds that whole machine as a program you can run on a normal PC: the three-valued arithmetic, the processor, the memory, the screen chip, the sound chip, a small operating system written in the machine's own language, a debugger, three games and the owner's manual. Every step is documented so that someone with no technical background can follow the ideas, and a programmer can rebuild the whole thing from the documents alone.
+**[Switch it on in your browser](https://droidek314.github.io/Triada-85/)**, no installation needed.
+
+This project builds that whole machine as a program you can run on a normal PC or in a web browser: the three-valued arithmetic, the processor, the memory, the screen chip, the sound chip, a small operating system written in the machine's own language, a debugger, three games and the owner's manual. Every step is documented so that someone with no technical background can follow the ideas, and a programmer can rebuild the whole thing from the documents alone.
 
 | Switched on | TRIZMEYKA | TROIKA |
 |---|---|---|
@@ -27,9 +29,12 @@ This project builds that whole machine as a program you can run on a normal PC: 
 - **Three games**, written in TRIADA assembly: TRIZMEYKA (a snake whose food comes in three trit colours), TROIKA (a puzzle whose moves are the CPU's own trit-wise instructions) and OBLAKA (a scrolling shooter).
 - **The [owner's manual](docs/manual/README.md),** written as if printed in 1985, with a type-in listing from *Trit & Tryte*. Its examples are checked by tests against the real machine.
 - **An optional CRT look** (F2): curved glass, scanlines, phosphor stripes.
+- **[A web version](https://droidek314.github.io/Triada-85/)**: the same machine in a browser, with everything except the debugger, published by GitHub after every change that passes the tests.
 - **540 automatic tests**, from single trits to tests that play the games and type in the manual's listing.
 
 ## How to run
+
+The quickest way: open **https://droidek314.github.io/Triada-85/**, click "switch on" and pick a program. The download below adds the debugger and the command-line tools.
 
 You need a Java Development Kit (**JDK**) version 25. Gradle, the build tool, downloads itself. On Windows, use `gradlew.bat` instead of `./gradlew` if you are not in a Bash-style shell.
 
@@ -91,6 +96,12 @@ Or install it once (its launcher needs `JAVA_HOME` pointing to a JDK 25), then `
 triada-cli/build/install/triada/bin/triada help
 ```
 
+Build the web version yourself and serve it at http://localhost:8385/:
+
+```bash
+./gradlew :triada-web:gdx_teavm_web_js_run
+```
+
 The desktop can also save a picture without opening a visible window, for example with the CRT look:
 
 ```bash
@@ -112,9 +123,11 @@ The desktop can also save a picture without opening a visible window, for exampl
 | `triada-assembler/` | The assembler and disassembler. |
 | `triada-rom/` | Builds the ROM from `rom/` into the emulator. |
 | `triada-cli/` | The `triada` command-line tool, and the tests that run whole programs. |
-| `triada-desktop/` | The window, sound, keyboard, debugger and CRT look (libGDX). |
+| `triada-app/` | What the desktop and the web version share: the picture, the CRT look, the keyboard (libGDX). |
+| `triada-desktop/` | The window, sound, debugger and command line of the download (libGDX). |
+| `triada-web/` | The browser version and its page (libGDX web backend gdx-teavm). |
 | `rom/` | The ROM's source, in TRIADA assembly. |
 | `programs/` | Example programs and the three games, in TRIADA assembly. |
 | `docs/` | Everything written about it. |
 
-Status: all milestones, **M0 to M11**, are done. See [docs/PROGRESS.md](docs/PROGRESS.md).
+Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). See [docs/PROGRESS.md](docs/PROGRESS.md).

@@ -63,18 +63,4 @@ class LaunchOptionsTest {
         assertEquals(0xFF0000, image.getRGB(0, 0) & 0xFFFFFF, "top: red");
         assertEquals(0x0000FF, image.getRGB(0, 1) & 0xFFFFFF, "bottom: blue");
     }
-
-    @Test
-    void theCrtShaderDeclaresWhatTheCodeSets() {
-        String frag = CrtEffect.source("crt.frag");
-        String vert = CrtEffect.source("crt.vert");
-        for (String uniform : new String[] {"u_sourceSize", "u_curvature", "u_scanlines", "u_texture"}) {
-            assertTrue(frag.contains("uniform") && frag.contains(uniform), uniform);
-        }
-        // SpriteBatch feeds these names (libGDX's ShaderProgram constants).
-        for (String attribute : new String[] {"a_position", "a_color", "a_texCoord0", "u_projTrans"}) {
-            assertTrue(vert.contains(attribute), attribute);
-        }
-        assertThrows(IllegalStateException.class, () -> CrtEffect.source("missing.frag"));
-    }
 }

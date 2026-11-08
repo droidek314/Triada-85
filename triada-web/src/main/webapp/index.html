@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TRIADA-85</title>
+    <meta name="description" content="TRIADA-85: a ternary home computer from an alternate 1985, in your browser.">
+    <style>
+        :root { color-scheme: dark; }
+        body {
+            margin: 0;
+            padding: 16px;
+            background: #111;
+            color: #ddd;
+            font: 15px/1.45 system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        h1 { margin: 0; font-size: 20px; letter-spacing: 0.15em; }
+        a { color: #8cf; }
+        #machine { position: relative; line-height: 0; }
+        /* The picture is upscaled by whole numbers; keep its pixels square and sharp. */
+        #canvas { display: block; image-rendering: pixelated; background: #000; outline: none; }
+        #power {
+            position: absolute; inset: 0;
+            border: 0; background: rgba(0, 0, 0, 0.75); color: #fff;
+            font: inherit; font-size: 18px; cursor: pointer;
+        }
+        #status { min-height: 1.45em; color: #9c9; }
+        nav { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; }
+        table { border-collapse: collapse; }
+        td { padding: 1px 8px; vertical-align: top; }
+        td:first-child { text-align: right; color: #fff; white-space: nowrap; }
+        .small { color: #999; font-size: 13px; max-width: 720px; text-align: center; }
+    </style>
+</head>
+<body oncontextmenu="return false">
+    <h1>TRIADA-85</h1>
+    <div id="machine">
+        <canvas id="canvas" tabindex="0"></canvas>
+        <button id="power">Click to switch on</button>
+    </div>
+    <div id="status"></div>
+    <nav>
+        <a href="?">Monitor</a>
+        <a href="?program=trizmeyka">TRIZMEYKA</a>
+        <a href="?program=troika">TROIKA</a>
+        <a href="?program=oblaka">OBLAKA</a>
+        <a href="?program=triangle">Triangle of Threes</a>
+        <a href="?program=colors">27 colours</a>
+        <a href="?program=piano">Piano</a>
+    </nav>
+    <table>
+        <tr><td>arrow keys</td><td>the joystick</td></tr>
+        <tr><td>Z, X, C</td><td>fire buttons A, B, C (Z starts the games)</td></tr>
+        <tr><td>F2</td><td>the CRT look on/off</td></tr>
+        <tr><td>drop a file</td><td>"insert a triskette": a <code>.tri</code> or <code>.tasm</code> program</td></tr>
+    </table>
+    <p class="small">
+        A home computer that never existed: it counts in trits (&minus;1, 0, +1) instead of bits.
+        Needs a keyboard. Try <code>HELP</code>, <code>TERN 42</code> and <code>PEEK 243 3</code>.
+        Read the <a href="https://github.com/droidek314/Triada-85/blob/master/docs/manual/README.md">owner's manual</a>,
+        or download the full version with the debugger from
+        <a href="https://github.com/droidek314/Triada-85">GitHub</a>.
+    </p>
+    <script>
+        // The largest whole-number scale of the 240 x 168 picture that fits the window (1 ... 4).
+        (function () {
+            var s = Math.floor(Math.min((innerWidth - 32) / 240, (innerHeight - 260) / 168));
+            s = Math.max(1, Math.min(4, s));
+            var c = document.getElementById("canvas");
+            c.width = 240 * s;
+            c.height = 168 * s;
+        })();
+
+        // Sound (M12, D-041): every machine frame hands over 735 samples; each becomes a
+        // tiny buffer, scheduled to start exactly where the previous one ends.
+        var triadaSound = {
+            ctx: null,
+            next: 0,
+            play: function (samples) {
+                var c = this.ctx;
+                if (!c) return;
+                var now = c.currentTime;
+                if (this.next < now) {
+                    this.next = now + 0.06;              // starting, or fell behind: a 60 ms cushion
+                } else if (this.next > now + 0.25) {
+                    return;                              // far ahead (catching up after a pause): drop it
+                }
+                var b = c.createBuffer(1, samples.length, 44100);
+                var d = b.getChannelData(0);
+                for (var i = 0; i < samples.length; i++) d[i] = samples[i] / 32768;
+                var s = c.createBufferSource();
+                s.buffer = b;
+                s.connect(c.destination);
+                s.start(this.next);
+                this.next += b.duration;
+            }
+        };
+
+        // A file dropped on the page waits here until the machine picks it up.
+        var triadaDrop = { name: null, bytes: null };
+        document.addEventListener("dragover", function (e) { e.preventDefault(); });
+        document.addEventListener("drop", function (e) {
+            e.preventDefault();
+            var f = e.dataTransfer.files[0];
+            if (!f) return;
+            f.arrayBuffer().then(function (buf) {
+                triadaDrop.bytes = new Int8Array(buf);
+                triadaDrop.name = f.name;
+            });
+        });
+
+        // Browsers only allow sound after a click, so the machine is switched on by one.
+        document.getElementById("power").addEventListener("click", function () {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) triadaSound.ctx = new Ctx();
+            this.remove();
+            document.getElementById("canvas").focus();
+            main();
+        });
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+# Builds everything, runs every test, and publishes the web version of the
+# TRIADA-85 to GitHub Pages (M12, D-042). Runs on every push to master.
+
+name: Web version to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push replaces one still waiting.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v6
+      # The tests are the gate: a build that fails them is never published.
+      - run: ./gradlew build :triada-web:gdx_teavm_web_js_build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: triada-web/build/dist/js/webapp
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
