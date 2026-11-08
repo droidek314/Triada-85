@@ -1,6 +1,6 @@
 # TRIADA-85 — Machine Specification
 
-Version 1.0. This document is the **source of truth** for the machine. If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
+Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15; until a part is built, its section describes the target. This document is the **source of truth** for the machine. If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
 
 ---
 
@@ -64,7 +64,8 @@ Memory is **word-addressed**: every address points to one 12-trit word. Addresse
 
 | Range (decimal) | Size | What |
 |---|---|---|
-| −265,720 … −20,413 | — | Unmapped (reads 0, writes ignored) |
+| −265,720 … −59,049 | — | Unmapped (reads 0, writes ignored) |
+| −59,048 … −20,413 | 38,636 | **Extension ROM**: TRIBASIC (read-only; §2.5; from M14, unmapped before) |
 | −20,412 … −19,684 | 729 | I/O registers (§5) |
 | −19,683 … −1 | 19,683 (3^9) | **ROM** (read-only; writes ignored) |
 | 0 … 59,048 | 59,049 (3^10) | **RAM** |
@@ -83,6 +84,16 @@ Memory is **word-addressed**: every address points to one 12-trit word. Addresse
 
 ### 2.4 Power-on state
 All RAM = 0. All registers = 0. Flags S = 0, O = 0. **PC = −19,683** (the first ROM word). The ROM sets SP (R8) to 59,049.
+
+### 2.5 Extension ROM (v1.1)
+TRIBASIC (§10) lives in the extension ROM, written in TRIADA assembly like the main ROM. It starts with two entry points, each a 2-word `JMP`:
+
+| Address | Name | What |
+|---|---|---|
+| −59,048 | `BASIC_COLD` | clear the program, then start |
+| −59,046 | `BASIC_WARM` | start, keeping the program in memory |
+
+**RAM use** (inside the user area 243 … 39,999): the tokenized program from 243 upwards, then variables, arrays and strings. The interpreter's own stacks (FOR/GOSUB) go in the free area above 45,000. The exact layout is decided in M14 and documented with a diagram. "WORDS FREE" means the user area minus the program and variables.
 
 ---
 
@@ -260,9 +271,39 @@ Register `k` lives at address `IO_BASE + k`, where **IO_BASE = −20,412**. All 
 | 20 | −20,392 | DEBUG_CHAR | W | Host prints the value as a character (development aid) |
 | 21 | −20,391 | DEBUG_NUM | W | Host prints the value as a decimal number plus newline |
 | 22 | −20,390 | HOST_EXIT | W | Headless runner stops with this exit code (for tests) |
-| 23–728 | | reserved | | Read 0, writes ignored |
+| 23 | −20,389 | TS_CMD | W | Triskette: writing starts a command (§5.1) |
+| 24 | −20,388 | TS_NAME | R/W | Triskette: RAM address of the file name |
+| 25 | −20,387 | TS_ADDR | R/W | Triskette: RAM address of the data |
+| 26 | −20,386 | TS_LEN | R/W | Triskette: length in words |
+| 27 | −20,385 | TS_STATUS | R | Triskette: result of the last command |
+| 28–728 | | reserved | | Read 0, writes ignored |
 
 Debug port details (D-018): DEBUG_CHAR prints printable ASCII (32–126), newline, carriage return and tab as themselves, and any other value as its number in angle brackets, e.g. `<0>`. Writing HOST_EXIT ends the CPU's current frame immediately, so no instruction runs after it.
+
+### 5.1 Triskette storage device (v1.1, M13)
+There are no drives or tracks. A triskette is a flat list of named files on the host.
+
+| k | Address | Name | R/W | Meaning |
+|---|---|---|---|---|
+| 23 | −20,389 | TS_CMD | W | Writing starts a command, which finishes instantly (see below) |
+| 24 | −20,388 | TS_NAME | R/W | RAM address of the file name string (one char per word, 0-terminated) |
+| 25 | −20,387 | TS_ADDR | R/W | RAM address of data |
+| 26 | −20,386 | TS_LEN | R/W | Length in words (input for SAVE; output for LOAD and DIR) |
+| 27 | −20,385 | TS_STATUS | R | 0 = OK, −1 = not found, −2 = no space, −3 = bad name, −4 = I/O error |
+
+| TS_CMD | Command |
+|---|---|
+| 1 | SAVE: write TS_LEN words from TS_ADDR into file TS_NAME (overwrites) |
+| 2 | LOAD: read the file into memory at TS_ADDR; TS_LEN ← words read |
+| 3 | DIR: write all file names as consecutive 0-terminated strings starting at TS_ADDR, then one extra 0. TS_LEN is the space available on input and the words used on output |
+| 4 | DELETE: remove file TS_NAME |
+| 5 | LOAD-HOME: like LOAD, but to the file's own stored load address. TS_ADDR ← that address |
+
+Rules:
+- **Names** are 1–12 characters: A–Z, 0–9, and at most one `.`. Lower-case is converted to upper case.
+- **Extensions by convention:** `.TB` is a TRIBASIC program and `.TRI` is machine code.
+- **Host format:** every file is stored in the existing `.tri` container (§9.5: header, load address, words). For SAVE, the load address is TS_ADDR.
+- Writes outside RAM are silently clipped, and the status is −4.
 
 ---
 
@@ -300,7 +341,11 @@ The jump table sits at the start of ROM, and each entry is a 2-word `JMP routine
 | −19,675 | CLS | — | clears screen, cursor home |
 | −19,673 | GETKEY | — | R0 = key (waits) |
 | −19,671 | LOCATE | R0 = col, R1 = row | moves cursor |
-| −19,669 … | reserved | | |
+| −19,669 | DISKSAVE | see §8.5 | (v1.1, M13) |
+| −19,667 | DISKLOAD | see §8.5 | (v1.1, M13) |
+| −19,665 | DISKDIR | see §8.5 | (v1.1, M13) |
+| −19,663 | DISKDEL | see §8.5 | (v1.1, M13) |
+| −19,661 … | reserved | | |
 
 **Calling convention:** arguments in R0–R2, result in R0. Routines may change R0–R2 and must preserve R3–R8. A string is one character per word, ending with a 0 word.
 
@@ -315,7 +360,7 @@ The jump table sits at the start of ROM, and each entry is a 2-word `JMP routine
    READY.
    >
    ```
-5. Enter the monitor. (If the host has put a program's address into the system variable AUTORUN, the ROM first clears it and runs that program as if `RUN` had been typed; D-028.)
+5. Enter the monitor. From v1.1 (M14) the machine enters TRIBASIC instead (§10.8); `MON` reaches the monitor. (If the host has put a program's address into the system variable AUTORUN, the ROM first clears it and runs that program as if `RUN` had been typed; D-028.)
 
 The first line has single spaces so that it is exactly 27 characters, one full screen line (D-027).
 
@@ -330,6 +375,7 @@ Numbers can be decimal (`123`, `-5`) or ternary (`0t+-0`).
 | `RUN [addr]` | `JSR` to addr (default 243). When the program `RET`s, back to the monitor |
 | `CLS` | Clear screen |
 | `TERN n` | Show n in balanced ternary (fun and educational) |
+| `BASIC` | Return to TRIBASIC through `BASIC_WARM`, keeping the program (v1.1, M14) |
 
 Unknown command → `?SYNTAX ERROR`.
 
@@ -339,6 +385,9 @@ These follow from D-026 … D-028 in `docs/DECISIONS.md`.
 - **System variables:** AUTORUN = 0, CURSOR_X = 1, CURSOR_Y = 2, RUN_DONE = 3 (programs finished by RUN/AUTORUN), LINEBUF = 162 … 242.
 - **PUTCHAR:** 10 = newline, 8 = backspace. A full line wraps only when the next character arrives ("pending wrap"). The screen scrolls at the bottom. LOCATE clamps to the screen.
 - **Monitor:** prompt `> `; at most 24 characters per line; letters made upper case; blinking `_` cursor. `PEEK` prints `ADDR: VALUE 0tTRITS` per word, `TERN` prints `N = 0tTRITS`, and trits are shown without leading zeros. Missing or extra arguments, counts below 1 and out-of-range numbers are `?SYNTAX ERROR`.
+
+### 8.5 Triskette routines (v1.1, M13)
+`DISKSAVE`, `DISKLOAD`, `DISKDIR` and `DISKDEL` drive the triskette device (§5.1) for programs that don't want to touch its registers. They follow the calling convention of §8.1; the exact registers are defined in M13 and recorded here.
 
 ---
 
@@ -399,3 +448,146 @@ These follow from D-012 and D-013 in `docs/DECISIONS.md`.
 - Labels and constants may be used before they are defined, except in `.org` and the count of `.fill`.
 - A label on an `.org` line gets the new address. `.include` paths are relative to the including file.
 - `JIF` with a condition outside −2 … 3 is an assembly error.
+
+---
+
+## 10. TRIBASIC (v1.1, M14–M15)
+TRIBASIC is the TRIADA-85's built-in programming language, an interpreter written in TRIADA assembly in the extension ROM (§2.5).
+
+### 10.1 Program lines and editing
+- A line starting with a number from 1 to 65,535 is stored in the program and replaces any line with that number. A number on its own deletes the line.
+- A line without a number runs immediately (direct mode).
+- Several statements go on one line, separated by `:`.
+- Keywords are case-insensitive and stored as tokens. `LIST` prints them back in upper case.
+- `LIST`, `LIST 100`, `LIST 100-200`, `LIST -200`, `LIST 100-`.
+- `RUN [line]` clears variables, then runs. `NEW` clears program and variables.
+
+### 10.2 Values, variables and expressions
+**Values:** whole numbers (machine words, ±265,720) and strings (§10.4).
+
+**Literals:**
+- decimal: `42`, `-7`
+- ternary: `0t+-0`
+- strings: `"HELLO"`
+- truth constants: `TRUE` (= +1), `FALSE` (= −1), `UNKNOWN` (= 0)
+
+**Variable names:** a letter followed by up to 7 letters or digits, all significant. A `$` suffix means a string variable. Keywords can't be variable names. **A variable that was never assigned is 0, so it reads as `UNKNOWN`.** The manual mentions this.
+
+**Operator precedence** (highest first):
+
+| Level | Operators |
+|---|---|
+| 1 | `( )`, function calls |
+| 2 | unary `-`, `NOT` |
+| 3 | `*`, `/`, `MOD` |
+| 4 | `+`, `-` (also string concatenation) |
+| 5 | `=`, `<>`, `<`, `>`, `<=`, `>=`, `<=>` |
+| 6 | `AND` |
+| 7 | `OR` |
+
+Arithmetic rules:
+- `/` uses the machine's division, which **rounds to the nearest integer** (ties toward zero, §3.5): `7/2 = 3`, `8/3 = 3`. `MOD` matches it, so `8 MOD 3 = -1`. The manual explains why this is natural in ternary.
+- `+` and `-` raise `?OVERFLOW` when the O flag is set. `*` may wrap without an error; this is a documented limitation, unless a cheap check is found (logged in DECISIONS).
+- Division by zero raises `?DIVISION BY ZERO`.
+
+### 10.3 Three-valued logic (TRIBASIC's signature feature)
+**Truth values:** TRUE = +1, UNKNOWN = 0, FALSE = −1. For any number used as a condition, **positive counts as TRUE, zero as UNKNOWN and negative as FALSE**.
+
+**Comparisons:**
+- `=`, `<>`, `<`, `>`, `<=` and `>=` return TRUE or FALSE.
+- **`a <=> b`** ("compare") returns **−1, 0 or +1** (the sign of a − b; for strings, alphabetical order). It's exactly the CPU's CMP instruction.
+
+**Logic operators:** `AND`, `OR` and `NOT` are the machine's trit-wise MIN, MAX and NEG. On truth values this is Kleene's three-valued logic:
+
+| AND | F | U | T |
+|---|---|---|---|
+| **F** | F | F | F |
+| **U** | F | U | U |
+| **T** | F | U | T |
+
+| OR | F | U | T |
+|---|---|---|---|
+| **F** | F | U | T |
+| **U** | U | U | T |
+| **T** | T | T | T |
+
+`NOT T = F`, `NOT U = U`, `NOT F = T`.
+
+**Three-way IF:**
+```
+IF cond THEN stmts MAYBE stmts ELSE stmts
+```
+- The THEN branch runs if cond is positive (TRUE), the MAYBE branch if cond is zero (UNKNOWN), and the ELSE branch if cond is negative (FALSE).
+- Each branch runs until the next `MAYBE`/`ELSE` keyword of the same IF, or the end of the line. `MAYBE` and `ELSE` are both optional and may appear in either order.
+- `THEN 100` (a bare line number) means `THEN GOTO 100`. The same goes for `MAYBE 200` and `ELSE 300`.
+- It is implemented with the CPU's `BR3`; the M14 document shows the machine code.
+
+Example:
+```
+10 ASK "IS IT RAINING"; R
+20 IF R THEN PRINT "TAKE AN UMBRELLA" MAYBE PRINT "TAKE IT, JUST IN CASE" ELSE PRINT "ENJOY THE SUN"
+```
+
+**`ASK "prompt"; var`** prints the prompt with `(Y/N/?)` and waits for a key: `Y` → TRUE, `N` → FALSE, `?` → UNKNOWN. Other keys are ignored.
+
+### 10.4 Strings
+- At most 80 characters each. Assigning a longer string raises `?STRING TOO LONG`.
+- `+` concatenates. `=`, `<>` and `<=>` compare. Mixing strings and numbers raises `?TYPE MISMATCH`.
+- Functions: `LEN(s$)`, `LEFT$(s$,n)`, `RIGHT$(s$,n)`, `MID$(s$,start,n)` (1-based), `CHR$(n)`, `ASC(s$)`, `STR$(n)`, `VAL(s$)`, **`TERN$(n)`** (the balanced-ternary text of n, e.g. `TERN$(6) = "+-0"`).
+- Strings are stored one character per word. Garbage collection or compaction is designed in M15 and documented there.
+
+### 10.5 Arrays
+- `DIM A(n)` gives indices 0 … n. **`DIM A(-n TO n)`** gives a balanced array with a centre element at 0, in the spirit of the machine. `DIM A$(n)` also works.
+- One dimension only. Using an array without DIM auto-dimensions it as 0 … 10. An out-of-range index raises `?BAD SUBSCRIPT`.
+
+### 10.6 Statements and functions
+
+#### 10.6.1 Core statements
+`PRINT` (`;` joins items, `,` moves to the next 9-column zone, and a trailing `;` suppresses the newline), `INPUT ["prompt";] var`, `ASK "prompt"; var`, `LET`, `GOTO`, `GOSUB`, `RETURN`, `FOR v = a TO b [STEP s]`, `NEXT [v]`, `IF`, `REM`, `END`, `STOP`, `DIM`, `CLS`, `LOCATE col,row`.
+
+#### 10.6.2 Machine statements
+
+| Statement | Effect |
+|---|---|
+| `TILE col,row,t` | Set a tile map cell (negative t = mirrored) |
+| `DEFTILE t,row,p0,…,p7` | Set one row of tile t to 8 pixel values (−13…13) |
+| `SPRITE i,x,y,t[,flags]` | Set sprite i (flags default +1) |
+| `SOUND v,freq,vol,wave` | Set voice v (1–3) |
+| `BORDER c` | Border color |
+| `SCROLL x,y` | Background scroll |
+| `WAIT n` | Wait n frames |
+| `COLOR fg,bg` | Re-color the font tiles 32–126 (designed in M15) |
+| `POKE addr,value` | Write a memory word |
+| `SYS addr` | Call machine code (`JSR`); it returns with `RET` |
+
+#### 10.6.3 Functions
+`ABS(n)`, `SGN(n)` (returns −1, 0 or +1), `RND(n)` (random 1 … n), `PEEK(addr)`, `JOYX`, `JOYY`, `BTN(n)` (n = 1, 2, 3 for buttons A, B, C), `INKEY` (key code, or 0), `FRAME`, plus the string functions from §10.4.
+
+#### 10.6.4 Storage commands
+
+| Command | Effect |
+|---|---|
+| `SAVE "NAME"` | Saves the program as `NAME.TB` |
+| `LOAD "NAME"` | Loads `NAME.TB` (replaces the program) |
+| `FILES` | Lists the triskette |
+| `ERASE "NAME.EXT"` | Deletes a file |
+| `BSAVE "NAME",addr,len` | Saves raw words as `NAME.TRI` |
+| `BLOAD "NAME"[,addr]` | Loads `NAME.TRI` (to its own address by default) |
+| `BRUN "NAME"` | `BLOAD`, then `SYS` to its load address. Existing games run with this |
+
+### 10.7 Errors
+Format: `?<MESSAGE> ERROR IN <line>` (no `IN …` in direct mode), then `READY.`
+
+`SYNTAX`, `UNDEFINED LINE`, `RETURN WITHOUT GOSUB`, `NEXT WITHOUT FOR`, `OUT OF MEMORY`, `DIVISION BY ZERO`, `OVERFLOW`, `TYPE MISMATCH`, `BAD SUBSCRIPT`, `STRING TOO LONG`, `FILE NOT FOUND`, `DISK`.
+
+Esc while running prints `BREAK IN <line>`. The frontends map the Esc key to KEY code 27 (already the case since D-024).
+
+### 10.8 Boot
+The machine boots straight into TRIBASIC, as most 1980s home computers did:
+```
+TRIADA-85 NPO "TRIADA" 1985
+TRIBASIC V1.0
+39757 WORDS FREE
+READY.
+```
+The first line keeps the released single spacing, exactly 27 characters (D-027, D-044). `MON` switches to the machine-code monitor. The monitor's `BASIC` command returns to TRIBASIC through `BASIC_WARM`, with the program kept.

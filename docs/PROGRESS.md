@@ -17,9 +17,12 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M10 | Games | ✅ done | 2026-11-08 |
 | M11 | Lore and presentation | ✅ done | 2026-11-08 |
 | M12 | The web version (stretch goal) | ✅ done | 2026-11-08 |
+| M13 | Triskette storage device (Phase 2) | 🔄 in progress | |
+| M14 | TRIBASIC I: the interpreter core | ⬜ not started | |
+| M15 | TRIBASIC II: strings, arrays, machine access, storage and release | ⬜ not started | |
 
 ## Stretch goals (only after M11)
 
-- [ ] A small high-level language compiling to TRIADA assembly
+- [x] ~~A small high-level language compiling to TRIADA assembly~~ replaced by TRIBASIC, built into the machine (M14–M15)
 - [ ] Cassette-loading effect
 - [x] Web build (M12): https://droidek314.github.io/Triada-85/

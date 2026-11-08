@@ -51,10 +51,14 @@ You are building **TRIADA-85**, a fantasy home computer from an alternate 1985 w
   manual/                  ← in-universe TRIADA-85 user manual (M11)
 /triada-core/              ← ternary math, memory, CPU, video, sound, I/O. Plain Java, NO libGDX.
 /triada-assembler/         ← assembler + disassembler library (depends on core)
+/triada-rom/               ← builds the ROM from /rom into the emulator
 /triada-cli/               ← command-line tool: `tasm` (assemble), `run` (headless run)
-/triada-desktop/           ← libGDX frontend (display, sound, input, debugger UI)
-/rom/                      ← ROM source in TRIADA assembly (*.tasm)
-/programs/                 ← example programs and games (*.tasm)
+/triada-app/               ← libGDX frontend parts shared by desktop and web (M12)
+/triada-desktop/           ← libGDX desktop frontend (display, sound, input, debugger UI)
+/triada-web/               ← libGDX web frontend, published on GitHub Pages (M12)
+/rom/                      ← ROM source in TRIADA assembly (*.tasm), incl. the extension ROM (TRIBASIC)
+/programs/                 ← example programs and games (*.tasm); TRIBASIC examples in programs/basic/
+/tests/basic/              ← TRIBASIC test programs: NAME.bas + NAME.expected (M14)
 ```
 Each module uses the standard Gradle layout: `src/main/java`, `src/test/java`, `src/main/resources`. End-to-end tests (assemble and run whole programs, compare output and screens) live in `triada-cli/src/test/java`.
 
@@ -72,7 +76,7 @@ Each milestone lists **acceptance criteria**. All of them must be true before yo
 ### M0 — Project setup
 - Gradle multi-module project created; `./gradlew build` succeeds, including an (empty) test run.
 - `./gradlew :triada-desktop:run` opens a blank libGDX window titled "TRIADA-85".
-- All `docs/` files created with their initial structure. `PROGRESS.md` lists M0–M11.
+- All `docs/` files created with their initial structure. `PROGRESS.md` lists M0–M11 (Phase 2 later added M12–M15).
 - `README.md` explains what the project is in a few paragraphs, for a non-programmer.
 
 ### M1 — Ternary math (`triada-core`)
@@ -140,9 +144,63 @@ Each game has an integration smoke test (it boots, runs N frames and doesn't fau
 - A final retrospective document: what went well, what was hard, what we'd do differently.
 
 ### Stretch (only after M11)
-- A small high-level language (Pascal- or BASIC-like) compiling to TRIADA assembly.
+- ~~A small high-level language (Pascal- or BASIC-like) compiling to TRIADA assembly.~~ Replaced by TRIBASIC, built into the machine (Phase 2, M13–M15).
 - A cassette-loading effect: screeching audio and stripes across the border while a program loads.
-- A web build using a libGDX web backend (TeaVM-based or GWT). First check which one is current and maintained and whether `triada-core` compiles with it, then write the choice up in `DECISIONS.md` before building.
+- A web build using a libGDX web backend (TeaVM-based or GWT). First check which one is current and maintained and whether `triada-core` compiles with it, then write the choice up in `DECISIONS.md` before building. **Done as M12** (the web version on GitHub Pages).
+
+### Phase 2 — TRIBASIC and the triskette (M13–M15)
+Phase 2 adds **TRIBASIC**, the TRIADA-85's built-in programming language, plus the **triskette storage device** it needs for SAVE/LOAD. The machine is specified in SPEC §2.5, §5.1, §8.5 and §10. (These milestones were numbered M12–M14 in the task file; M12 was already the web version, so they are M13–M15, see DECISIONS.md D-044.)
+
+**Before writing any code:**
+1. TRIADA-85 v1.0 is **released and deployed on GitHub Pages**. Don't break it. Every existing program, game and test must still work at the end of each milestone.
+2. Read the current `docs/SPEC.md`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md` and the ROM source. The released implementation may differ from the original spec (addresses, routine names, I/O usage). **Where they differ, the released behaviour wins**, unless it's a bug. Adapt the numbers to reality and log every adaptation in `DECISIONS.md`.
+3. Look for features that already exist (for example import/export, file loading, paste-typing). **Reuse and extend them; never duplicate them.** List what you found at the top of the M13 doc.
+4. Check for conflicts: I/O registers 23–27 and the address range −59,048 … −20,413 must be free (SPEC §2.5, §5.1). If they aren't, pick free ones and log it.
+5. Write `docs/milestones/M13-…` etc. with a "Plan" section first, as usual.
+
+All rules in this file still apply in full, especially §5 (documentation): every milestone gets its full milestone document and passes the documentation checks.
+
+### M13 — Triskette storage device
+- Implement the device from SPEC §5.1 in `triada-core`, behind a storage interface (`TriskettePort` or similar). It needs an in-memory implementation for tests, and **no file I/O in core**.
+- Backends:
+  - desktop: a `triskettes/` folder (configurable path);
+  - headless CLI: `--disk <dir>`;
+  - **web build: browser storage**, with all access wrapped in try/catch.
+- **Import/export (conditional).** Users must be able to move files between their computer and the triskette, on both desktop and web. **First check whether the released version already has import/export** (for example for `.tri` files).
+  - **If it does:** don't build a second one. Connect the existing feature to the triskette so that imported files appear in `FILES`, and files on the triskette can be exported. Extend it only where it's missing something, for example `.TB` files or a platform it doesn't cover. Record what already existed and what you changed in `DECISIONS.md`.
+  - **If it doesn't:** add "Import file" and "Export file" buttons in the web build. On desktop, the `triskettes/` folder is enough.
+  - Either way, the M13 milestone doc explains how a user gets a program in and out, step by step.
+- Existing `.tri` games become loadable from the triskette.
+- New kernel routines in the ROM jump table (next free entries): `DISKSAVE`, `DISKLOAD`, `DISKDIR`, `DISKDEL`. Document the calling convention.
+- Tests: every command and every error code, plus a host round trip (save from the machine, file appears on the host, load back gives identical words).
+
+### M14 — TRIBASIC I: the interpreter core
+Written **in TRIADA assembly**, in the extension ROM (SPEC §2.5).
+- Line editor: entering, replacing and deleting lines, and direct mode. Commands `LIST`, `RUN`, `NEW`; `CONT` is optional.
+- Numbers, variables, the full expression evaluator with the operator precedence of SPEC §10.2, and **three-valued logic** (SPEC §10.3).
+- `PRINT`, `INPUT`, `ASK`, `LET`, `GOTO`, `GOSUB`/`RETURN`, `FOR`/`TO`/`STEP`/`NEXT`, `IF … THEN … MAYBE … ELSE`, `REM`, `END`, `STOP`.
+- All errors in SPEC §10.7. Pressing Esc stops a running program with `BREAK IN <line>`.
+- **The machine now boots into TRIBASIC** (SPEC §10.8). `MON` enters the old monitor and the monitor's `BASIC` command returns, with the program kept.
+- Test infrastructure, all in Java test code:
+  - a **screen-text reader** that turns the tile map into a string;
+  - a **typing helper** that feeds text into the KEY queue;
+  - a **TRIBASIC test suite**: `tests/basic/NAME.bas` plus `NAME.expected`. The runner types the program, types `RUN`, runs until `READY.` appears again (with a frame limit), and compares the screen text.
+- At least 40 test programs, covering every statement, every operator, every error and the three-valued logic truth tables.
+
+### M15 — TRIBASIC II: strings, arrays, machine access, storage and release
+- String variables and string functions (SPEC §10.4), arrays (SPEC §10.5).
+- Machine statements and functions: graphics, sound, input, `PEEK`/`POKE`/`SYS` (SPEC §10.6).
+- `SAVE`, `LOAD`, `BSAVE`, `BLOAD`, `BRUN`, `FILES`, `ERASE` (SPEC §10.6.4).
+- **Paste-typing:** Ctrl+V in the desktop and web frontends types clipboard text into the KEY queue, as if typed very fast. CLI: `triada run --type file.bas`.
+- Example programs in `programs/basic/`:
+  1. `ORACLE.bas`: a yes/no/unknown fortune teller using `ASK`.
+  2. `GUESS.bas`: guess-the-number where the hints use `<=>`.
+  3. `TERNCLOCK.bas`: a clock drawn in balanced ternary.
+  4. `ZMEYKA.bas`: a small snake game in TRIBASIC.
+  5. `TYPEIN.bas`: a short program presented as a *Trit & Tryte* magazine type-in listing (in the manual).
+  Each one has a smoke test.
+- In-universe manual chapter `docs/manual/tribasic.md`: *"TRIBASIC: Programming with Three Answers"*. It covers every statement with a short example, written as a friendly 1985 manual.
+- **Release v1.1:** update the README (with a TRIBASIC section and screenshots), the changelog and the GitHub Pages deployment. Verify the deployed web build boots into TRIBASIC and can SAVE/LOAD through browser storage.
 
 ---
 
