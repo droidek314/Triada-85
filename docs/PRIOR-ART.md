@@ -69,7 +69,7 @@ Both count in binary, like every computer you own.
 
 **What it is.** A game by Tendershoot (published by No More Robots), set inside an alternate-history 1999 internet that people visit while they sleep. [Wikipedia](https://en.wikipedia.org/wiki/Hypnospace_Outlaw).
 
-**How TRIADA differs (both).** These games inspire the coming **TRIADA-NET**: a fictional network of the TRIADA world. Theirs are closed worlds written for one story. TRIADA's network is meant to be a real server that a working emulated machine dials into, where people can leave things for each other.
+**How TRIADA differs (both).** These games inspired **TRIADA-NET** (v1.2): a fictional network of the TRIADA world. Theirs are closed worlds written for one story. TRIADA's network is a real server that a working emulated machine dials into, where people can leave things for each other.
 
 ## What TRIADA brings that is new
 
@@ -77,4 +77,4 @@ Each piece above existed before. What TRIADA adds is the combination:
 - a ternary **home computer** from an alternate 1985, with a manual, a magazine and games;
 - **TRIBASIC**, a BASIC whose IF has three branches and whose logic has three answers;
 - the whole machine written up as a book, *How to build a computer that never existed*, so anyone can rebuild it;
-- (coming next) a real fictional network for that machine to dial into.
+- TRIADA-NET (v1.2): a real fictional network for that machine to dial into. The emulated TRIADA really calls a server; the boards, the protocol and the server are open, so anyone can run a node or write a client.

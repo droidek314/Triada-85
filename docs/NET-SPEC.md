@@ -154,9 +154,27 @@ The numbers are in `Limits.DEFAULT` and D-067: PBKDF2 with 120,000 rounds, locko
 - **The hidden story:** only an **outline** in `docs/net/STORY.md`, marked **DRAFT, needs the human's approval**. Suggested premise: *"The Fourth State"*, rumours that NPO Triada engineers found a fourth trit value, with clues spread across boards that lead to an unlisted number. The full story content is not written until the human approves the outline.
 - **Downloadable files:** the existing games and TRIBASIC example programs, placed in fitting file areas with in-world descriptions.
 
+### 6.1 Details settled in M19 (D-072, D-073)
+- **The starter boards** are built in (`triada-net-core`, resources `net/boards/`):
+
+  | Number | Board | Lines | Areas |
+  |---|---|---|---|
+  | 0-00-00 | TRIADA-NET INFO (the directory) | any | — |
+  | 1-85-01 | NPO "TRIADA" SUPPORT | 4 | news, questions; programs |
+  | 2-27-81 | TRIT & TRYTE MAGAZINE | 3 | readers' letters, listings; listings on disk |
+  | 3-43-21 | PIONEER PALACE CLUB | 2 | club talk, first steps; games |
+  | 9-13-13 | THE QUIET LINE | 1 | night thoughts |
+
+- **Seeded posts and files** are written into the board files: `POST area date time author`, `SUBJECT …`, the text, a line with `.`; and `FILE area NAME date uploader`, a description, `.`. Dates are in-world (1985); they are stored 41 years later, so they show as written. Each post and file is added to the database once only (the table `seeds`). A fictional author gets an account that no password opens, so nobody can take the handle.
+- **The files' words** are built during the build by `ContentGenerator`, from `triada-net-core/content/files.txt`: a `.tasm` program is assembled, and a `.bas` program is typed into a real TRIBASIC and SAVEd. `TERM.TRI` is not offered: TERM can't receive a file over itself.
+- **The hidden story** is an outline only, waiting for approval: [`docs/net/STORY.md`](net/STORY.md).
+- **A local node:** `LocalNode` runs the starter boards inside the emulator (desktop `--local-node`, command line `triada run --local-node`), with nothing kept after the program ends.
+
 ---
 
 ## 7. Deployment
 **How to deploy:** [`docs/net/DEPLOY.md`](net/DEPLOY.md), with the kit in `deploy/` (M18, D-069).
+
+**The web version's server** is set when it is built (M19, D-074): `-Ptriada.netUrl=wss://…` fills in `TRIADA_NET_URL` in its page. The GitHub Pages workflow passes the repository variable `TRIADA_NET_URL`. Unset, the page has no network: every call ends "TRIADA-NET IS OFFLINE", and nothing else about the page changes.
 
 The project never creates hosting accounts or deploys to a public server by itself. It ships a deployment kit (Docker image, `docker-compose.yml` with a Caddy reverse proxy for TLS and `wss://`, configuration through environment variables, a `/health` endpoint, structured logs) and `docs/net/DEPLOY.md`, so the human can deploy. Local servers for development and tests are fine.

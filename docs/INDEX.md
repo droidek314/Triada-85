@@ -31,12 +31,14 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M16 | [Housekeeping: prior art and machine profiles](milestones/M16-housekeeping.md) | Who came before TRIADA, and the machine's birth certificate: every model-specific number in one record, the machine built from it, and a test with a made-up model proving nothing is still hard-coded. |
 | M17 | [The modem, the wire protocol and TRIMODEM](milestones/M17-modem.md) | Phase 3 begins: a modem that really calls a server, at a 1985 pace; one protocol over TCP, WebSocket or an in-process pipe; three characters per word; an echo server; TRIBASIC's modem words. |
 | M18 | [The TRIADA-NET server](milestones/M18-server.md) | Bulletin boards that never wait: screens driven by keys, logins and passwords done safely, messages, mail, files and the moderation queue, a database with migrations, limits for a public server, the sysop's tools, 50 callers at once, and a kit to deploy it. |
+| M19 | [The terminal, the boards' content, and release 1.2](milestones/M19-terminal-and-release.md) | A terminal program in TRIADA assembly (dial tones, the boards' screens, TRIMODEM both ways), DIAL, four starter boards with their 1985 posts and programs, the network inside the emulator, an end-to-end test from DIAL to BRUN, and release 1.2. |
 
 Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 
 ## Reference documents
 
 - [GLOSSARY.md](GLOSSARY.md): every technical word, explained simply.
+- [net/STORY.md](net/STORY.md): the outline of TRIADA-NET's hidden story, a draft waiting for approval (M19).
 - [net/DEPLOY.md](net/DEPLOY.md): how to put the TRIADA-NET server on the internet, step by step (M18).
 - [PRIOR-ART.md](PRIOR-ART.md): the projects that came before TRIADA or inspired it, and how TRIADA differs (M16).
 - [DECISIONS.md](DECISIONS.md): every design decision, with the alternatives we rejected.

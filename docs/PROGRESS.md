@@ -23,7 +23,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M16 | Housekeeping: prior art, machine profiles | ✅ done | 2026-11-09 |
 | M17 | Modem device, protocol and TRIMODEM (Phase 3: TRIADA-NET) | ✅ done | 2026-11-09 |
 | M18 | The TRIADA-NET server | ✅ done | 2026-11-09 |
-| M19 | Terminal, content and release v1.2 | ⏳ planned | |
+| M19 | Terminal, content and release v1.2 | ✅ done (v1.2) | 2026-11-09 |
 
 Phase 3, **TRIADA-NET**, is numbered M17–M19 (the task file says M16–M18; see DECISIONS.md D-056 and D-060).
 

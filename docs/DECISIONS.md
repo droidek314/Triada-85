@@ -626,3 +626,42 @@ The admin token must be 16+ characters, is compared in constant time, and 5 wron
 **Decision:** `deploy/` holds a two-stage `Dockerfile` (built with the project's Gradle wrapper; the result runs as a plain user, with the database in a `/data` volume), `docker-compose.yml` (the server, plus Caddy publishing 80 and 443 and getting the certificate by itself), a `Caddyfile` passing on only `/net`, `/health` and `/admin`, and `.env.example`. TCP 2385 is published straight from the server; 2386 only through Caddy. `docs/net/DEPLOY.md` explains it for a first-time deployer, plus container hosts and backups.
 **Why:** Docker and Caddy turn "a server with HTTPS" into a few commands on any small VPS, and Caddy renews certificates without anyone remembering to.
 **Consequences:** The image hasn't been built here, because this computer has no Docker. The server itself is tested, and was run from its start script; the kit is untested until someone runs it.
+
+## D-070 — TERM lives at 34,000; files arrive at their own address; DIAL fills a number slot   (Milestone M19, 2026-11-09)
+**Situation:** TERM is a program like any other, but it must not destroy the TRIBASIC program of the person who types `DIAL`. A downloaded `.TRI` file must be saved with its own load address, or `BRUN` would put it in the wrong place, and the triskette's SAVE stores the address the words were saved *from*. And DIAL must tell TERM which number to call.
+**Options:** A: TERM at 243, like the games, receiving into a buffer, plus a new triskette command to save under another address. B: TERM high in the program area, receiving every file straight at its own address, and saving it from there.
+**Decision:** B. TERM is assembled at 34,000 (about 2,700 words, below the tiles at 40,000). A file must lie in 243 … 33,999; it is written there block by block and saved from there, so its load address is right without any new command. Because a transfer overwrites the program area, TERM then leaves through TRIBASIC's warm start (`BASIC_WARM`), which keeps the memory if it is a valid TRIBASIC program (a downloaded `.TB` is) and does NEW otherwise. Without a transfer it returns with `RET`, and the program is untouched. DIAL loads TERM.TRI with LOAD-HOME, copies up to 16 characters of the number to TERM's address + 2 (after its 2-word `JMP`) and calls it as `BRUN` does.
+**Why:** No new device commands, no copying, and the rule "a program below 34,000 survives a call, unless you download something" is easy to explain.
+**Consequences:** Files over 33,756 words can't be received by TERM (the server's limit is 19,683 anyway), and TERM can't receive itself (TERM.TRI is not offered for download).
+
+## D-071 — TERM.TRI is built in like the ROM, and put on the default triskettes   (Milestone M19, 2026-11-09)
+**Situation:** CLAUDE.md asks for TERM.TRI "shipped on the default triskette". The triskettes are a desktop folder, browser storage and a triskette in memory. Several tests and the manual list a fresh machine's empty triskette.
+**Options:** A: every machine's own triskette starts with TERM.TRI. B: TERM is assembled during the build like the ROM (`RomGenerator` writes `TermData`), and each host puts TERM.TRI on the triskette it plugs in, if missing (`Rom.prepareTriskette`).
+**Decision:** B, for the desktop's `triskettes/` folder, the web version's browser storage, and the command line's triskette in memory. A fresh machine's own triskette stays empty, and a folder a user names with `--disk` is left as it is.
+**Why:** The released behaviour of an empty machine (and the tests that rely on it) stays the same, a user's own folder is theirs, and every place a person actually uses gets TERM.
+**Consequences:** A user who deletes TERM.TRI from the desktop folder gets it back at the next start; `DIAL` on a triskette without it says `?FILE NOT FOUND ERROR`.
+
+## D-072 — The boards' content lives in their board files, seeded once   (Milestone M19, 2026-11-09)
+**Situation:** The starter boards need 1985 posts and files from the start, on a server that restarts and in the local node, without duplicating anything and without taking handles away from real callers.
+**Decision:** Board files gain `POST` and `FILE` blocks. `Content.seed` adds each post and file to the store the first time it sees it, and remembers it in a new table, `seeds` (migration V002). Post dates are in-world and stored 41 years later, so they show as written. Fictional authors get accounts that no password opens (`Content.NO_LOGIN` is not a hash). The board loader and the content moved from the server to `triada-net-core`, so the local node can use them.
+**Why:** Content is text that writers can change without code; seeding by key means a restart adds nothing twice, yet a post added to a file later still appears.
+**Consequences:** Editing a seeded post's text in the file doesn't change the copy already in a server's database (its key is its board, area, date and author); a new post does appear.
+
+## D-073 — The boards' programs are built during the build; TRIBASIC ones by typing them in   (Milestone M19, 2026-11-09)
+**Situation:** The file areas offer the existing games (`.tri`) and TRIBASIC examples (`.TB`). A `.TB` file holds TRIBASIC's tokens, which only the ROM's tokenizer (in TRIADA assembly) produces.
+**Options:** A: commit the binary files. B: write a tokenizer in Java. C: generate them during the build: assemble the games, and type each `.bas` into a real TRIBASIC on a headless TRIADA and `SAVE` it.
+**Decision:** C. `ContentGenerator` (a source set of `triada-net-core`, using the assembler and the ROM) reads `content/files.txt` and writes `net/files/NAME` resources.
+**Why:** Nothing binary in the repository, nothing duplicated, and a `.TB` file is exactly what a user's own SAVE makes, because it *is* one.
+**Consequences:** The build of `triada-net-core` runs a TRIADA for a moment. A change to a program or to TRIBASIC is picked up automatically.
+
+## D-074 — The web version's server is a build setting; offline is the default   (Milestone M19, 2026-11-09)
+**Situation:** The deployed web version must dial a server once one exists, and must never break while none does.
+**Decision:** `-Ptriada.netUrl=wss://…` fills in `TRIADA_NET_URL` in `index.html` when the web version is built; the build refuses anything but `wss://` (or `ws://localhost` for testing). The GitHub Pages workflow passes the repository variable `TRIADA_NET_URL`, unset for now. With no address, the modem has no line: every call ends −4, and TERM prints `NO CARRIER` and `TRIADA-NET IS OFFLINE`. With an unreachable address, the WebSocket fails and the same happens.
+**Why:** Deploying a server and pointing the site at it is the human's step (CLAUDE.md), done by setting one variable, with no code change.
+**Consequences:** `?net=` in the page address still overrides the setting, for testing.
+
+## D-075 — A local node for trying TRIADA-NET offline; no in-browser node yet   (Milestone M19, 2026-11-09)
+**Situation:** CLAUDE.md asks for a "Start local node" option on the desktop, and an in-browser offline node only if it is cheap (spike first).
+**Decision:** `LocalNode` runs the built-in boards with their content in memory, connected through the in-process `LoopbackNetwork`: `--local-node` for the desktop and for `triada run`. The in-browser node was not built. Looking at what `triada-net-core` uses showed it isn't cheap: `javax.crypto` for PBKDF2, `java.nio.file` in the board loader, class-path resources for boards and files, and `java.time`. Each would need a replacement or a check under TeaVM before a spike could even compile, so no spike was run.
+**Why:** The desktop and the command line give everyone an offline TRIADA-NET at almost no cost. The web version can reach a real server instead, once one is deployed.
+**Consequences:** On the web, TRIADA-NET needs a deployed server. An in-browser node remains a possible later project.

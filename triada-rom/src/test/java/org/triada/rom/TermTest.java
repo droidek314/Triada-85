@@ -199,6 +199,22 @@ class TermTest {
         assertArrayEquals(t.m.triskette().port().read("MINE.TB").words(), q.get(0).file().words());
     }
 
+    /** The example program of the manual's chapter 9 runs as printed. */
+    @Test
+    void theManualsExample() {
+        Network net = LocalNode.network();
+        Triada t = machine(net);
+        t.typeOnly("10 MDIAL \"0-00-00\"\n20 WAIT 1: IF MSTATUS = 1 THEN GOTO 20\n"
+                + "30 IF MSTATUS <> 2 THEN PRINT \"NO LINE\": END\n40 WAIT 120\n50 PRINT MRECV$\n60 MHANGUP\n");
+        t.frames(5);
+        t.clearScreen();
+        t.typeOnly("RUN\n");
+        t.waitForPrompt(1_000);
+        String s = String.join("\n", t.screen());
+        assertTrue(s.contains("TRIADA-NET INFO"), s);
+        assertTrue(!s.contains("ERROR") && !s.contains("NO LINE"), s);
+    }
+
     @Test
     void theBoardsColourIsKeptOnlyWhileOnline() {
         Network net = LocalNode.network();

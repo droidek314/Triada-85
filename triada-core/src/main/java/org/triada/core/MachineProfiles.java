@@ -15,7 +15,7 @@ public final class MachineProfiles {
      * (§2.2, §2.3, §2.5, §4, §5, §6, §7), and {@code MachineProfilesTest} checks it.
      */
     public static final MachineProfile TRIADA_85 = new MachineProfile(
-            "triada-85", "TRIADA-85", "1.1",
+            "triada-85", "TRIADA-85", "1.2",
             0, 59_049,                      // RAM: 0 ... 59,048 (3^10 words)
             -19_683, 19_683,                // main ROM: -19,683 ... -1 (3^9)
             -59_048, 38_636,                // extension ROM: -59,048 ... -20,413 (TRIBASIC)

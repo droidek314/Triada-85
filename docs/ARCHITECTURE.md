@@ -43,7 +43,9 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-net-core` | TRIADA-NET without network code (M17, M18): TRIMODEM, the server side of the wire protocol, the boards and their sessions, the store interface, passwords and limits, moderation. Test fixtures shared with the server. | core |
 | `triada-net-server` | The TRIADA-NET server (M17, M18): TCP and WebSocket (Javalin), SQLite storage with migrations, configuration from the environment, per-address limits, the admin page and command line. Deployment kit in `deploy/`. The emulator never depends on it; the CLI's tests do. | net-core, Javalin, sqlite-jdbc |
 
-## Current state (after M18)
+## Current state (after M19, release v1.2)
+
+- **The terminal and the content (M19):** `programs/term.tasm` (TERM) is assembled by `RomGenerator` into `TermData`; `Rom.term` and `Rom.prepareTriskette` put TERM.TRI on the hosts' default triskettes. TRIBASIC's `DIAL` loads and calls it. The starter boards and their posts and files are board files in `triada-net-core` (`Boards`, `BoardDef`, `Content`); their programs are built during the build by `ContentGenerator`. `LocalNode` runs the network in process (`--local-node`).
 
 - **The TRIADA-NET server (M18):** `Network` (an `Exchange`) holds the boards (`BoardDef`, read from `.board` files) and answers with a `BoardSession` or the 0-00-00 `InfoCall`; both are `TextCall`s, event-driven screens. They keep their data in a `NetStore` (`MemoryNetStore`, `SqliteNetStore`), hash passwords with `Passwords`, and obey `Limits` and `RateLimiter`. `NetServer` adds per-address limits, ticks and the admin API (`AdminApi`, `Moderation`); `AdminCommand` is the sysop's command line. See [The TRIADA-NET server](#the-triada-net-server).
 
@@ -81,7 +83,7 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 Since M17 the machine has a modem, and there is a server for it to call (D-061, D-062). The parts, from the program in the machine to the board on the server:
 
 ```
-  TRIBASIC: MDIAL, MSEND, MRECV$     (or any program writing registers 28-35)
+  TERM.TRI (DIAL "number", M19)  or  TRIBASIC: MDIAL, MSEND, MRECV$  (or any program writing registers 28-35)
         |
   ModemDevice  (triada-core)   buffers of 729, 2 characters per frame each way,
         |                      the dialing pause; moved in Machine.finishFrame
@@ -89,7 +91,7 @@ Since M17 the machine has a modem, and there is a server for it to call (D-061, 
         |
   WireModemPort  HELLO / WELCOME / DIAL / CONNECT, then raw bytes
         |
-  ModemLink ---- TcpModemLink (CLI, desktop) | WebModemLink (web) | LoopbackLink (tests)
+  ModemLink ---- TcpModemLink (CLI, desktop) | WebModemLink (web) | LoopbackLink (tests, --local-node)
         |                  ~~~ TCP 2385 ~~~      ~~~ WebSocket 2386 /net ~~~    (in process)
   NetServer  (triada-net-server)  one virtual thread per TCP caller; Javalin for WebSocket
         |

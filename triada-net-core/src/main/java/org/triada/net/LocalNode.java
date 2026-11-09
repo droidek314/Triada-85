@@ -18,10 +18,15 @@ public final class LocalNode {
 
     /** A fresh network: the built-in boards, seeded, in a store in memory. */
     public static Network network() {
+        return network(Clock.systemUTC());
+    }
+
+    /** The same, on {@code clock} (pictures and tests fix the date). */
+    public static Network network(Clock clock) {
         MemoryNetStore store = new MemoryNetStore();
         var boards = Boards.builtIn();
         Content.seed(store, boards, Boards::file);
-        return new Network(boards, store, Limits.DEFAULT, Clock.systemUTC(), NetLog.NONE);
+        return new Network(boards, store, Limits.DEFAULT, clock, NetLog.NONE);
     }
 
     /** A line opener for a machine's modem: {@code new WireModemPort(LocalNode.line(), profile)}. */

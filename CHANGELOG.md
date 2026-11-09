@@ -2,7 +2,17 @@
 
 What changed in each released version of the TRIADA-85. The milestone documents in [`docs/milestones/`](docs/milestones/) tell the whole story.
 
-## Unreleased
+## v1.2 — TRIADA-NET (2026-11-09)
+
+The TRIADA-85 calls the world: a modem, a network of bulletin boards to dial, and a terminal program to use them.
+
+TRIADA-NET, part 3 (M19):
+- **TERM**, the terminal program, written in TRIADA assembly and on every triskette as `TERM.TRI`: a phonebook (`PHONE.DAT`), dial tones, the boards' screens and colours, TRIMODEM downloads and uploads (Esc U), and Esc H to hang up.
+- **`DIAL "number"`** in TRIBASIC starts TERM and calls.
+- **The starter boards:** NPO "TRIADA" Support (1-85-01), Trit & Tryte Magazine (2-27-81), Pioneer Palace Club (3-43-21) and The Quiet Line (9-13-13), with posts from 1985 and the games and TRIBASIC examples to download.
+- **`--local-node`** for the desktop and `triada run`: TRIADA-NET inside the emulator, offline.
+- The web version dials the server set when it is built; none is set yet, so it says "TRIADA-NET IS OFFLINE".
+- The manual's chapter 9, *Calling the World: Your TRIADA-85 Modem*. The hidden story is an outline, waiting for approval.
 
 Housekeeping (M16). The machine behaves exactly as in v1.1.
 

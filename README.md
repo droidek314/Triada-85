@@ -34,7 +34,8 @@ This project builds that whole machine as a program you can run on a normal PC o
 - **An optional CRT look** (F2): curved glass, scanlines, phosphor stripes.
 - **[A web version](https://droidek314.github.io/Triada-85/)**: the same machine in a browser, with everything except the debugger, published by GitHub after every change that passes the tests.
 - **A triskette drive** (M13): programs can save, load, list and delete files. On the desktop the triskette is the folder `triskettes/`; on the web page it lives in your browser, with import and export.
-- **691 automatic tests**, from single trits to tests that play the games, type in the manual's listings and run 93 TRIBASIC programs.
+- **TRIADA-NET** (M17–M19): a modem that really dials, a real server with bulletin boards, and TERM, a terminal program in TRIADA assembly. See [below](#triada-net).
+- **843 automatic tests**, from single trits to tests that play the games, type in the manual's listings, run 96 TRIBASIC programs, and call TRIADA-NET to download a game and play it.
 
 ## TRIBASIC
 
@@ -54,6 +55,36 @@ JUST IN CASE
 - **Paste a listing** with Ctrl+V (desktop and web), or let the command line type it: `triada run --type program.bas`.
 - **Examples** in [`programs/basic/`](programs/basic/): ORACLE (a fortune teller with three answers), GUESS (the hints come from `<=>`), TERNCLOCK (the time in trits), ZMEYKA (a snake) and TYPEIN, the *Trit & Tryte* type-in listing.
 - **The manual chapter** [*TRIBASIC: Programming with Three Answers*](docs/manual/tribasic.md) shows every statement. Its examples are typed in and checked by a test.
+
+## TRIADA-NET
+
+The TRIADA-85 has a modem, and there is a network to call: **TRIADA-NET**, a fictional 1985 network of bulletin boards that the emulated machine really dials into.
+
+| **Calling *Trit & Tryte*** | **Reading a message** |
+|---|---|
+| ![The Trit & Tryte board's welcome screen](docs/images/triada-net-welcome.png) | ![A message on the Pioneer Palace board](docs/images/triada-net-message.png) |
+
+```
+DIAL "3-43-21"
+```
+
+TERM, the terminal program on every triskette, plays the dial tones and connects at a 1985 pace: two characters a frame.
+- **Log in** as GUEST, or as NEW with a handle and password.
+- **Use the boards:** read and write messages, send private mail, leave a line on the one-liner wall.
+- **Take programs home** with TRIMODEM: every word travels as three characters, because 3¹² = 81³. Then hang up (Esc, H) and `BRUN` them.
+
+The numbers:
+- `0-00-00` is the directory;
+- `1-85-01` is NPO "TRIADA" Support;
+- `2-27-81` is *Trit & Tryte* magazine;
+- `3-43-21` is the Pioneer Palace computer club;
+- `9-13-13` is The Quiet Line, a strange late-night board with a single line.
+
+- **Try it offline:** `./gradlew :triada-desktop:run --args="--local-node"` runs the boards inside the emulator.
+- **Run a real server:** `./gradlew :triada-net-server:run`, and dial it with `--modem localhost:2385`. To put one on the internet, see [docs/net/DEPLOY.md](docs/net/DEPLOY.md) (Docker and Caddy, step by step).
+- **The web version** dials the server set when it is built. None is deployed yet, so on the web page every call ends "TRIADA-NET IS OFFLINE".
+- **Write your own client or board:** the protocol is in [docs/NET-SPEC.md](docs/NET-SPEC.md). In TRIBASIC, `MDIAL`, `MSEND`, `MRECV$`, `MSTATUS` and `MHANGUP` are enough for a bot.
+- **The manual chapter** [*Calling the World: Your TRIADA-85 Modem*](docs/manual/triada-net.md).
 
 ## How to run
 
@@ -170,6 +201,6 @@ TRIADA stands on other people's work. The full list, with sources, is in [docs/P
 | **Digital: A Love Story** (Christine Love, 2010) | A story game played on a fictional late-1980s computer, through fictional BBSes. | An inspiration for the coming TRIADA-NET, which will be a real server that a working emulated machine dials into. |
 | **Hypnospace Outlaw** (Tendershoot, 2019) | A game set inside an alternate-history 1999 internet. | The same: TRIADA's network is meant to be open and real, not a closed game. |
 
-None of these pieces is new on its own. What TRIADA brings is the whole: a ternary home computer from an alternate 1985, a BASIC built on three-valued logic, the machine written up as a book (*How to build a computer that never existed*), and, coming next, a real fictional network for it to dial into.
+None of these pieces is new on its own. What TRIADA brings is the whole: a ternary home computer from an alternate 1985, a BASIC built on three-valued logic, the machine written up as a book (*How to build a computer that never existed*), and a real fictional network, TRIADA-NET, that the emulated machine dials into and that anyone can run.
 
-Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2, the triskette drive and TRIBASIC (**M13 to M15**), is done too: this is release **v1.1**. **M16** tidied up: the prior art above, and every machine number gathered into one machine profile. **TRIADA-NET** has begun: since M17 the machine has a modem that really dials a server (`MDIAL` in TRIBASIC), and since M18 there is a server with real bulletin boards to call (`./gradlew :triada-net-server:run`; to put it online, see [docs/net/DEPLOY.md](docs/net/DEPLOY.md)). The terminal program and the boards' content come in M19. See [docs/PROGRESS.md](docs/PROGRESS.md).
+Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2, the triskette drive and TRIBASIC (**M13 to M15**), is done too: this is release **v1.1**. **M16** tidied up: the prior art above, and every machine number gathered into one machine profile. Phase 3, **TRIADA-NET** (**M17 to M19**), is done: the modem, the server and its boards, and the terminal. This is release **v1.2**. See [docs/PROGRESS.md](docs/PROGRESS.md).

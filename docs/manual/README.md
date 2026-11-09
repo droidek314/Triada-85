@@ -41,6 +41,7 @@ We wish you many happy hours.
 | [6. The Games triskette](06-games-triskette.md) | TRIZMEYKA, TROIKA and OBLAKA. |
 | [7. From the magazine: a type-in listing](07-type-in-listing.md) | "Triangle of Threes", from *Trit & Tryte* No. 3/1985. |
 | [8. TRIBASIC: Programming with Three Answers](tribasic.md) | The built-in language: IF … THEN … MAYBE … ELSE, strings, arrays, pictures, sound and the triskette. With "Trit Tapestry" to type in. |
+| [9. Calling the World: Your TRIADA-85 Modem](triada-net.md) | DIAL, the terminal program TERM, TRIADA-NET's boards, taking programs home with TRIMODEM. |
 | [Appendix: Quick reference](appendix-reference.md) | Instructions, memory map, I/O registers, colours, ROM routines. |
 
 ---
@@ -59,5 +60,6 @@ Where the manual speaks of hardware, the emulator stands in for it:
 | Inserting a triskette | `--load file.tasm`, or dropping the file on the window |
 | The Developer triskette with TASM | The `triada tasm` command (see the [project README](../../README.md)) |
 | The service panel (Chapter 4) | The debugger, F1 |
+| The modem and the telephone line (Chapter 9) | `--modem HOST:PORT` (a TRIADA-NET server), or `--local-node` (the boards inside the emulator) |
 
 For how the machine was built, read the project documentation, starting at [docs/INDEX.md](../INDEX.md). The exact technical rules are in [docs/SPEC.md](../SPEC.md).

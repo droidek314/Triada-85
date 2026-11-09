@@ -19,7 +19,7 @@ class MachineProfilesTest {
     void nameAndVersion() {
         assertEquals("triada-85", P.id());
         assertEquals("TRIADA-85", P.name());
-        assertEquals("1.1", P.specVersion());
+        assertEquals("1.2", P.specVersion());
     }
 
     @Test

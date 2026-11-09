@@ -61,7 +61,7 @@ class WireModemPortTest {
         assertEquals(ModemDevice.IDLE, p.status());
         p.dial("1-11-11");
         assertEquals(ModemDevice.CONNECTED, p.status());
-        assertEquals(List.of("HELLO TRIADA-NET/1 model=TRIADA-85 cols=27 rows=18 client=1.1", "DIAL 1-11-11"),
+        assertEquals(List.of("HELLO TRIADA-NET/1 model=TRIADA-85 cols=27 rows=18 client=1.2", "DIAL 1-11-11"),
                 heard);
         assertEquals("1985-11-09", p.welcomeDate());
         serverEnd.send("HI\n".getBytes(StandardCharsets.UTF_8));

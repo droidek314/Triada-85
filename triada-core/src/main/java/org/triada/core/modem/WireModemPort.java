@@ -10,7 +10,7 @@ import org.triada.core.MachineProfile;
  * {@link ModemPort}. Every call opens a fresh {@link ModemLink}, then:
  *
  * <pre>
- *   we send   HELLO TRIADA-NET/1 model=TRIADA-85 cols=27 rows=18 client=1.1
+ *   we send   HELLO TRIADA-NET/1 model=TRIADA-85 cols=27 rows=18 client=1.2
  *   server    WELCOME TRIADA-NET/1 1985-11-09        (or ERROR reason: offline)
  *   we send   DIAL 1-11-11
  *   server    CONNECT 1200 | BUSY | NO NUMBER | NO CARRIER

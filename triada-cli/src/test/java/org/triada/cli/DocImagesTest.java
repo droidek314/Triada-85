@@ -69,6 +69,72 @@ class DocImagesTest {
         check("ternclock.png", ScreenDump.toImage(m.video().frame()));
     }
 
+    /** M19: a call to the Trit &amp; Tryte board: its welcome screen, in the board's colours. */
+    @Test
+    void aCallToTritAndTryte() throws IOException {
+        Machine m = calling("2-27-81");
+        until(m, "HANDLE (GUEST, NEW):");
+        check("triada-net-welcome.png", ScreenDump.toImage(m.video().frame()));
+    }
+
+    /** M19: reading a message on the Pioneer Palace board. */
+    @Test
+    void readingAMessage() throws IOException {
+        Machine m = calling("3-43-21");
+        until(m, "HANDLE (GUEST, NEW):");
+        type(m, "GUEST\n");
+        until(m, "MIN LEFT. COMMAND?");
+        type(m, "M2R");
+        until(m, "MESSAGE NUMBER:");
+        long id = net.store().messages("3-43-21", "FIRST", 0, 10).get(0).id();   // the newest: the leader's answer
+        type(m, id + "\n");
+        until(m, "N NEXT A ANSWER R REPORT Q");
+        check("triada-net-message.png", ScreenDump.toImage(m.video().frame()));
+    }
+
+    private org.triada.net.Network net;
+
+    /** A TRIADA with TERM.TRI, connected to TRIADA-NET in process on a fixed date, that has typed DIAL. */
+    private Machine calling(String number) {
+        net = org.triada.net.LocalNode.network(java.time.Clock.fixed(java.time.Instant.parse("2026-11-09T20:15:00Z"),
+                java.time.ZoneOffset.UTC));
+        Machine m = Rom.newMachine();
+        Rom.prepareTriskette(m.triskette().port());
+        m.modem().setPort(new org.triada.core.modem.WireModemPort(new org.triada.net.LoopbackNetwork(net),
+                m.profile()));
+        for (int i = 0; i < 60; i++) {
+            m.runFrame();
+        }
+        type(m, "DIAL \"" + number + "\"\n");
+        return m;
+    }
+
+    private static void type(Machine m, String text) {
+        org.triada.core.io.KeyFeeder keys = new org.triada.core.io.KeyFeeder(text);
+        while (keys.feed(m.input())) {
+            m.runFrame();
+        }
+    }
+
+    /** Runs frames until {@code text} is on the screen (read from the tile map). */
+    private static void until(Machine m, String text) {
+        for (int f = 0; f < 6_000; f++) {
+            StringBuilder screen = new StringBuilder();
+            for (int i = 0; i < 27 * 18; i++) {
+                int c = m.bus().peek(org.triada.core.memory.MemoryMap.MAP + i);
+                screen.append(c >= 32 && c <= 126 ? (char) c : ' ');
+            }
+            if (screen.toString().contains(text)) {
+                for (int i = 0; i < 4; i++) {
+                    m.runFrame();                       // the rest of the line arrives
+                }
+                return;
+            }
+            m.runFrame();
+        }
+        fail("no '" + text + "' on the screen");
+    }
+
     /** Boots TRIBASIC and types {@code text} in (paste-typing, M15), then runs {@code frames} frames more. */
     private static Machine typedIn(String text, int frames) {
         Machine m = Rom.newMachine();

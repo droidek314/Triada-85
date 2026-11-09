@@ -52,6 +52,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Build**: Turning source code into something that runs, usually running the tests on the way. *In TRIADA:* `./gradlew build` builds and tests everything. First seen: M0.
 
+**Build setting**: A value given when a program is built, not written in its code. *In TRIADA:* the web version's TRIADA-NET address, `-Ptriada.netUrl=wss://…` (M19).
+
 **Build tool**: A program that knows how to build a project: what to compile, in which order, and which libraries to download. *In TRIADA:* Gradle. First seen: M0.
 
 **Bulletin board system (BBS)**: A computer that people called with a modem in the 1980s to read and leave messages, send private mail and download programs. *In TRIADA:* the boards of TRIADA-NET (Phase 3).
@@ -143,6 +145,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Domain name**: A readable name for a computer on the internet, such as `net.example.org`. An *A record* at the domain's DNS provider points the name to the computer's address. *In TRIADA:* needed to deploy TRIADA-NET (`docs/net/DEPLOY.md`, M18).
 
 **Drag and drop**: Moving a file onto a window with the mouse to open it there. *In TRIADA:* "inserting a triskette" (D-032). First seen: M9.
+
+**Dual-tone dialling**: Telephone digits sent as pairs of tones, one low and one high, played together: digit 5 is 770 Hz and 1336 Hz. *In TRIADA:* TERM plays them while the modem dials (M19).
 
 **Edge-triggered input**: Reacting when a button *becomes* pressed, instead of for as long as it is held. *In TRIADA:* the games compare a button with its value in the previous frame. First seen: M10.
 
@@ -304,6 +308,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Load address**: The address where a program image is placed in memory. *In TRIADA:* usually 243. First seen: M4.
 
+**Local node**: TRIADA-NET running inside the emulator itself, with no network: `--local-node` (M19).
+
 **Local storage**: A small store of text that a browser keeps for each website, even after the page is closed. *In TRIADA:* the web version's triskette (`WebTriskette`). First seen: M13.
 
 **Lockout**: Refusing logins for a while after too many wrong passwords, so nobody can try thousands of guesses. *In TRIADA:* 5 wrong passwords lock an account for 15 minutes (M18).
@@ -388,6 +394,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Phase**: Where in its repeating pattern a wave currently is. *In TRIADA:* an exact integer 0 … 44,099 per voice. First seen: M7.
 
+**Phonebook**: TERM's list of numbers to dial, kept on the triskette as `PHONE.DAT` (M19).
+
 **Phosphor**: The material on a CRT's glass that glows red, green or blue when the electron beam hits it. First seen: M11.
 
 **Pixel**: One dot of a picture. *In TRIADA:* a 3-trit value from −13 to 13; four pixels fit in one word. First seen: M6.
@@ -460,6 +468,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Seed**: The starting value of a pseudo-random number generator. The same seed always gives the same sequence. First seen: M3.
 
+**Seeding**: Putting a system's starting content into its database, once. *In TRIADA:* the starter boards' 1985 posts and programs (`Content.seed`, M19).
+
 **Shader**: A small program that runs on the graphics card, for example once for every pixel. *In TRIADA:* the CRT look (`CrtEffect`). First seen: M11.
 
 **Shift (SHT)**: Slide all digits left (multiply by the base) or right (drop the last digits). *In TRIADA:* a right shift rounds to the nearest number. First seen: M1.
@@ -515,6 +525,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **TCP**: The basic way programs talk over the internet: a reliable two-way stream of bytes between two computers. *In TRIADA:* the desktop and the command line reach a TRIADA-NET server over TCP (M17).
 
 **TeaVM**: A tool that translates Java bytecode into JavaScript (or WebAssembly). The libGDX community web backend gdx-teavm is built on it. First seen: M6.
+
+**Terminal (program)**: A program that shows what another computer sends and sends what you type; the clever work happens on the other computer. *In TRIADA:* TERM.TRI, written in TRIADA assembly (M19).
 
 **Ternary**: Counting with three digits. *Balanced* ternary uses −1, 0 and +1 (written `-`, `0`, `+`). *In TRIADA:* everything. First seen: M0.
 
