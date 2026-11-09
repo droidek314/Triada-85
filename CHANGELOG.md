@@ -2,6 +2,10 @@
 
 What changed in each released version of the TRIADA-85. The milestone documents in [`docs/milestones/`](docs/milestones/) tell the whole story.
 
+## Unreleased
+
+- **The Fourth State**, TRIADA-NET's hidden story: a trail of clues across the four starter boards, a "stability correction" to download, and an unlisted board at the end. No spoilers here; `docs/net/STORY.md` has them.
+
 ## v1.2 — TRIADA-NET (2026-11-09)
 
 The TRIADA-85 calls the world: a modem, a network of bulletin boards to dial, and a terminal program to use them.

@@ -199,6 +199,41 @@ class TermTest {
         assertArrayEquals(t.m.triskette().port().read("MINE.TB").words(), q.get(0).file().words());
     }
 
+    /**
+     * The hidden story's trail can be followed on the machine alone (docs/net/STORY.md):
+     * download the correction, run it, turn its checksum into a number, dial the unlisted board.
+     */
+    @Test
+    void theFourthStateCanBeFound() {
+        Network net = LocalNode.network();
+        assertTrue(net.directory().stream().noneMatch(b -> b.number().equals("4-04-04")), "unlisted");
+        Triada t = machine(net);
+        t.typeOnly("DIAL \"1-85-01\"\n");
+        waitFor(t, "HANDLE (GUEST, NEW):", 3_000);
+        t.typeOnly("GUEST\n");
+        waitFor(t, "MIN LEFT. COMMAND?", 2_000);
+        t.typeOnly("F");
+        waitFor(t, "U UPLOAD    Q BACK", 3_000);
+        t.typeOnly("DPATCH85.TRI\n");
+        waitFor(t, "SAVED PATCH85.TRI", 10_000);
+        t.typeOnly("\u001bH");
+        t.waitForPrompt(600);
+
+        t.clearScreen();
+        t.typeOnly("BRUN \"PATCH85\"\n");
+        waitFor(t, "CHECKSUM 0T+-00+++-++0", 600);
+        t.waitForPrompt(600);
+        t.clearScreen();
+        t.typeOnly("PRINT 0T+-00+++-++0\n");                 // a sum is sometimes a number you can call
+        waitFor(t, "40404", 300);
+        t.waitForPrompt(600);
+
+        t.clearScreen();
+        t.typeOnly("DIAL \"4-04-04\"\n");
+        waitFor(t, "YOU FOUND THE FOURTH DOOR.", 3_000);
+        waitFor(t, "THE BENCH\nSYSOP: BENCH 4", 600);
+    }
+
     /** The example program of the manual's chapter 9 runs as printed. */
     @Test
     void theManualsExample() {

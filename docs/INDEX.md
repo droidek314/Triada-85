@@ -38,7 +38,7 @@ Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, 
 ## Reference documents
 
 - [GLOSSARY.md](GLOSSARY.md): every technical word, explained simply.
-- [net/STORY.md](net/STORY.md): the outline of TRIADA-NET's hidden story, a draft waiting for approval (M19).
+- [net/STORY.md](net/STORY.md): TRIADA-NET's hidden story, The Fourth State (spoilers!).
 - [net/DEPLOY.md](net/DEPLOY.md): how to put the TRIADA-NET server on the internet, step by step (M18).
 - [PRIOR-ART.md](PRIOR-ART.md): the projects that came before TRIADA or inspired it, and how TRIADA differs (M16).
 - [DECISIONS.md](DECISIONS.md): every design decision, with the alternatives we rejected.

@@ -3,3 +3,4 @@ npo-support.board
 trit-and-tryte.board
 pioneer-palace.board
 quiet-line.board
+the-bench.board

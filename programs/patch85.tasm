@@ -1,0 +1,18 @@
+; ============================================================================
+;  PATCH85 -- "stability correction for early machines" (M19 content)
+;
+;  Offered on the NPO "TRIADA" Support board. It changes nothing: it prints a
+;  notice and a checksum, and goes back to TRIBASIC. The checksum is step 2 of
+;  the hidden story, The Fourth State (docs/net/STORY.md): 0T+-00+++-++0 is
+;  40404, the unlisted number 4-04-04.
+;
+;  Run it:   BRUN "PATCH85"   (after downloading it from 1-85-01)
+; ============================================================================
+
+        .org 243
+
+patch:  LDI R0, notice
+        JSR PRINT
+        RET
+
+notice: .str "STABILITY CORRECTION\nFOR EARLY TRIADA-85\nMACHINES (BENCH 4).\n\nCHECKING ... DONE.\nCHECKSUM 0T+-00+++-++0\nNO ACTION IS NEEDED.\n"

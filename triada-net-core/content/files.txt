@@ -3,6 +3,7 @@
 # name on the boards   source, from the project folder
 HELLO.TRI      programs/hello.tasm
 COLORS.TRI     programs/colors.tasm
+PATCH85.TRI    programs/patch85.tasm
 TRIANGLE.TRI   programs/triangle.tasm
 TRIZMEYK.TRI   programs/trizmeyka.tasm
 TROIKA.TRI     programs/troika.tasm

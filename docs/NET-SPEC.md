@@ -151,7 +151,7 @@ The numbers are in `Limits.DEFAULT` and D-067: PBKDF2 with 120,000 rounds, locko
 
   Names and personas may be refined, keeping the 1985 Eastern-Bloc-inspired, fictional, non-political tone.
 - **Seeded fictional posts** on each board, dated in 1985. Fictional callers are part of the world. Real callers' posts appear alongside them.
-- **The hidden story:** only an **outline** in `docs/net/STORY.md`, marked **DRAFT, needs the human's approval**. Suggested premise: *"The Fourth State"*, rumours that NPO Triada engineers found a fourth trit value, with clues spread across boards that lead to an unlisted number. The full story content is not written until the human approves the outline.
+- **The hidden story:** first only an **outline** in `docs/net/STORY.md`, for the human's approval. Premise: *"The Fourth State"*, rumours that NPO Triada engineers found a fourth trit value, with clues spread across boards that lead to an unlisted number. (Approved and written after M19, see §6.1.)
 - **Downloadable files:** the existing games and TRIBASIC example programs, placed in fitting file areas with in-world descriptions.
 
 ### 6.1 Details settled in M19 (D-072, D-073)
@@ -164,10 +164,11 @@ The numbers are in `Limits.DEFAULT` and D-067: PBKDF2 with 120,000 rounds, locko
   | 2-27-81 | TRIT & TRYTE MAGAZINE | 3 | readers' letters, listings; listings on disk |
   | 3-43-21 | PIONEER PALACE CLUB | 2 | club talk, first steps; games |
   | 9-13-13 | THE QUIET LINE | 1 | night thoughts |
+  | 4-04-04 | THE BENCH (unlisted: the end of the hidden story) | 2 | test bench log |
 
 - **Seeded posts and files** are written into the board files: `POST area date time author`, `SUBJECT …`, the text, a line with `.`; and `FILE area NAME date uploader`, a description, `.`. Dates are in-world (1985); they are stored 41 years later, so they show as written. Each post and file is added to the database once only (the table `seeds`). A fictional author gets an account that no password opens, so nobody can take the handle.
 - **The files' words** are built during the build by `ContentGenerator`, from `triada-net-core/content/files.txt`: a `.tasm` program is assembled, and a `.bas` program is typed into a real TRIBASIC and SAVEd. `TERM.TRI` is not offered: TERM can't receive a file over itself.
-- **The hidden story** is an outline only, waiting for approval: [`docs/net/STORY.md`](net/STORY.md).
+- **The hidden story**, *The Fourth State*, is written into the boards (approved on 2026-11-09; complete from the start, no single answer): [`docs/net/STORY.md`](net/STORY.md), with spoilers.
 - **A local node:** `LocalNode` runs the starter boards inside the emulator (desktop `--local-node`, command line `triada run --local-node`), with nothing kept after the program ends.
 
 ---

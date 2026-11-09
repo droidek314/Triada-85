@@ -1,40 +1,40 @@
-# The Fourth State — story outline
+# The Fourth State — the hidden story of TRIADA-NET
 
-> **DRAFT — needs the human's approval.** This is only an outline. None of the story's content (the clues, the hidden board, its posts) has been written into TRIADA-NET, and none will be until the outline is approved or changed. The starter boards carry mood only. (NET-SPEC §6, CLAUDE.md M19.)
+> **Spoilers.** This page gives away the whole trail. If you want to find it yourself, stop here and start dialling.
+
+The outline was approved by the human on 2026-11-09, with two choices: **the trail is complete from the start** (no posts appear later), and **there is no definite answer**. The number of the hidden board was left to us: **4-04-04**, "the fourth". The story is now written into the starter boards (D-076).
 
 ## The premise
 
-Everyone in the TRIADA world knows that a trit has three states: −1, 0 and +1. Late in 1985, rumours start on TRIADA-NET that engineers at NPO "Triada" found a **fourth state**: a value that a trit takes for a moment while it switches, which the test benches kept recording and the engineers kept being told to ignore.
+Everyone in the TRIADA world knows that a trit has three states: −1, 0 and +1. In autumn 1985 a few callers notice something that shouldn't exist: a **fourth state**, a value a trit takes for a moment while it switches, seen between 0 and +. Engineers at NPO "Triada" recorded it on their test bench and were told to ignore it.
 
-The story is a quiet mystery for curious callers. It never claims the fourth state is real. It lets the players decide what they found.
+The story never says whether the fourth state is real. It lets the players decide what they found.
 
 ## Tone
 
 - Fictional, non-political, gentle. No villains and no secret police: the obstacles are bureaucracy, rounding errors and people who don't want to look foolish.
-- 1985 Eastern-Bloc-inspired atmosphere, in the same voice as the starter boards: factory notices, magazine letters, students, and night owls.
-- The puzzle is solved with the machine itself: TRIBASIC, the monitor, ternary arithmetic. Nothing needs knowledge from outside the TRIADA world.
+- The same voice as the starter boards: factory notices, magazine letters, students, night owls.
+- Solved with the machine itself: a download, `BRUN`, and one line of TRIBASIC. A recurring time, **23:13**, ties the sightings together.
 
-## The trail (five steps)
+## The trail
 
-1. **A letter that doesn't add up** (*Trit & Tryte*, LETTERS). A reader asks why her copy of the TERNCLOCK listing sometimes shows a digit the font doesn't have. The editors answer that it must be a typing error. A second reader says they saw it too.
-2. **A patch notice** (NPO "Triada" Support, NEWS). An official notice about a "stability correction" for early machines. The patch, a downloadable `.TRI`, contains in its data a short table of numbers that is a phone number written in balanced ternary.
-3. **The club's experiment** (Pioneer Palace, CLUB). Students time how long a trit takes to switch, using `FRAME` and `PEEK`, and post their results. One result is "impossible". The club leader tells them to repeat it. They can't, and they say so.
-4. **The night board** (The Quiet Line). NIGHTWATCH posts, after midnight in-world time, a riddle in three lines, each a TRIBASIC IF with THEN, MAYBE and ELSE. Only the branch that can never be reached (the "fourth way out of an IF") makes sense of it.
-5. **The unlisted number.** Decoding step 2 with the hint of step 4 gives an unlisted number, for example `4-04-04` (number to be chosen). It isn't in the 0-00-00 directory. Its board, **THE BENCH**, is the logbook of the original test bench: dry entries by a tired engineer, ending with a choice for the caller, and no single answer.
+| Step | Where | What the caller finds |
+|---|---|---|
+| 1 | *Trit & Tryte* (2-27-81), READERS' LETTERS | Irina sees a small ring among the -, 0 and + of her TERNCLOCK. The editors call it a typing error. Matvei saw it too, once, at 23:13. |
+| 2 | NPO "Triada" Support (1-85-01), NEWS and PROGRAMS | A "stability correction" for machines from **test bench 4**, and the program `PATCH85.TRI`. Run with `BRUN`, it changes nothing and prints a checksum: `0T+-00+++-++0`. |
+| 3 | Pioneer Palace Club (3-43-21), CLUB TALK | Lena and Kostya time a trit switching, and once get a reading between 0 and +, at 23:13. Forty repeats show nothing. |
+| 4 | The Quiet Line (9-13-13), NIGHT THOUGHTS | NIGHTWATCH's riddle, "THREE DOORS": an IF with THEN, MAYBE and ELSE, and a fourth door whose number is hidden "in a sum. A sum is sometimes a number you can call." |
+| 5 | **THE BENCH (4-04-04)**, unlisted | `PRINT 0T+-00+++-++0` gives 40404: dial 4-04-04. The logbook of test bench 4: dry entries, always at 23:13, by ENGINEER4. The last one asks each caller to leave their answer on the wall. |
 
-## What the ending is
+## The ending
 
-At THE BENCH, the caller can leave a one-line entry in the logbook. That entry is their answer to the mystery. Every caller sees the last entries of others. The "solution" is the community of callers who found the board, each with their own reading. The story never confirms or denies the fourth state.
+THE BENCH's one-liner wall (`O` in its menu) is the real logbook. Every caller who finds the board leaves one line: their answer to what the fourth state is. A fault, a dream, a door, or something else. Every caller sees the answers of those before. The "solution" is the community of people who found the board, each with their own reading. The story never confirms or denies anything.
 
-## What it needs technically (all with the M18/M19 machinery, nothing new)
+## Where it lives
 
-- One more `.board` file (`UNLISTED`), seeded posts on the four starter boards, and one downloadable `.TRI` carrying the encoded number.
-- Optional: posts that appear only after a date (the in-world date moves with real time), so the trail unfolds over a few weeks. That would need a small addition: a `FROM` date on seeded posts.
-- Nothing in the story may use real people's names, real places of work, or real events.
+- The posts: `POST` blocks in [`npo-support.board`](../../triada-net-core/src/main/resources/net/boards/npo-support.board), [`trit-and-tryte.board`](../../triada-net-core/src/main/resources/net/boards/trit-and-tryte.board), [`pioneer-palace.board`](../../triada-net-core/src/main/resources/net/boards/pioneer-palace.board) and [`quiet-line.board`](../../triada-net-core/src/main/resources/net/boards/quiet-line.board), each marked with a "The Fourth State, step N" comment.
+- The hidden board: [`the-bench.board`](../../triada-net-core/src/main/resources/net/boards/the-bench.board) (`UNLISTED`).
+- The correction: [`programs/patch85.tasm`](../../programs/patch85.tasm), offered on 1-85-01 as `PATCH85.TRI`.
+- The test that follows the whole trail on a headless TRIADA: `TermTest.theFourthStateCanBeFound` in `triada-rom`.
 
-## Questions for the human
-
-1. Is the premise right, or would you prefer another (or none)?
-2. Should the trail unfold over real weeks (dated posts), or be complete from the start?
-3. Is the ending (a shared logbook, no single answer) what you want, or should there be a definite answer?
-4. Any number you'd like for THE BENCH?
+Nothing in the story uses real people's names, real places of work or real events.

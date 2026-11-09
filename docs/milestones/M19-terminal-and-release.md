@@ -210,7 +210,7 @@ That build puts the address into the page. An `http://` address is refused with 
 
 ## Limitations and what comes next
 
-- **The story is only an outline** ([STORY.md](../net/STORY.md)), waiting for your approval and answers to its questions. No clues are in the boards yet.
+- **The story was only an outline** at the end of M19. It was approved afterwards (complete from the start, no single answer) and is now written into the boards: [STORY.md](../net/STORY.md) and D-076.
 - **No server is deployed**, so the web version is offline. Deploy one with [DEPLOY.md](../net/DEPLOY.md), then set the repository variable `TRIADA_NET_URL` to its `wss://…/net` address.
 - **No in-browser node** (D-075).
 - **TERM's limits:** files up to 33,756 words; no scroll-back; ESC L and colours as the boards use them; one upload at a time, chosen by name.
