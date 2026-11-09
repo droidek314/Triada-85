@@ -106,6 +106,10 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Constant (assembler)**: A name for a number, defined with `NAME = value`. First seen: M4.
 
+**Constant-time comparison**: Comparing two secrets in a way that always takes the same time, so an attacker can't learn from the timing how much of a guess was right. *In TRIADA:* passwords and the admin token (M18).
+
+**Container (Docker)**: A sealed box holding a program and everything it needs, started with one command on any computer that has Docker. *In TRIADA:* the TRIADA-NET server and Caddy run as containers (`deploy/`, M18).
+
 **Control stack**: TRIBASIC's own stack of FOR and GOSUB frames, separate from the CPU's stack, at RAM 45,000 upwards. First seen: M14.
 
 **CPU (central processing unit)**: The part of a computer that reads instructions from memory and carries them out, one after another. *In TRIADA:* the `Cpu` class. First seen: M3.
@@ -115,6 +119,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Cycle**: One tick of a processor's clock. *In TRIADA:* every instruction takes exactly one cycle. First seen: M3.
 
 **Cycle budget**: How many cycles the CPU may use per frame. *In TRIADA:* 59,049 = 3^10 (SPEC §6). First seen: M3.
+
+**Database**: An organised store of data that a program can search and change safely, even with many users at once. *In TRIADA:* TRIADA-NET keeps its accounts, messages and files in an SQLite database (M18).
 
 **Debug port**: I/O registers through which a program sends text and numbers to the host instead of the screen. *In TRIADA:* DEBUG_CHAR, DEBUG_NUM, HOST_EXIT (registers 20–22). First seen: M5.
 
@@ -134,6 +140,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Disassembler**: A program that turns machine words back into assembly text. *In TRIADA:* the `Disassembler` class, used by the debugger. First seen: M4.
 
+**Domain name**: A readable name for a computer on the internet, such as `net.example.org`. An *A record* at the domain's DNS provider points the name to the computer's address. *In TRIADA:* needed to deploy TRIADA-NET (`docs/net/DEPLOY.md`, M18).
+
 **Drag and drop**: Moving a file onto a window with the mouse to open it there. *In TRIADA:* "inserting a triskette" (D-032). First seen: M9.
 
 **Edge-triggered input**: Reacting when a button *becomes* pressed, instead of for as long as it is held. *In TRIADA:* the games compare a button with its value in the previous frame. First seen: M10.
@@ -149,6 +157,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Environment variable**: A named setting the operating system gives every program, such as `JAVA_HOME`. First seen: M5.
 
 **Escape sequence**: A backslash code for a special character inside quotes, such as `\n` for a new line. First seen: M4.
+
+**Event-driven**: A program that doesn't wait for anything, but reacts to each thing that happens (a key, a tick) and then returns. *In TRIADA:* every board session (`TextCall`, M18).
 
 **Exchange (telephone)**: The place where calls are connected: you dial a number, the exchange decides who answers. *In TRIADA:* the `Exchange` interface of the server; `EchoExchange` is the test one (M17).
 
@@ -210,9 +220,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Halt**: Stop the CPU for good, until a reset. *In TRIADA:* HLT, or a fault. First seen: M3.
 
+**Handle**: The name a caller uses on a bulletin board, instead of a real name. *In TRIADA:* 2 to 12 letters and digits, one account for all of TRIADA-NET (M18).
+
 **Handshake**: The few messages two sides exchange before a conversation, to agree that they speak the same language. *In TRIADA:* HELLO, WELCOME, DIAL and CONNECT in the wire protocol (M17).
 
 **Hard-coded**: A value written straight into the code, often in many places, instead of read from one place. Hard to change without missing a spot. *In TRIADA:* M16 replaced the machine's hard-coded numbers with the machine profile.
+
+**Hash (password)**: A scrambled fingerprint of a password that can't be turned back into the password. The server stores only that, so a stolen database doesn't reveal passwords. *In TRIADA:* PBKDF2 with a salt (`Passwords`, M18).
 
 **Headless**: Running without any window, sound or keyboard, which is useful for automatic tests. *In TRIADA:* the `triada run` command (M5). First seen: M0.
 
@@ -258,6 +272,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **JIT compiler (just-in-time)**: The part of Java that translates frequently used code into fast machine code while the program runs. That is why benchmarks warm up first. First seen: M3.
 
+**JSON**: A simple text format for data that people and programs can both read: `{"event":"login","handle":"OLGA"}`. *In TRIADA:* the server's log and admin API (M18).
+
 **Jump table**: A list of jump instructions at fixed addresses, so the routines they lead to can move without breaking the programs that call them. *In TRIADA:* the first 14 ROM words (SPEC §8.1). First seen: M8.
 
 **JUnit**: The standard Java library for writing automatic tests. *In TRIADA:* JUnit 5. First seen: M0.
@@ -290,6 +306,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Local storage**: A small store of text that a browser keeps for each website, even after the page is closed. *In TRIADA:* the web version's triskette (`WebTriskette`). First seen: M13.
 
+**Lockout**: Refusing logins for a while after too many wrong passwords, so nobody can try thousands of guesses. *In TRIADA:* 5 wrong passwords lock an account for 15 minutes (M18).
+
 **Lookup table**: A list of precomputed answers, so a calculation becomes a single array read. First seen: M1.
 
 **Loopback**: A connection that leads back into the same program or computer, with no network in between. Handy for tests. *In TRIADA:* `LoopbackLink` and `LoopbackNetwork` connect a test machine to a server in the same program (M17).
@@ -306,6 +324,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Memory map**: The plan of which addresses are RAM, ROM, I/O or empty. *In TRIADA:* SPEC §2.2 and `MemoryMap`. First seen: M2.
 
+**Migration (database)**: A numbered script that changes a database's tables from one version to the next, run once and never edited afterwards. *In TRIADA:* `triada-net-server/src/main/resources/db/` and `Migrations` (M18).
+
 **Mirroring**: Reversing a picture left to right. *In TRIADA:* a negative tile number in the tile map or a sprite's TILE. First seen: M6.
 
 **Mixing**: Adding several sounds together into one stream of samples. First seen: M7.
@@ -313,6 +333,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Mnemonic**: The short name of an instruction, such as `ADD` or `JSR`. First seen: M3.
 
 **Modem**: "Modulator-demodulator": the box that let a 1980s computer talk over a telephone line, turning characters into sounds and back. *In TRIADA:* the device on I/O registers 28–35 (SPEC §5.2), which really connects to a TRIADA-NET server (M17).
+
+**Moderation queue**: Things callers sent in that wait for the sysop's approval before others can see them. *In TRIADA:* uploads (M18).
 
 **Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-rom`, `triada-cli`, `triada-app`, `triada-desktop` and `triada-web`. First seen: M0.
 
@@ -334,6 +356,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Off-screen frame buffer**: A picture in the graphics card's memory that can be drawn into like the screen, but isn't shown. *In TRIADA:* used by the capture mode. First seen: M11.
 
+**One-liner**: A short line a caller leaves on a board's wall for the next callers to read, a BBS tradition. *In TRIADA:* `O` in a board's main menu (M18).
+
 **Opcode**: The number that says which instruction it is. *In TRIADA:* 3 trits, −13 … +13, all 27 used. First seen: M3.
 
 **OpenGL**: A standard way for programs to ask the graphics card to draw. libGDX uses it behind the scenes. First seen: M0.
@@ -353,6 +377,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Parser**: The part of a translator that recognises the structure of the tokens (label, instruction, operands …). First seen: M4.
 
 **Paste-typing**: Pasting text into the TRIADA, which types it in as if from the keyboard (`KeyFeeder`). First seen: M15.
+
+**PBKDF2**: "Password-based key derivation function 2": a standard way to hash a password slowly, many thousand times over, with a salt, so guessing is expensive. *In TRIADA:* 120,000 rounds of HMAC-SHA256 (M18).
 
 **PCM (pulse-code modulation)**: Sound stored as a plain list of samples. *In TRIADA:* 16-bit mono, 44,100 per second. First seen: M7.
 
@@ -394,6 +420,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **RAM (random-access memory)**: Memory that can be read and written. *In TRIADA:* addresses 0 … 59,048. First seen: M2.
 
+**Rate limit**: A cap on how often something may happen, such as five posts in ten minutes. *In TRIADA:* `RateLimiter` and `Limits` (M18).
+
 **Record (Java)**: A Java class that only holds values. It cannot be changed after it is made, and the compiler writes its constructor, getters and `equals` for it. *In TRIADA:* `MachineProfile` is a record (M16).
 
 **Recursive descent**: A way of writing a parser with one function per grammar rule; the functions call each other as the rules nest. *In TRIADA:* the assembler (M4) and TRIBASIC's expressions, one routine per precedence level (M14). First seen: M4.
@@ -408,6 +436,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Return address**: Where the program continues after a subroutine; JSR pushes it on the stack and RET pops it. First seen: M3.
 
+**Reverse proxy**: A server that stands in front of another one, receives the visitors and passes their requests on. *In TRIADA:* Caddy, in front of TRIADA-NET, handles HTTPS (M18).
+
 **RGB**: Describing a colour by how much red, green and blue light it contains. First seen: M6.
 
 **Ring buffer**: A fixed-size array used as a queue whose start and end chase each other round and round, so nothing is ever moved or allocated. First seen: M2.
@@ -417,6 +447,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Rotate (ROT)**: *In TRIADA:* turn every trit one step around a three-hour clock: − → 0 → + → −. First seen: M1.
 
 **Round trip**: Converting something there and back and getting exactly what you started with. *In TRIADA:* assemble → disassemble → assemble. First seen: M4.
+
+**Salt**: Random bytes mixed into a password before hashing, different for every account, so two equal passwords get different hashes. *In TRIADA:* 16 bytes per account (M18).
 
 **Sample (audio)**: One number giving the loudspeaker's position at one instant. *In TRIADA:* −32,768 … 32,767, 735 per frame. First seen: M7.
 
@@ -450,6 +482,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Sprite**: A small picture that moves freely over the background. *In TRIADA:* 27 sprites, table at RAM 44,600 (SPEC §4.7). First seen: M2.
 
+**SQLite**: A small database kept in a single file, used through ordinary SQL. *In TRIADA:* `SqliteNetStore` (M18).
+
 **Stack**: A pile of notes where the last one added is the first one taken, used for return addresses and saved values. *In TRIADA:* grows downward from 59,049. First seen: M2.
 
 **Stack pointer**: The register that remembers where the top of the stack is. *In TRIADA:* R8, also called SP. First seen: M2.
@@ -470,6 +504,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Symbol**: A name the assembler knows the value of: a label, a constant or a built-in name like `PUTCHAR`. First seen: M4.
 
+**Sysop**: "System operator": the person who runs a bulletin board. *In TRIADA:* every board has a fictional sysop; the real one uses the admin page and `triada-net-server admin` (M18).
+
 **System variable**: A RAM word the built-in software uses for its own state. *In TRIADA:* AUTORUN, CURSOR_X, CURSOR_Y, RUN_DONE, LINEBUF (in RAM 0 … 242). First seen: M8.
 
 **System variables**: RAM cells where the built-in software keeps its own notes. *In TRIADA:* addresses 0 … 242. First seen: M2.
@@ -486,6 +522,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Test (automatic test)**: A small program that checks whether another piece of code does what it should, and complains loudly if not. First seen: M0.
 
+**Test fixture**: Helper code shared by several tests, such as a fake clock or a scripted user. *In TRIADA:* `TestClock`, `TestCaller` and `NetStoreContract` in `triada-net-core/src/testFixtures` (M18).
+
 **Text block**: A Java string written between `"""` marks over several lines, keeping its line breaks. *In TRIADA:* the CRT shader's source in `CrtEffect`. First seen: M12.
 
 **Texture**: A picture uploaded to the graphics card so it can be drawn quickly. First seen: M6.
@@ -500,11 +538,15 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Time-out**: Stopping something because it took longer than allowed. *In TRIADA:* `triada run` gives up after 3,600 frames without `--frames` (exit code 4). First seen: M5.
 
+**TLS**: The encryption behind `https://` and `wss://`. A server needs a certificate for its domain; browsers refuse unencrypted connections from encrypted pages. *In TRIADA:* Caddy gets the certificate for TRIADA-NET (M18).
+
 **Token**: One piece of a source line after the lexer has cut it up: a name, a number, a comma … *In TRIBASIC:* a keyword stored as one negative word, −1 for PRINT … −68 for TERN$ (M14). First seen: M4.
 
 **Tokenizer**: The part of TRIBASIC that turns typed keywords into tokens when a line is entered (`b_tokenize`). First seen: M14.
 
 **Toolchain (Gradle)**: Gradle's setting for "compile and test with exactly this Java version", even if a different one is installed as the default. First seen: M0.
+
+**Transaction (database)**: A group of changes that happen all together or not at all. *In TRIADA:* each migration script runs in one (M18).
 
 **Transparency**: A colour that is not drawn, so whatever is behind shows through. *In TRIADA:* gray (value 0) in sprites. First seen: M6.
 
@@ -553,6 +595,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Virtual thread**: A very light Java thread; a program can have thousands, one per caller, without slowing down. *In TRIADA:* the server serves each TCP caller on its own virtual thread (M17).
 
 **Voice**: One independent sound generator with its own pitch, volume and waveform. *In TRIADA:* three (V1–V3). First seen: M7.
+
+**VPS**: "Virtual private server": a small rented computer in a data centre, reached over the internet. *In TRIADA:* the suggested home for TRIADA-NET (`docs/net/DEPLOY.md`, M18).
 
 **Vsync**: Waiting for the monitor to finish showing one picture before handing it the next, so the image never tears halfway. First seen: M0.
 

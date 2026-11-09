@@ -698,7 +698,7 @@ Written in TRIADA assembly and shipped on the default triskette.
   - 13 starts a new line;
   - 8 is backspace;
   - 7 rings the bell;
-  - `ESC 'C' fg bg` sets the text color;
+  - `ESC 'C' fg bg` sets the text color (each a pixel value −13 … 13, plus 32);
   - `ESC 'L' col row` positions the cursor (values offset by 32);
   - TRIMODEM sequences (NET-SPEC §3) start transfers.
 - **Downloads** show a progress bar, save to the triskette, and report the result. **Uploads** send a triskette file the same way.

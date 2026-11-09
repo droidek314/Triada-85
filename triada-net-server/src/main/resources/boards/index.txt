@@ -1,0 +1,3 @@
+# The boards built into the server, one file name per line (M18).
+# M19 adds the starter boards of TRIADA-NET.
+test.board

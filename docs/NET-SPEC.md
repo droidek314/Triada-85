@@ -108,6 +108,26 @@ The checksum is 0 + 1·5 + 2·7 = 19 = `II\` (19 + 265,720 = 40·6,561 + 40·81 
 - **Render everything for 27×18.** Word-wrap, paging with `MORE? (Y/N)`, and short menus with single-key commands.
 - **Optional door game:** one small multiplayer text game themed on ternary logic. Only after everything else is done.
 
+### 4.1 Details settled in M18 (D-068)
+- **Boards are text files** (`.board`): `NUMBER`, `NAME` (≤ 27), `SYSOP`, `COLORS fg bg`, `LINES n` (callers at once; one more hears `BUSY`), `UNLISTED`, `MESSAGES id title` and `FILES id title` (areas; ids are 1–12 of A–Z, 0–9), and `WELCOME` … `END` (≤ 10 lines of ≤ 27 characters). The server has built-in boards, or reads a folder (`TRIADA_NET_BOARDS`).
+- **What a caller sees:** the welcome screen, then `HANDLE (GUEST, NEW):`. `GUEST` may read and download; `NEW` shows the SYSOP RULES, then asks for a handle (2–12 letters and digits; GUEST, NEW, SYSOP and ALL are reserved) and a password (6–24 characters, typed twice, shown as `*`). The main menu:
+
+  ```
+  M MESSAGES   E MAIL
+  F FILES      O ONE-LINERS
+  L LAST CALLS W WHO IS ON
+  T TIME LEFT  G GOODBYE
+  ```
+
+  Messages: `L` list (newest first), `R` read by number, `P` post. Reading one: `N` next older, `A` answer, `R` report, `Q`. A text ends with a line holding only `.`, then `S` saves or `A` aborts. Mail: `R` read, `S` send. Files: `D` download and `I` info by name, `U` upload. Lists longer than a screen ask `MORE? (Y/N)`.
+- **Typing:** each key is echoed (a password as `*`); 8 (or 127) deletes; Return is 13 or 10, and a 10 right after a 13 is ignored. A line can't grow past its limit: the bell rings instead.
+- **0-00-00** needs no login: it lists the boards that aren't unlisted, waits for a key and hangs up.
+- **Downloads and uploads** use TRIMODEM (§3). After `D` and a name, the server starts sending. After `U`, it waits for the caller's start message, then asks for a description; the upload waits in the queue until the sysop approves it.
+- **Dates** on boards are in-world: 2026-11-09 shows as 1985-11-09; times are UTC.
+
+### 4.2 Security in M18 (D-067)
+The numbers are in `Limits.DEFAULT` and D-067: PBKDF2 with 120,000 rounds, lockouts after 3 tries per call, 5 per account, 10 per address; 3 new accounts per address per day; 5 posts per 10 minutes; 3 uploads per hour; 30 minutes per board per day; 5 minutes idle; 1,000 characters a second; 4 calls at once and 20 a minute per address. Uploads are stored in the database, never under a caller's file name. The sysop's tools are the admin page (`/admin`, with the admin token) and `triada-net-server admin …` (see `docs/net/DEPLOY.md`).
+
 ---
 
 ## 5. Security and moderation (it's a public server)
@@ -137,4 +157,6 @@ The checksum is 0 + 1·5 + 2·7 = 19 = `II\` (19 + 265,720 = 40·6,561 + 40·81 
 ---
 
 ## 7. Deployment
+**How to deploy:** [`docs/net/DEPLOY.md`](net/DEPLOY.md), with the kit in `deploy/` (M18, D-069).
+
 The project never creates hosting accounts or deploys to a public server by itself. It ships a deployment kit (Docker image, `docker-compose.yml` with a Caddy reverse proxy for TLS and `wss://`, configuration through environment variables, a `/health` endpoint, structured logs) and `docs/net/DEPLOY.md`, so the human can deploy. Local servers for development and tests are fine.

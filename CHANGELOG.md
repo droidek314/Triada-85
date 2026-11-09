@@ -15,7 +15,14 @@ TRIADA-NET, part 1 (M17):
 - **A modem** on I/O registers 28–35 (SPEC §5.2): it dials, connects and moves 2 characters per frame each way, like a 1200 bit/s line. The debugger shows it.
 - **TRIBASIC:** `MDIAL`, `MHANGUP`, `MSEND`, `MSTATUS`, `MRECV$` (and the keyword `DIAL`, for the terminal of M19). Example: `programs/basic/AUTOCALL.bas`.
 - `triada run --modem HOST:PORT` and the desktop's `--modem HOST:PORT` connect the modem to a TRIADA-NET server; the web version dials the address set in its page (none yet, so it is offline as before).
-- **TRIADA-NET:** the wire protocol and TRIMODEM in `docs/NET-SPEC.md`, the modules `triada-net-core` and `triada-net-server`, and an echo server: `./gradlew :triada-net-server:run`.
+- **TRIADA-NET:** the wire protocol and TRIMODEM in `docs/NET-SPEC.md`, the modules `triada-net-core` and `triada-net-server`, and an echo server (`./gradlew :triada-net-server:run --args="--echo"`).
+
+TRIADA-NET, part 2 (M18):
+- **The server hosts bulletin boards:** GUEST and NEW callers, one account for every board, messages (list, read, post, answer, report), private mail, file areas with TRIMODEM downloads and uploads (uploads wait for the sysop), one-liners, last callers, who is on, 30 minutes per board per day, busy lines, and the directory at `0-00-00`. Boards are `.board` text files.
+- **Safe for a public server:** salted PBKDF2 passwords, lockouts, limits per caller and per address, size limits, flooding and idle cut-offs, no caller input ever used as a path, JSON logs without passwords.
+- **SQLite** storage with versioned migrations; settings from `TRIADA_NET_*` environment variables.
+- **The sysop's tools:** an admin page (`/admin`, with a secret token) and `triada-net-server admin …`.
+- **Deployment kit:** `deploy/` (Docker, Caddy for HTTPS) and `docs/net/DEPLOY.md`. Nothing is deployed yet.
 
 ## v1.1 — TRIBASIC and the triskette (2026-11-08)
 

@@ -1,0 +1,13 @@
+# A plain board for trying the server out (M18).
+NUMBER 1-00-00
+NAME TRIADA-NET TEST BOARD
+SYSOP THE ENGINEER
+COLORS 4 -12
+LINES 8
+MESSAGES GENERAL GENERAL TALK
+FILES PROGRAMS PROGRAMS
+WELCOME
+ +----------------------+
+ |  T R I A D A  N E T  |
+ +----------------------+
+END

@@ -40,10 +40,12 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-rom` | The ROM (M8): kernel, monitor, font, written in TRIADA assembly in `rom/`. A build-time step assembles it into a generated Java class; `Rom.newMachine()` gives a machine that boots. Holds the ROM's integration tests. | core (and the assembler at build time only) |
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
-| `triada-net-core` | TRIADA-NET without network code (M17): TRIMODEM, the server side of the wire protocol, the echo exchange, an in-process network. Boards from M18. | core |
-| `triada-net-server` | The TRIADA-NET server (M17): TCP and WebSocket (Javalin) around `triada-net-core`. The emulator never depends on it; the CLI's tests do. | net-core, Javalin |
+| `triada-net-core` | TRIADA-NET without network code (M17, M18): TRIMODEM, the server side of the wire protocol, the boards and their sessions, the store interface, passwords and limits, moderation. Test fixtures shared with the server. | core |
+| `triada-net-server` | The TRIADA-NET server (M17, M18): TCP and WebSocket (Javalin), SQLite storage with migrations, configuration from the environment, per-address limits, the admin page and command line. Deployment kit in `deploy/`. The emulator never depends on it; the CLI's tests do. | net-core, Javalin, sqlite-jdbc |
 
-## Current state (after M17)
+## Current state (after M18)
+
+- **The TRIADA-NET server (M18):** `Network` (an `Exchange`) holds the boards (`BoardDef`, read from `.board` files) and answers with a `BoardSession` or the 0-00-00 `InfoCall`; both are `TextCall`s, event-driven screens. They keep their data in a `NetStore` (`MemoryNetStore`, `SqliteNetStore`), hash passwords with `Passwords`, and obey `Limits` and `RateLimiter`. `NetServer` adds per-address limits, ticks and the admin API (`AdminApi`, `Moderation`); `AdminCommand` is the sysop's command line. See [The TRIADA-NET server](#the-triada-net-server).
 
 - **The modem (M17):** `org.triada.core.modem` has `ModemDevice` (registers 28–35, plugged in when the profile lists `Device.MODEM`), `ModemPort` (the line behind it; `ModemPort.OFFLINE` by default), `WireModemPort` (the client side of the wire protocol over a `ModemLink`) and `LoopbackLink` (an in-process pipe). The transports are `TcpModemLink` (triada-cli; `run --modem`, desktop `--modem`) and `WebModemLink` (triada-web; the page's `triadaModem`). See [The modem and TRIADA-NET](#the-modem-and-triada-net).
 
@@ -93,10 +95,34 @@ Since M17 the machine has a modem, and there is a server for it to call (D-061, 
         |
   ServerConnection (triada-net-core)  reads HELLO and DIAL, asks the Exchange
         |
-  Exchange -> Answer -> Call     EchoExchange today; the boards from M18
+  Exchange -> Answer -> Call     Network (the boards, M18), or EchoExchange (--echo)
 ```
 
 Every layer above the link is pure Java with nothing that waits: the device asks the port once per frame, and the port reads whatever the link has. Only the transports touch the network. `LoopbackNetwork` (triada-net-core) joins a `LoopbackLink` straight to a `ServerConnection`, so a test machine calls a server inside the same program. TRIMODEM (`Trimodem`, `TrimodemSender`, `TrimodemReceiver`) moves files over a connected line; the server and the tests use it, and the machine gets its own version in assembly in M19.
+
+## The TRIADA-NET server
+
+Since M18 the server hosts real boards (D-066 … D-069):
+
+```
+  ServerConnection ── DIAL 1-00-00 ──▶ Network (Exchange)
+                                         │  banned address? NO CARRIER;  0-00-00? InfoCall
+                                         │  all LINES busy? BUSY
+                                         ▼
+                                   BoardSession (a TextCall)
+        bytes ─▶ the current Input (ask / choose / page) or a TRIMODEM Transfer
+        tick  ─▶ idle, time limit, transfer timeouts
+                                         │
+          Passwords, Limits, RateLimiter │ NetStore ── MemoryNetStore (tests)
+                                         │          └─ SqliteNetStore (server; Migrations)
+                                         ▼
+                                     NetLog ─▶ JsonLog (one JSON object per line)
+
+  NetServer: per-address limits, the once-a-second tick, /health, /admin + AdminApi ─▶ Moderation
+  AdminCommand (triada-net-server admin …) ─▶ Moderation, straight on the database
+```
+
+Everything that decides what a caller sees is in `triada-net-core`, without sockets or a database, so it is tested with `TestCaller` and a `TestClock`. Only the transports, SQLite, the admin web page and the configuration live in `triada-net-server`. The deployment kit (Docker, Caddy) is in `deploy/`, explained in `docs/net/DEPLOY.md`.
 
 ## Machine profiles
 

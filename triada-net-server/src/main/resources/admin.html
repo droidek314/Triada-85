@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRIADA-NET Sysop</title>
+<style>
+  :root { --bg: #0b1020; --fg: #cfe8ff; --dim: #7f95ad; --line: #24304a; --accent: #6fd3ff; --bad: #ff7f7f; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 15px/1.45 ui-monospace, Consolas, monospace; }
+  h1 { font-size: 20px; margin: 0 0 12px; color: var(--accent); }
+  h2 { font-size: 16px; margin: 24px 0 8px; }
+  input, button { font: inherit; background: #111a30; color: var(--fg); border: 1px solid var(--line); padding: 6px 10px; border-radius: 4px; }
+  button { cursor: pointer; }
+  button.bad { color: var(--bad); }
+  .item { border: 1px solid var(--line); border-radius: 6px; padding: 10px; margin: 8px 0; max-width: 760px; }
+  .meta { color: var(--dim); }
+  .body { white-space: pre-wrap; margin: 6px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  #status { color: var(--dim); min-height: 1.4em; }
+</style>
+</head>
+<body>
+<h1>TRIADA-NET sysop</h1>
+<div class="row">
+  <input id="token" type="password" placeholder="admin token" size="32" autocomplete="off">
+  <button id="load">Load</button>
+</div>
+<div id="status"></div>
+
+<h2>Uploads waiting</h2>
+<div id="queue"></div>
+
+<h2>Reported messages</h2>
+<div id="reports"></div>
+
+<h2>Bans</h2>
+<div class="row">
+  <input id="handle" placeholder="handle">
+  <button data-ban="handles" data-on="ban">Ban handle</button>
+  <button data-ban="handles" data-on="unban">Unban</button>
+</div>
+<div class="row">
+  <input id="ip" placeholder="address, e.g. 10.0.0.9">
+  <button data-ban="ips" data-on="ban">Ban address</button>
+  <button data-ban="ips" data-on="unban">Unban</button>
+</div>
+
+<script>
+  // The token stays in this browser tab only (sessionStorage), never in the address bar.
+  var tokenField = document.getElementById("token");
+  try { tokenField.value = sessionStorage.getItem("triadaToken") || ""; } catch (e) { }
+
+  function say(text) { document.getElementById("status").textContent = text; }
+
+  function api(method, path) {
+    try { sessionStorage.setItem("triadaToken", tokenField.value); } catch (e) { }
+    return fetch("/admin/api/" + path, { method: method, headers: { "Authorization": "Bearer " + tokenField.value } })
+      .then(function (r) {
+        if (r.status === 401) throw new Error("wrong token (or too many wrong tries: wait 10 minutes)");
+        return r.json();
+      });
+  }
+
+  // Everything callers wrote is shown with textContent, never as HTML.
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function button(label, bad, action) {
+    var b = el("button", bad ? "bad" : "", label);
+    b.onclick = function () { action().then(load).catch(function (e) { say(e.message); }); };
+    return b;
+  }
+
+  function load() {
+    api("GET", "queue").then(function (items) {
+      var box = document.getElementById("queue");
+      box.textContent = "";
+      if (!items.length) box.appendChild(el("div", "meta", "Nothing waiting."));
+      items.forEach(function (f) {
+        var d = el("div", "item");
+        d.appendChild(el("div", "", f.name + " (" + f.words + " words, " + f.type + ")"));
+        d.appendChild(el("div", "meta", "from " + f.uploader + " on " + f.board + " / " + f.area + ", " + f.time));
+        d.appendChild(el("div", "body", f.description));
+        var row = el("div", "row");
+        row.appendChild(button("Approve", false, function () { return api("POST", "files/" + f.id + "/approve"); }));
+        row.appendChild(button("Reject", true, function () { return api("POST", "files/" + f.id + "/reject"); }));
+        d.appendChild(row);
+        box.appendChild(d);
+      });
+      return api("GET", "reports");
+    }).then(function (items) {
+      var box = document.getElementById("reports");
+      box.textContent = "";
+      if (!items.length) box.appendChild(el("div", "meta", "No reports."));
+      items.forEach(function (r) {
+        var d = el("div", "item");
+        d.appendChild(el("div", "meta", "message #" + r.messageId + " reported by " + r.reporter + ", " + r.time));
+        if (r.message) {
+          d.appendChild(el("div", "", r.message.subject + " (by " + r.message.author + ", " + r.message.board + " / " + r.message.area + ")"));
+          d.appendChild(el("div", "body", r.message.body));
+          var row = el("div", "row");
+          row.appendChild(button("Delete message", true, function () { return api("POST", "messages/" + r.messageId + "/delete"); }));
+          row.appendChild(button("Ban " + r.message.author, true, function () { return api("POST", "handles/" + encodeURIComponent(r.message.author) + "/ban"); }));
+          d.appendChild(row);
+        } else {
+          d.appendChild(el("div", "meta", "(already deleted)"));
+        }
+        box.appendChild(d);
+      });
+      say("Loaded.");
+    }).catch(function (e) { say(e.message); });
+  }
+
+  document.getElementById("load").onclick = load;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ban]"), function (b) {
+    b.onclick = function () {
+      var field = document.getElementById(b.dataset.ban === "handles" ? "handle" : "ip");
+      if (!field.value) return;
+      api("POST", b.dataset.ban + "/" + encodeURIComponent(field.value) + "/" + b.dataset.on)
+        .then(function (r) { say(r.ok ? "Done." : "No such caller."); })
+        .catch(function (e) { say(e.message); });
+    };
+  });
+</script>
+</body>
+</html>

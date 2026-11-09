@@ -1,0 +1,19 @@
+# Caddy in front of TRIADA-NET (M18). Caddy fetches and renews the TLS
+# certificate for the domain by itself, and passes on only these paths:
+#   /net       the WebSocket the web version dials (wss://DOMAIN/net)
+#   /health    "OK" when the server runs
+#   /admin     the sysop's page (protected by the admin token)
+# Caddy adds X-Forwarded-For, so the server sees each caller's own address.
+# (handle blocks, because Caddy would otherwise run "respond" before "reverse_proxy".)
+
+{$TRIADA_NET_DOMAIN} {
+	@triada path /net /health /admin /admin/*
+	handle @triada {
+		reverse_proxy triada-net:2386 {
+			health_uri /health
+		}
+	}
+	handle {
+		respond "TRIADA-NET. Dial in with your TRIADA-85." 200
+	}
+}

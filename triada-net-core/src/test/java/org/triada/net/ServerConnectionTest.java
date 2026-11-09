@@ -44,7 +44,7 @@ class ServerConnectionTest {
         ServerConnection c = new ServerConnection(new EchoExchange(), wire, TODAY);
         say(c, "HELLO TRIADA-NET/1 model=TRIADA-88 cols=40 rows=25 client=2.0 future=yes\r\n");
         assertEquals("WELCOME TRIADA-NET/1 1985-11-09\n", wire.sent.toString());
-        assertEquals(new Caller("TRIADA-88", 40, 25, "2.0"), c.caller());
+        assertEquals(new Caller("TRIADA-88", 40, 25, "2.0", "local"), c.caller());
         say(c, "DIAL 1-11-11\nAB");
         assertEquals("WELCOME TRIADA-NET/1 1985-11-09\nCONNECT 1200\nECHO READY\rAB", wire.sent.toString());
         say(c, "\u0004");
@@ -76,7 +76,7 @@ class ServerConnectionTest {
         Recorder wire = new Recorder();
         ServerConnection c = new ServerConnection(new EchoExchange(), wire, TODAY);
         say(c, "HELLO TRIADA-NET/1 cols=0 rows=many\n");
-        assertEquals(new Caller("?", 27, 18, "?"), c.caller());
+        assertEquals(new Caller("?", 27, 18, "?", "local"), c.caller());
     }
 
     @Test

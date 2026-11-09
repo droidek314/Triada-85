@@ -592,3 +592,37 @@ We ran the result in Node.js 22.
 **Decision:** B: −69 DIAL, −70 MDIAL, −71 MHANGUP, −72 MSEND, −73 MSTATUS, −74 MRECV$. DIAL gets its token now and its routine in M19 (until then `?SYNTAX ERROR`).
 **Why:** Renumbering would change the tokens of programs already saved on triskettes. Four table entries cost four words.
 **Consequences:** `LIST` shows the new keywords, saved programs keep working, and a variable can no longer be called `MSEND` or `DIAL`.
+
+## D-066 — SQLite with our own migration runner, and one store interface   (Milestone M18, 2026-11-09)
+**Situation:** The server must remember accounts, messages, mail, files, the callers' log, one-liners, time used and bans, and the tables will change in later versions. Tests need the same behaviour without a database.
+**Options:** A: files of our own format. B: SQLite through JDBC (`sqlite-jdbc`), with a migration library (Flyway). C: SQLite with a small migration runner of our own.
+**Decision:** C. `NetStore` is the interface; `MemoryNetStore` (tests, offline node) and `SqliteNetStore` (the server) both pass one contract test (`NetStoreContract`). `Migrations` runs numbered scripts from `src/main/resources/db/` in one transaction each, oldest first, and remembers the version in `schema_version`. A script is never edited once released. SQLite runs in WAL mode with one connection; every store method is synchronized on it. Uploaded files are stored in the database as `.tri` bytes, never as files named by a caller.
+**Why:** SQLite is one file, needs no server of its own, and is ample for a hobby network. A runner of fifty lines does all we need; Flyway would be a large dependency for that. One synchronized connection is simple and fast enough: the load test's 50 callers at once finish in a few seconds.
+**Consequences:** One more dependency (`org.xerial:sqlite-jdbc`, which brings its own native library; the JVM is started with `--enable-native-access=ALL-UNNAMED`). Many thousands of simultaneous callers would need a different store, behind the same interface.
+
+## D-067 — The limits of a public server   (Milestone M18, 2026-11-09)
+**Situation:** NET-SPEC §5 asks for hashed passwords, lockouts, rate limits, size limits and moderation, without numbers.
+**Decision:** `Limits.DEFAULT`, all in one record:
+- Passwords: PBKDF2-HMAC-SHA256 with 120,000 rounds and a 16-byte salt, compared in constant time. An unknown handle takes as long and reads the same ("WRONG.") as a wrong password.
+- Lockouts: 3 wrong passwords hang up the call; 5 in a row lock the account for 15 minutes; 10 failures from one address in 10 minutes and that address is refused.
+- Rate limits: 3 new accounts per address per day; 5 messages, mails or one-liners per caller in 10 minutes; 3 uploads per hour.
+- Sizes: typed lines 80 characters (handles 12, passwords 24, subjects and one-liners 24); messages 40 lines and 2,000 characters; uploads 19,683 words; 59,049 words of uploads per caller.
+- Time: 30 minutes per board per day (guests counted per address); an idle caller is hung up after 5 minutes; more than 1,000 characters in a second (outside a transfer) is flooding.
+- Per address at the server: 4 calls at once, 20 new calls a minute (configurable); banned addresses hear NO CARRIER.
+
+The admin token must be 16+ characters, is compared in constant time, and 5 wrong tries lock the address out of the admin page for 10 minutes. The log is JSON lines, and passwords never reach it. Behind Caddy, `TRIADA_NET_TRUST_PROXY` makes the server take WebSocket callers' addresses from `X-Forwarded-For`.
+**Why:** These are the numbers a 1985 board would have chosen (30 minutes a day was common), made safe for 2026: slow password hashing and lockouts against guessing, limits per address against floods, and nothing a caller types ever used as a path or pasted into SQL.
+**Consequences:** All in one record, so a sysop could change them; the server uses the defaults for now. Many callers behind one address (a school) may need a higher per-address limit.
+
+## D-068 — Boards as text files; sessions as chains of screens   (Milestone M18, 2026-11-09)
+**Situation:** Boards need menus, line input, paging and transfers, for many callers at once, in pure Java without waiting. And boards should be made without writing code.
+**Options:** A: one thread per caller that blocks on input, like a program reading a keyboard. B: sessions driven by the bytes that arrive: asking a question installs the code to run when the answer is complete.
+**Decision:** B, in `TextCall`. `ask`, `choose`, `page` and `anyKey` install the next `Input`. A transfer takes over all bytes while it runs. A tick each second handles timeouts. `BoardSession` is the whole board; `InfoCall` the 0-00-00 directory, with no login. Boards are `.board` text files (`BoardDef`): number, name, sysop, colours, `LINES` (callers at once; one more hears BUSY), `UNLISTED`, message and file areas, and a welcome screen of up to 10 lines. Guests may read and download; writing, mail and uploads need an account. In a message, `R` is "report" (as NET-SPEC asks), so answering is `A`. Return is 13 or 10, and a 10 right after a 13 is ignored.
+**Why:** No thread waits, so the same session code runs on the server, in tests with no threads at all (`TestCaller`), and later in-process for M19's end-to-end test. Board files let M19 (and anyone) add boards as content.
+**Consequences:** Menu code reads as "ask this, then do that". Long flows are chains of small methods.
+
+## D-069 — Deployment: Docker, with Caddy for TLS, never deployed by us   (Milestone M18, 2026-11-09)
+**Situation:** The web version runs on an HTTPS page, so it can only open `wss://` WebSockets, which need a TLS certificate. Desktops call over raw TCP. CLAUDE.md forbids us to create accounts or deploy.
+**Decision:** `deploy/` holds a two-stage `Dockerfile` (built with the project's Gradle wrapper; the result runs as a plain user, with the database in a `/data` volume), `docker-compose.yml` (the server, plus Caddy publishing 80 and 443 and getting the certificate by itself), a `Caddyfile` passing on only `/net`, `/health` and `/admin`, and `.env.example`. TCP 2385 is published straight from the server; 2386 only through Caddy. `docs/net/DEPLOY.md` explains it for a first-time deployer, plus container hosts and backups.
+**Why:** Docker and Caddy turn "a server with HTTPS" into a few commands on any small VPS, and Caddy renews certificates without anyone remembering to.
+**Consequences:** The image hasn't been built here, because this computer has no Docker. The server itself is tested, and was run from its start script; the kit is untested until someone runs it.

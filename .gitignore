@@ -24,3 +24,9 @@ triskettes/
 
 # Local preview settings of the Claude desktop app (machine-specific paths)
 .claude/
+
+# TRIADA-NET (M18): local databases and the deployment secrets
+*.db
+*.db-wal
+*.db-shm
+deploy/.env

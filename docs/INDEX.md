@@ -30,12 +30,14 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M15 | [TRIBASIC II and release 1.1](milestones/M15-tribasic-complete.md) | Strings without garbage collection, arrays with a middle, the picture and sound chips from BASIC, SAVE and LOAD, paste-typing, example programs, the manual chapter, and releasing version 1.1. |
 | M16 | [Housekeeping: prior art and machine profiles](milestones/M16-housekeeping.md) | Who came before TRIADA, and the machine's birth certificate: every model-specific number in one record, the machine built from it, and a test with a made-up model proving nothing is still hard-coded. |
 | M17 | [The modem, the wire protocol and TRIMODEM](milestones/M17-modem.md) | Phase 3 begins: a modem that really calls a server, at a 1985 pace; one protocol over TCP, WebSocket or an in-process pipe; three characters per word; an echo server; TRIBASIC's modem words. |
+| M18 | [The TRIADA-NET server](milestones/M18-server.md) | Bulletin boards that never wait: screens driven by keys, logins and passwords done safely, messages, mail, files and the moderation queue, a database with migrations, limits for a public server, the sysop's tools, 50 callers at once, and a kit to deploy it. |
 
 Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 
 ## Reference documents
 
 - [GLOSSARY.md](GLOSSARY.md): every technical word, explained simply.
+- [net/DEPLOY.md](net/DEPLOY.md): how to put the TRIADA-NET server on the internet, step by step (M18).
 - [PRIOR-ART.md](PRIOR-ART.md): the projects that came before TRIADA or inspired it, and how TRIADA differs (M16).
 - [DECISIONS.md](DECISIONS.md): every design decision, with the alternatives we rejected.
 - [PROGRESS.md](PROGRESS.md): which milestones are done.

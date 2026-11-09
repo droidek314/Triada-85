@@ -10,6 +10,9 @@ import java.time.LocalDate;
  * on. It reads the caller's HELLO and DIAL lines, asks the {@link Exchange}
  * what the number does, and after CONNECT passes every byte to the board's
  * {@link Call}.
+ *
+ * <p>The public methods are synchronized: a transport may feed bytes from one
+ * thread while a timer calls {@link #tick()} from another (M18).
  */
 public final class ServerConnection {
 
@@ -21,25 +24,32 @@ public final class ServerConnection {
     private final Exchange exchange;
     private final Wire wire;
     private final String date;
+    private final String address;
     private final StringBuilder line = new StringBuilder();
     private Phase phase = Phase.HELLO;
     private Caller caller;
     private Call call;
 
-    /** A connection whose in-world date is taken from {@code today} (NET-SPEC §4). */
+    /** A connection whose in-world date is taken from {@code today} (NET-SPEC §4), from an unnamed address. */
     public ServerConnection(Exchange exchange, Wire wire, LocalDate today) {
+        this(exchange, wire, today, "local");
+    }
+
+    /** A connection from the network address {@code address} (for limits and bans, M18). */
+    public ServerConnection(Exchange exchange, Wire wire, LocalDate today, String address) {
         this.exchange = exchange;
         this.wire = wire;
         this.date = InWorld.date(today);
+        this.address = address;
     }
 
     /** Bytes from the caller. */
-    public void receive(byte[] bytes) {
+    public synchronized void receive(byte[] bytes) {
         receive(bytes, 0, bytes.length);
     }
 
     /** {@code length} bytes from the caller, starting at {@code offset}. */
-    public void receive(byte[] bytes, int offset, int length) {
+    public synchronized void receive(byte[] bytes, int offset, int length) {
         for (int i = offset; i < offset + length; i++) {
             if (phase == Phase.CLOSED) {
                 return;
@@ -96,7 +106,7 @@ public final class ServerConnection {
                 }
             }
         }
-        caller = new Caller(model, cols, rows, client);
+        caller = new Caller(model, cols, rows, client, address);
         send("WELCOME TRIADA-NET/1 " + date + "\n");
         phase = Phase.DIAL;
     }
@@ -144,8 +154,15 @@ public final class ServerConnection {
         });
     }
 
+    /** About once a second: passed on to the board, for its timeouts (M18). */
+    public synchronized void tick() {
+        if (phase == Phase.RAW) {
+            call.tick();
+        }
+    }
+
     /** The caller hung up, or the connection was lost. */
-    public void hungUp() {
+    public synchronized void hungUp() {
         if (phase == Phase.CLOSED) {
             return;
         }
@@ -157,7 +174,7 @@ public final class ServerConnection {
     }
 
     /** True once either side hung up. */
-    public boolean closed() {
+    public synchronized boolean closed() {
         return phase == Phase.CLOSED;
     }
 

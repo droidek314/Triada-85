@@ -17,4 +17,8 @@ public interface Call {
     /** The caller hung up (or the line was lost). */
     default void hungUp() {
     }
+
+    /** Called about once a second, for timeouts and time limits (M18). */
+    default void tick() {
+    }
 }

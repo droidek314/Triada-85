@@ -171,10 +171,10 @@ The new ones:
 - `BasicExamplesTest` plays `AUTOCALL.bas` online and offline.
 - `DebuggerTest` checks the modem line.
 
-**By hand, over real TCP.** Start the echo server in one terminal:
+**By hand, over real TCP.** Start the echo server in one terminal (since M18 the server starts the boards by default, so the echo exchange needs `--echo`):
 
 ```bash
-./gradlew :triada-net-server:run
+./gradlew :triada-net-server:run --args="--echo"
 ```
 
 It prints `TRIADA-NET echo server: tcp 2385, websocket ws://localhost:2386/net (dial 1-11-11)`. Then, in another terminal, run AUTOCALL with a `RUN` line added at the end:
