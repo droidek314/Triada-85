@@ -10,7 +10,8 @@ import java.util.Locale;
 import java.util.Map;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Instruction;
-import org.triada.core.memory.MemoryMap;
+import org.triada.core.MachineProfile;
+import org.triada.core.MachineProfiles;
 import org.triada.core.ternary.Word;
 
 /**
@@ -34,8 +35,11 @@ import org.triada.core.ternary.Word;
  */
 public final class Assembler {
 
-    /** Where code goes if the source has no {@code .org}: the program area (DECISIONS.md D-012). */
-    public static final int DEFAULT_ORIGIN = MemoryMap.PROGRAM_START;
+    /**
+     * Where code goes on the TRIADA-85 if the source has no {@code .org}: the
+     * program area (DECISIONS.md D-012). Another model's is its profile's programStart.
+     */
+    public static final int DEFAULT_ORIGIN = MachineProfiles.TRIADA_85.programStart();
 
     /** Stop collecting after this many errors. */
     public static final int MAX_ERRORS = 100;
@@ -43,10 +47,23 @@ public final class Assembler {
     private static final int MAX_INCLUDE_DEPTH = 16;
 
     private final SourceLoader loader;
+    private final Map<String, Integer> builtins;
+    private final int origin;
 
-    /** An assembler that reads {@code .include}d files through {@code loader}. */
+    /** An assembler for the TRIADA-85 that reads {@code .include}d files through {@code loader}. */
     public Assembler(SourceLoader loader) {
+        this(loader, MachineProfiles.TRIADA_85);
+    }
+
+    /**
+     * An assembler for the model {@code profile} (M16): its built-in symbols
+     * ({@link BuiltinSymbols#of(MachineProfile)}) and its default origin come
+     * from the profile.
+     */
+    public Assembler(SourceLoader loader, MachineProfile profile) {
         this.loader = loader;
+        this.builtins = BuiltinSymbols.of(profile);
+        this.origin = profile.programStart();
     }
 
     /** Assembles the source file {@code path}, read through the loader. */
@@ -102,7 +119,7 @@ public final class Assembler {
         private final Map<String, Constant> constants = new HashMap<>();
         private final Map<String, SourceLine> definedAt = new HashMap<>();
         private final Deque<String> includeStack = new ArrayDeque<>();
-        private long pc = DEFAULT_ORIGIN;
+        private long pc = origin;
         private SourceLine current;
 
         AssemblyResult assemble(String name, String text) throws AssemblyException {
@@ -269,7 +286,7 @@ public final class Assembler {
         }
 
         private void define(String name, int column, SourceLine sl) {
-            if (BuiltinSymbols.get(name) != null) {
+            if (builtins.get(name) != null) {
                 throw new AsmFailure(column, "'" + name + "' is a built-in symbol and can't be redefined");
             }
             SourceLine earlier = definedAt.get(name);
@@ -545,7 +562,7 @@ public final class Assembler {
             if (c != null) {
                 return constantValue(s, c, firstPass);
             }
-            Integer builtin = BuiltinSymbols.get(s.name());
+            Integer builtin = builtins.get(s.name());
             if (builtin != null) {
                 return builtin;
             }
@@ -589,7 +606,7 @@ public final class Assembler {
         /** A "did you mean" hint when only the upper/lower case differs. */
         private String suggestion(String name) {
             List<String> all = new ArrayList<>(definedAt.keySet());
-            all.addAll(BuiltinSymbols.all().keySet());
+            all.addAll(builtins.keySet());
             for (String known : all) {
                 if (known.equalsIgnoreCase(name)) {
                     return " (did you mean '" + known + "'? names are case-sensitive)";
@@ -616,7 +633,7 @@ public final class Assembler {
                 hi = Math.max(hi, sl.address + sl.words.length - 1);
             }
             if (lo > hi) {
-                return new TriImage(DEFAULT_ORIGIN, new int[0]);
+                return new TriImage(origin, new int[0]);
             }
             if (hi - lo + 1 > Word.COUNT) {
                 throw new IllegalStateException("impossible: image larger than the address space");

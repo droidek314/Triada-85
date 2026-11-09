@@ -19,7 +19,7 @@
 
         .include "sysvars.tasm"
 
-        .org -19683                 ; first ROM word: the CPU starts here
+        .org ROM_START              ; first ROM word (-19,683): the CPU starts here
 
 ; --- jump table: fixed addresses, never reorder (SPEC 8.1) -----------------
         JMP boot                    ; -19,683  RESET

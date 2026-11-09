@@ -156,4 +156,20 @@ The desktop can also save a picture without opening a visible window, for exampl
 | `tests/basic/` | The TRIBASIC test suite: programs and the screens they must leave. |
 | `docs/` | Everything written about it. |
 
-Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2, the triskette drive and TRIBASIC (**M13 to M15**), is done too: this is release **v1.1**. See [docs/PROGRESS.md](docs/PROGRESS.md).
+## Prior art and related work
+
+TRIADA stands on other people's work. The full list, with sources, is in [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
+
+| Project | What it is | How TRIADA differs |
+|---|---|---|
+| **Setun / Setun-70** (Moscow State University, 1958 / 1970) | The real Soviet balanced-ternary computers. TRIADA's alternate history starts from them. | TRIADA is fiction: a home computer from a world where ternary won. |
+| **Setun-70 emulators** ([`setun70`](https://pypi.org/project/setun70/) in Python, [`smaslovski/Setun70`](https://github.com/smaslovski/Setun70) in Fortran) | Reconstructions of the historical machine from its 1970 description. | TRIADA invents its own machine, with graphics, sound, games, an OS and a language. |
+| **[SBTCVM](https://github.com/SBTCVM/SBTCVM-Gen2-9)** | A balanced-ternary VM in Python with graphics (including a 27-colour 3-trit RGB mode), sound, games and its own languages (SSTNPL and an assembler). | No alternate-history world. TRIBASIC is built around three-valued logic (`THEN`/`MAYBE`/`ELSE`, `ASK`), and TRIADA is documented as a from-scratch book. |
+| **[VINE](https://github.com/bates64/vine)** | A ternary fantasy console in the browser, programmed in its own assembly. | Its pages mention no OS, high-level language, storage or world. |
+| **[PICO-8](https://www.lexaloffle.com/pico-8.php) / [TIC-80](https://tic80.com/)** | Popular (binary) fantasy consoles. | The fantasy-console idea that TRIADA is part of. |
+| **Digital: A Love Story** (Christine Love, 2010) | A story game played on a fictional late-1980s computer, through fictional BBSes. | An inspiration for the coming TRIADA-NET, which will be a real server that a working emulated machine dials into. |
+| **Hypnospace Outlaw** (Tendershoot, 2019) | A game set inside an alternate-history 1999 internet. | The same: TRIADA's network is meant to be open and real, not a closed game. |
+
+None of these pieces is new on its own. What TRIADA brings is the whole: a ternary home computer from an alternate 1985, a BASIC built on three-valued logic, the machine written up as a book (*How to build a computer that never existed*), and, coming next, a real fictional network for it to dial into.
+
+Status: all milestones, **M0 to M11**, are done, and so is the web version (**M12**, a stretch goal). Phase 2, the triskette drive and TRIBASIC (**M13 to M15**), is done too: this is release **v1.1**. **M16** tidied up: the prior art above, and every machine number gathered into one machine profile. Next comes TRIADA-NET (from M17). See [docs/PROGRESS.md](docs/PROGRESS.md).

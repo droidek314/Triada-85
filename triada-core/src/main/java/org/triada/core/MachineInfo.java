@@ -10,10 +10,10 @@ package org.triada.core;
 public final class MachineInfo {
 
     /** The machine's name, exactly as printed on the (fictional) case. */
-    public static final String NAME = "TRIADA-85";
+    public static final String NAME = MachineProfiles.TRIADA_85.name();
 
     /** The version of {@code docs/SPEC.md} this code implements. */
-    public static final String SPEC_VERSION = "1.1";
+    public static final String SPEC_VERSION = MachineProfiles.TRIADA_85.specVersion();
 
     private MachineInfo() {
         // Constants only; never instantiated.

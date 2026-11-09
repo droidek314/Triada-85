@@ -17,17 +17,21 @@ final class ScreenDump {
     }
 
     static void writePng(VideoChip video, Path file) throws IOException {
-        BufferedImage image = toImage(video.frame());
+        BufferedImage image = toImage(video.frame(), video.frameWidth(), video.frameHeight());
         if (!ImageIO.write(image, "png", file.toFile())) {
             throw new IOException("no PNG writer available");
         }
     }
 
-    /** The frame as a Java image (TYPE_INT_RGB stores exactly our 0xRRGGBB ints). */
+    /** A TRIADA-85 frame as a Java image. */
     static BufferedImage toImage(int[] frame) {
-        BufferedImage image = new BufferedImage(VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT,
-                BufferedImage.TYPE_INT_RGB);
-        image.setRGB(0, 0, VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT, frame, 0, VideoChip.FRAME_WIDTH);
+        return toImage(frame, VideoChip.FRAME_WIDTH, VideoChip.FRAME_HEIGHT);
+    }
+
+    /** A frame as a Java image (TYPE_INT_RGB stores exactly our 0xRRGGBB ints). */
+    static BufferedImage toImage(int[] frame, int width, int height) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        image.setRGB(0, 0, width, height, frame, 0, width);
         return image;
     }
 }

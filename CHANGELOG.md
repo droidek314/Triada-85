@@ -2,6 +2,15 @@
 
 What changed in each released version of the TRIADA-85. The milestone documents in [`docs/milestones/`](docs/milestones/) tell the whole story.
 
+## Unreleased
+
+Housekeeping (M16). The machine behaves exactly as in v1.1.
+
+- Every model-specific number now lives in one machine profile, `MachineProfiles.TRIADA_85`, and the machine is built from it.
+- `triada tasm` and `triada run` accept `--model triada-85` (the default and, for now, the only model).
+- New built-in assembler symbols: `ROM_START`, `EXT_ROM_START`, `PROGRAM_START`, `STACK_TOP`, `MAP_COLS`, `MAP_ROWS`, `MAP_CELLS`. A source that defines one of these names itself must rename it.
+- A "Prior art and related work" section in the README and `docs/PRIOR-ART.md`.
+
 ## v1.1 — TRIBASIC and the triskette (2026-11-08)
 
 The machine now greets you with a programming language of its own, and can keep your programs.

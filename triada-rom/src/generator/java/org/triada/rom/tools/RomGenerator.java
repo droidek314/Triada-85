@@ -13,7 +13,8 @@ import org.triada.assembler.AssemblyException;
 import org.triada.assembler.AssemblyResult;
 import org.triada.assembler.Assembler;
 import org.triada.core.TriImage;
-import org.triada.core.memory.MemoryMap;
+import org.triada.core.MachineProfile;
+import org.triada.core.MachineProfiles;
 import org.triada.core.ternary.Word;
 
 /**
@@ -33,6 +34,9 @@ import org.triada.core.ternary.Word;
  */
 public final class RomGenerator {
 
+    /** The model this ROM is for (M16): its built-in symbols and memory map. */
+    private static final MachineProfile P = MachineProfiles.TRIADA_85;
+
     /** 27 symbols; character i stands for the base-27 digit i. Must match Rom.ALPHABET. */
     static final String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQ";
     private static final int CHUNK_WORDS = 4096;
@@ -47,7 +51,7 @@ public final class RomGenerator {
 
         AssemblyResult result;
         try {
-            result = new Assembler(RomGenerator::read).assemble(source.toString());
+            result = new Assembler(RomGenerator::read, P).assemble(source.toString());
         } catch (AssemblyException e) {
             for (AssemblyError error : e.errors()) {
                 System.err.println(error);
@@ -64,8 +68,8 @@ public final class RomGenerator {
         Path out = javaDir.resolve("org/triada/rom/RomData.java");
         Files.createDirectories(out.getParent());
         Files.writeString(out, javaSource(image, ext, result.symbols()), StandardCharsets.UTF_8);
-        System.out.println("ROM: " + image.size() + " of " + MemoryMap.ROM_SIZE + " words, extension ROM: "
-                + ext.size() + " of " + MemoryMap.EXT_ROM_SIZE + " words, " + result.symbols().size() + " symbols");
+        System.out.println("ROM: " + image.size() + " of " + P.romSize() + " words, extension ROM: "
+                + ext.size() + " of " + P.extRomSize() + " words, " + result.symbols().size() + " symbols");
     }
 
     /**
@@ -76,36 +80,36 @@ public final class RomGenerator {
      */
     static TriImage mainRom(TriImage all) {
         long last = (long) all.loadAddress() + all.size() - 1;
-        if (all.loadAddress() > MemoryMap.ROM_START || last > MemoryMap.ROM_END) {
-            throw new IllegalStateException("the ROM must start at " + MemoryMap.ROM_START
-                    + " and end by " + MemoryMap.ROM_END + ", not " + all.loadAddress() + " .. " + last);
+        if (all.loadAddress() > P.romStart() || last > P.romEnd()) {
+            throw new IllegalStateException("the ROM must start at " + P.romStart()
+                    + " and end by " + P.romEnd() + ", not " + all.loadAddress() + " .. " + last);
         }
-        if (all.loadAddress() < MemoryMap.EXT_ROM_START) {
+        if (all.loadAddress() < P.extRomStart()) {
             throw new IllegalStateException("code at " + all.loadAddress() + ", below the extension ROM");
         }
-        for (int a = MemoryMap.IO_BASE; a <= MemoryMap.IO_END; a++) {
+        for (int a = P.ioBase(); a <= P.ioEnd(); a++) {
             if (wordAt(all, a) != 0) {
                 throw new IllegalStateException("the ROM source puts a word into the I/O registers at " + a);
             }
         }
-        int[] words = new int[(int) last - MemoryMap.ROM_START + 1];
+        int[] words = new int[(int) last - P.romStart() + 1];
         for (int i = 0; i < words.length; i++) {
-            words[i] = wordAt(all, MemoryMap.ROM_START + i);
+            words[i] = wordAt(all, P.romStart() + i);
         }
-        return new TriImage(MemoryMap.ROM_START, words);
+        return new TriImage(P.romStart(), words);
     }
 
     /** The extension ROM's part (EXT_ROM_START ...), without trailing zeros; empty if there is none. */
     static TriImage extensionRom(TriImage all) {
-        int end = MemoryMap.EXT_ROM_END;
-        while (end >= MemoryMap.EXT_ROM_START && wordAt(all, end) == 0) {
+        int end = P.extRomEnd();
+        while (end >= P.extRomStart() && wordAt(all, end) == 0) {
             end--;
         }
-        int[] words = new int[end - MemoryMap.EXT_ROM_START + 1];
+        int[] words = new int[end - P.extRomStart() + 1];
         for (int i = 0; i < words.length; i++) {
-            words[i] = wordAt(all, MemoryMap.EXT_ROM_START + i);
+            words[i] = wordAt(all, P.extRomStart() + i);
         }
-        return new TriImage(MemoryMap.EXT_ROM_START, words);
+        return new TriImage(P.extRomStart(), words);
     }
 
     private static int wordAt(TriImage image, int address) {

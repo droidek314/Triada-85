@@ -10,7 +10,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import org.triada.core.memory.MemoryMap;
 import org.triada.rom.Rom;
 
 /**
@@ -98,7 +97,7 @@ public final class TriadaFont {
 
     /** The 760 font row values, read from the ROM image at its 'font' label. */
     static int[] fontRows() {
-        int start = Rom.address("font") - MemoryMap.ROM_START;
+        int start = Rom.address("font") - Rom.image().loadAddress();
         int[] rows = new int[(LAST - FIRST + 1) * 8];
         for (int i = 0; i < rows.length; i++) {
             rows[i] = Rom.image().word(start + i);

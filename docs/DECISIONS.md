@@ -523,3 +523,31 @@ We ran the result in Node.js 22.
 **Decision:** B. `MachineInfo.SPEC_VERSION` is "1.1", `CHANGELOG.md` lists v1.0 and v1.1, and the README links it. Every push to `master` publishes the web version (D-042).
 **Why:** The version is visible where a programmer looks (the code) and where a user looks (the changelog).
 **Consequences:** The next change to the machine's behaviour needs a new version and a changelog entry.
+
+## D-056 — The housekeeping milestone is M16; TRIADA-NET starts at M17   (Milestone M16, 2026-11-09)
+**Situation:** `SMALL-TASKS.md` calls its two tasks "milestone M15 — Housekeeping", with a doc `M15-housekeeping.md`, and says TRIADA-NET is numbered from M16. But M15 already exists: TRIBASIC II and release v1.1.
+**Options:** A: rename the existing M15. B: call the housekeeping M15b. C: number it M16, the next free number, and shift TRIADA-NET by one.
+**Decision:** C. The doc is `docs/milestones/M16-housekeeping.md`; TRIADA-NET's milestones start at M17.
+**Why:** Released milestone documents and their links stay as they are, and the book keeps reading in order (the same rule as D-044).
+**Consequences:** Anyone following `SMALL-TASKS.md` literally reads "M15" where we write "M16".
+
+## D-057 — A machine profile: one immutable record per model   (Milestone M16, 2026-11-09)
+**Situation:** The TRIADA-85's numbers (RAM size, ROM range, where the video chip reads, cycles per frame, screen size, voices, …) were constants spread over `MemoryMap`, `VideoChip`, `SoundChip`, `Machine` and the assembler. A future model (TRIADA-88, TRIADA-91) would have meant changing all of them.
+**Options:** A: leave the constants and copy the code for each model. B: a configuration file read at startup. C: an immutable Java record, `MachineProfile`, with one constant per model in `MachineProfiles`, and every part of the machine built from it.
+**Decision:** C. `MachineProfile` holds the memory map, the RAM addresses the hardware uses, the timing, the screen, the voices, the devices plugged in and the ROM images. `new Machine(profile)` builds the bus, CPU and devices from it; `new Machine()` is a TRIADA-85. What is the same for every model is not in the profile: the 12-trit word, the instruction set, the pixel packing and the I/O register numbers. The old constants (`MemoryMap.RAM_END`, `VideoChip.FRAME_WIDTH`, `Machine.CYCLES_PER_FRAME`, …) stay, now computed from `MachineProfiles.TRIADA_85`, for code that is about the TRIADA-85 only (its tests, the frontends).
+**Why:** A record is checked by the compiler and validated once, in its constructor (regions inside the word range and not overlapping, 8 × 8 tiles, 1 to 3 voices). A file would need a parser and file I/O in core, which the web build can't do. Keeping the old constants means no test had to change.
+**Consequences:** The hot paths read plain `final` fields copied from the profile (the bus bounds, the video chip's sizes), so speed is unchanged. A device the profile leaves out is not plugged in: its registers read 0, like any empty slot. `ModifiedProfileTest` builds a smaller made-up model and checks that the machine follows it.
+
+## D-058 — The assembler's built-ins come from the profile; seven new ones   (Milestone M16, 2026-11-09)
+**Situation:** The assembler's built-in symbols (`TILES`, `MAP`, `IO_BASE`, the jump table) were fixed numbers, and the ROM source repeated other machine numbers as literals (`.org -19683`, `STACK_TOP = 59049`, `MAP + 459`).
+**Options:** A: keep the literals in the ROM. B: built-ins from the profile, plus new ones for the numbers the ROM needs.
+**Decision:** B. `BuiltinSymbols.of(profile)` makes the table and `new Assembler(loader, profile)` uses it, together with the profile's `programStart` as the default origin. `new Assembler(loader)` is for the TRIADA-85. New built-ins: `ROM_START`, `EXT_ROM_START`, `PROGRAM_START`, `STACK_TOP`, `MAP_COLS`, `MAP_ROWS`, `MAP_CELLS`. The ROM source uses them instead of literals (`.org ROM_START`, `COLS = MAP_COLS`, `FREE_WORDS = TILES - PROGRAM_START`, …).
+**Why:** Then the ROM is assembled for a model, not for the numbers someone typed. The assembler has only + and −, so `MAP_CELLS` (27 × 18) is a built-in too.
+**Consequences:** The assembled ROM and every program in `programs/` are word for word what they were before (checked against images saved before the change). The ROM's own symbol table lost `STACK_TOP`, `PROGRAM_START` and `MAP_CELLS`, which are now built-ins with the same values. A user's source that defines one of the seven names itself now gets "is a built-in symbol and can't be redefined"; no source in this repository does.
+
+## D-059 — `--model` on the command line; the frontends start a TRIADA-85   (Milestone M16, 2026-11-09)
+**Situation:** The profile has to be chosen somewhere, but only one model exists and the UI must not change.
+**Options:** A: a model switch everywhere, including a menu in the desktop and the web page. B: `--model` for `triada tasm` and `triada run` only; the desktop and web start the TRIADA-85.
+**Decision:** B. `--model triada-85` is the default; an unknown name is a usage error that lists the known ones (`MachineProfiles.byId`). The desktop and web keep `Rom.newMachine()`; `Rom.newMachine(profile)` loads the ROM images the profile names.
+**Why:** A menu with one entry is clutter. The CLI option costs a few lines and proves the path works from the start of a program to the machine.
+**Consequences:** The frontends still size their picture with the TRIADA-85 constants (`VideoChip.FRAME_WIDTH`, and 240 × 168 in the web page's JavaScript). A model with a different screen will need `MachineScreen` and the page to take the size from the machine; this is noted in the M16 doc.

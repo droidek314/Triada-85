@@ -28,12 +28,14 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M13 | [The triskette storage device](milestones/M13-triskette.md) | Phase 2 begins: a disk drive driven through five I/O registers, one storage interface with three homes (memory, a PC folder, browser storage), ROM routines, and getting files in and out. |
 | M14 | [TRIBASIC I: the interpreter core](milestones/M14-tribasic-core.md) | A programming language in the machine's own assembly: storing lines as tokens, evaluating expressions, three-valued logic and the three-way IF on BR3, and a test suite of 66 small programs. |
 | M15 | [TRIBASIC II and release 1.1](milestones/M15-tribasic-complete.md) | Strings without garbage collection, arrays with a middle, the picture and sound chips from BASIC, SAVE and LOAD, paste-typing, example programs, the manual chapter, and releasing version 1.1. |
+| M16 | [Housekeeping: prior art and machine profiles](milestones/M16-housekeeping.md) | Who came before TRIADA, and the machine's birth certificate: every model-specific number in one record, the machine built from it, and a test with a made-up model proving nothing is still hard-coded. |
 
 Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 
 ## Reference documents
 
 - [GLOSSARY.md](GLOSSARY.md): every technical word, explained simply.
+- [PRIOR-ART.md](PRIOR-ART.md): the projects that came before TRIADA or inspired it, and how TRIADA differs (M16).
 - [DECISIONS.md](DECISIONS.md): every design decision, with the alternatives we rejected.
 - [PROGRESS.md](PROGRESS.md): which milestones are done.
 - [manual/](manual/README.md): the TRIADA-85 Owner's Manual, written as if printed in 1985 (M11). Start here if you just want to use the machine.

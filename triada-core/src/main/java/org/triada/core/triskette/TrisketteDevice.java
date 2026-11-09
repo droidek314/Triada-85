@@ -5,7 +5,6 @@ import org.triada.core.TriImage;
 import org.triada.core.io.IoDevice;
 import org.triada.core.io.IoRegisters;
 import org.triada.core.memory.Bus;
-import org.triada.core.memory.MemoryMap;
 
 /**
  * The triskette drive (SPEC §5.1, M13), on I/O registers 23–27. A program
@@ -188,7 +187,7 @@ public final class TrisketteDevice implements IoDevice {
         boolean all = true;
         for (int i = 0; i < words.length; i++) {
             long a = (long) start + i;
-            if (a >= MemoryMap.RAM_START && a <= MemoryMap.RAM_END) {
+            if (a >= bus.profile().ramStart() && a <= bus.profile().ramEnd()) {
                 bus.write((int) a, words[i]);
             } else {
                 all = false;
@@ -202,7 +201,7 @@ public final class TrisketteDevice implements IoDevice {
         StringBuilder b = new StringBuilder();
         for (int i = 0; i <= TrisketteNames.MAX_LENGTH; i++) {
             long a = (long) name + i;
-            if (a > MemoryMap.RAM_END) {
+            if (a > bus.profile().ramEnd()) {
                 return null;
             }
             int c = bus.peek((int) a);
@@ -217,7 +216,7 @@ public final class TrisketteDevice implements IoDevice {
         return null;                                // no 0 within 13 words: too long
     }
 
-    private static boolean inRam(int start, int count) {
-        return start >= MemoryMap.RAM_START && (long) start + count - 1 <= MemoryMap.RAM_END;
+    private boolean inRam(int start, int count) {
+        return start >= bus.profile().ramStart() && (long) start + count - 1 <= bus.profile().ramEnd();
     }
 }

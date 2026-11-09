@@ -150,6 +150,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Extension ROM**: A second read-only memory area, −59,048 … −20,413, where TRIBASIC lives (SPEC §2.5). First seen: M14.
 
+**Fantasy console**: A computer that exists only as software, with tight limits chosen on purpose so that small games are fun to make. PICO-8 and TIC-80 are well-known ones. *In TRIADA:* the TRIADA-85 is one, with ternary as its twist (see `docs/PRIOR-ART.md`). First used in M16.
+
 **Fault**: An error that stops the CPU, recorded with a code and the address of the guilty instruction. *In TRIADA:* fault 1 = invalid JIF condition (D-010). First seen: M3.
 
 **Fetch**: Reading the next instruction from memory at the address in PC. First seen: M3.
@@ -196,6 +198,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Halt**: Stop the CPU for good, until a reset. *In TRIADA:* HLT, or a fault. First seen: M3.
 
+**Hard-coded**: A value written straight into the code, often in many places, instead of read from one place. Hard to change without missing a spot. *In TRIADA:* M16 replaced the machine's hard-coded numbers with the machine profile.
+
 **Headless**: Running without any window, sound or keyboard, which is useful for automatic tests. *In TRIADA:* the `triada run` command (M5). First seen: M0.
 
 **Heuristic**: A rule of thumb that usually, but not always, gives the right answer. *In TRIADA:* disassembling backwards from PC. First seen: M9.
@@ -213,6 +217,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Image (program image)**: The block of words a program occupies, together with its load address. *In TRIADA:* `TriImage`, stored in a `.tri` file. First seen: M4.
 
 **Immediate**: A small number built into the instruction itself instead of coming from a register. *In TRIADA:* the imm5 field, −121 … +121. First seen: M3.
+
+**Immutable**: Cannot be changed after it is made. *In TRIADA:* a `MachineProfile` is immutable, so no part of the machine can change another part's numbers (M16).
 
 **Include library**: A source file of shared routines that programs paste into themselves with `.include`. *In TRIADA:* `programs/lib/game.tasm`. First seen: M10.
 
@@ -273,6 +279,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Lookup table**: A list of precomputed answers, so a calculation becomes a single array read. First seen: M1.
 
 **LWJGL**: "Lightweight Java Game Library", the layer libGDX uses on desktop computers to talk to the graphics card (OpenGL), the window system (GLFW) and sound (OpenAL). First seen: M0.
+
+**Machine profile**: The list of numbers and parts that makes one computer model what it is: memory, screen, speed, sound, which devices are inside. The machine's birth certificate. *In TRIADA:* `MachineProfile`; the TRIADA-85's is `MachineProfiles.TRIADA_85`, and `--model` picks one on the command line (M16).
 
 **Magic number**: Fixed bytes at the start of a file that identify its format. *In TRIADA:* `TRIADA85`. First seen: M4.
 
@@ -344,6 +352,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Precedence**: Which operator is worked out first, as × before + in school. *In TRIADA:* SPEC §10.2's seven levels. First seen: M14.
 
+**Prior art**: Work that came before yours and did something similar. *In TRIADA:* listed in `docs/PRIOR-ART.md` (M16).
+
 **Program counter (PC)**: The register holding the address of the next instruction, like a bookmark. *In TRIADA:* starts at −19,683 (SPEC §2.4). First seen: M3.
 
 **Pseudo-instruction**: A convenient spelling the assembler translates into a real instruction, e.g. `INC R0` → `ADDI R0, 1`. First seen: M4.
@@ -359,6 +369,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Queue (FIFO)**: A waiting line: first in, first out. *In TRIADA:* the KEY queue. First seen: M2.
 
 **RAM (random-access memory)**: Memory that can be read and written. *In TRIADA:* addresses 0 … 59,048. First seen: M2.
+
+**Record (Java)**: A Java class that only holds values. It cannot be changed after it is made, and the compiler writes its constructor, getters and `equals` for it. *In TRIADA:* `MachineProfile` is a record (M16).
 
 **Recursive descent**: A way of writing a parser with one function per grammar rule; the functions call each other as the rules nest. *In TRIADA:* the assembler (M4) and TRIBASIC's expressions, one routine per precedence level (M14). First seen: M4.
 

@@ -38,17 +38,14 @@ B_TMP       = 40        ; the next free string temp
 B_FONTFG    = 41        ; the font's colours now (COLOR)
 B_FONTBG    = 42
 B_ARGS      = 43        ; ... 52: the numbers of a machine statement
-LINE_MAX    = 24        ; longest command line: 27 columns minus "> " minus cursor
+LINE_MAX    = MAP_COLS - 3 ; longest command line: 27 columns minus "> " minus cursor
 
 ; --- constants --------------------------------------------------------------
-COLS        = 27        ; text columns = tile map columns
-ROWS        = 18        ; text rows
-MAP_CELLS   = 486       ; 27 x 18
+COLS        = MAP_COLS  ; text columns = tile map columns (27); MAP_* are built-ins (M16)
+ROWS        = MAP_ROWS  ; text rows (18)
 TEXT_FG     = 4         ; light cyan, trits 0++  (R 128, G 255, B 255)
 TEXT_BG     = -12       ; dark blue,  trits --0  (R 0, G 0, B 128)
 FRAME_COLOUR = -11      ; blue border, trits --+
-STACK_TOP   = 59049     ; SP after boot: the stack grows down from the top of RAM
-PROGRAM_START = 243     ; where programs load, and the default of RUN
-FREE_WORDS  = 39757     ; 243 ... 39,999: shown on the boot screen
-BASIC_COLD  = -59048    ; TRIBASIC's entry points in the extension ROM (SPEC 2.5)
-BASIC_WARM  = -59046
+FREE_WORDS  = TILES - PROGRAM_START ; 243 ... 39,999 (39,757): shown on the boot screen
+BASIC_COLD  = EXT_ROM_START ; TRIBASIC's entry points in the extension ROM (SPEC 2.5)
+BASIC_WARM  = EXT_ROM_START + 2

@@ -2,7 +2,6 @@ package org.triada.core.cpu;
 
 import java.util.Arrays;
 import org.triada.core.memory.Bus;
-import org.triada.core.memory.MemoryMap;
 import org.triada.core.ternary.Word;
 import org.triada.core.ternary.WordMath;
 
@@ -51,7 +50,7 @@ public final class Cpu {
      */
     public void reset() {
         Arrays.fill(r, 0);
-        pc = MemoryMap.ROM_START;
+        pc = bus.profile().romStart();
         s = 0;
         o = 0;
         halted = false;

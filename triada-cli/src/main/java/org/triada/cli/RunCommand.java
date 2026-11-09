@@ -9,14 +9,17 @@ import org.triada.assembler.AssemblyError;
 import org.triada.assembler.AssemblyException;
 import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
+import org.triada.core.MachineProfile;
+import org.triada.core.MachineProfiles;
 import org.triada.core.io.KeyFeeder;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
 import org.triada.rom.Rom;
 
 /**
- * {@code triada run program.tri [--frames N] [--dump-screen out.png] [--disk DIR]}: runs a
- * program on a machine without window, sound or keyboard ("headless").
+ * {@code triada run program.tri [--frames N] [--dump-screen out.png] [--disk DIR] [--model M]}:
+ * runs a program on a machine without window, sound or keyboard ("headless").
+ * {@code --model} picks the machine (M16; default triada-85).
  *
  * <p>Since M8 the machine has its ROM and boots as usual; the program is
  * copied into RAM and started by the ROM through AUTORUN, as if RUN had been
@@ -57,8 +60,12 @@ final class RunCommand {
         String disk = null;
         String typeFile = null;
         boolean boot = true;
+        MachineProfile model = MachineProfiles.TRIADA_85;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
+                case "--model":
+                    model = TasmCommand.model(args, ++i);
+                    break;
                 case "--frames": {
                     String v = TasmCommand.value(args, ++i, "--frames");
                     try {
@@ -112,12 +119,12 @@ final class RunCommand {
         TriImage image = null;
         if (program != null) {
             try {
-                image = load(program);
+                image = load(program, model);
             } catch (LoadFailure f) {
                 return f.exitCode;
             }
         }
-        Machine machine = Rom.newMachine();
+        Machine machine = Rom.newMachine(model);
         if (disk != null) {
             machine.triskette().setPort(new FolderTriskette(Path.of(disk)));   // else an empty one in memory
         }
@@ -209,14 +216,14 @@ final class RunCommand {
     }
 
     /** Reads a .tri file, or assembles a .tasm file; problems are printed to stderr. */
-    private TriImage load(String program) throws LoadFailure {
+    private TriImage load(String program, MachineProfile model) throws LoadFailure {
         if (program.toLowerCase(java.util.Locale.ROOT).endsWith(".tasm")) {
             if (!Files.isReadable(Path.of(program))) {
                 err.println("triada: can't read " + program);
                 throw new LoadFailure(Main.EXIT_USAGE);
             }
             try {
-                return new Assembler(new FileSourceLoader()).assemble(program).image();
+                return new Assembler(new FileSourceLoader(), model).assemble(program).image();
             } catch (AssemblyException e) {
                 for (AssemblyError error : e.errors()) {
                     err.println(error);

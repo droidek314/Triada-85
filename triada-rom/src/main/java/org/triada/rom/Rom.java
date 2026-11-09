@@ -4,8 +4,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.triada.core.Machine;
+import org.triada.core.MachineProfile;
+import org.triada.core.MachineProfiles;
 import org.triada.core.TriImage;
-import org.triada.core.memory.MemoryMap;
 import org.triada.core.ternary.Word;
 
 /**
@@ -33,7 +34,7 @@ public final class Rom {
     /** The ROM image: it starts at the first ROM address, −19,683. */
     public static synchronized TriImage image() {
         if (image == null) {
-            image = new TriImage(MemoryMap.ROM_START, decode(RomData.SIZE, RomData.WORDS));
+            image = new TriImage(MachineProfiles.TRIADA_85.romStart(), decode(RomData.SIZE, RomData.WORDS));
         }
         return image;
     }
@@ -41,7 +42,8 @@ public final class Rom {
     /** The extension ROM (TRIBASIC, M14), starting at {@code EXT_ROM_START}. */
     public static synchronized TriImage extensionImage() {
         if (extension == null) {
-            extension = new TriImage(MemoryMap.EXT_ROM_START, decode(RomData.EXT_SIZE, RomData.EXT_WORDS));
+            extension = new TriImage(MachineProfiles.TRIADA_85.extRomStart(),
+                    decode(RomData.EXT_SIZE, RomData.EXT_WORDS));
         }
         return extension;
     }
@@ -82,11 +84,26 @@ public final class Rom {
         return v;
     }
 
-    /** A machine with this ROM installed, in power-on state: its first frame starts the boot. */
+    /** A TRIADA-85 with this ROM installed, in power-on state: its first frame starts the boot. */
     public static Machine newMachine() {
-        Machine m = new Machine();
-        m.bus().loadRom(image().words());
-        m.bus().loadExtensionRom(extensionImage().words());
+        return newMachine(MachineProfiles.TRIADA_85);
+    }
+
+    /**
+     * A machine of the model {@code profile} with the ROM images its profile
+     * names ("main", "tribasic"), in power-on state (M16).
+     *
+     * @throws IllegalArgumentException if the profile names an image this ROM doesn't have
+     */
+    public static Machine newMachine(MachineProfile profile) {
+        Machine m = new Machine(profile);
+        for (String name : profile.romImages()) {
+            switch (name) {
+                case "main" -> m.bus().loadRom(image().words());
+                case "tribasic" -> m.bus().loadExtensionRom(extensionImage().words());
+                default -> throw new IllegalArgumentException("no ROM image called '" + name + "'");
+            }
+        }
         m.powerOn();
         return m;
     }
@@ -100,9 +117,10 @@ public final class Rom {
      */
     public static void autorun(Machine m, TriImage program) {
         long last = (long) program.loadAddress() + program.size() - 1;
-        if (program.loadAddress() < MemoryMap.RAM_START || last > MemoryMap.RAM_END) {
+        MachineProfile p = m.profile();
+        if (program.loadAddress() < p.ramStart() || last > p.ramEnd()) {
             throw new IllegalArgumentException("the program occupies addresses " + program.loadAddress() + " .. "
-                    + last + ", which is not inside RAM (" + MemoryMap.RAM_START + " .. " + MemoryMap.RAM_END + ")");
+                    + last + ", which is not inside RAM (" + p.ramStart() + " .. " + p.ramEnd() + ")");
         }
         m.bus().loadRam(program.loadAddress(), program.words());
         m.bus().write(address("AUTORUN"), program.loadAddress());

@@ -183,7 +183,7 @@ newline: LDI R2, CURSOR_X
 nl_move: LD R0, [R1+COLS]
         ST R0, [R1]
         INC R1
-        LDI R2, MAP + 459               ; 17 rows x 27
+        LDI R2, MAP + MAP_CELLS - COLS  ; 17 rows x 27
         CMP R1, R2
         JN nl_move
         LDI R0, ' '                     ; the new bottom row is empty

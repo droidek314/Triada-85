@@ -1,15 +1,8 @@
 package org.triada.core.memory;
 
-import static org.triada.core.memory.MemoryMap.IO_BASE;
-import static org.triada.core.memory.MemoryMap.IO_END;
-import static org.triada.core.memory.MemoryMap.RAM_END;
-import static org.triada.core.memory.MemoryMap.RAM_SIZE;
-import static org.triada.core.memory.MemoryMap.RAM_START;
-import static org.triada.core.memory.MemoryMap.ROM_END;
-import static org.triada.core.memory.MemoryMap.ROM_SIZE;
-import static org.triada.core.memory.MemoryMap.ROM_START;
-
 import java.util.Arrays;
+import org.triada.core.MachineProfile;
+import org.triada.core.MachineProfiles;
 import org.triada.core.io.IoDevice;
 import org.triada.core.io.IoRegisters;
 import org.triada.core.ternary.Word;
@@ -17,9 +10,9 @@ import org.triada.core.ternary.Word;
 /**
  * The bus: the single path between the CPU and everything it can address.
  * The CPU calls {@link #read(int)} and {@link #write(int, int)} with an
- * address. The bus looks at which region the address falls into
- * ({@link MemoryMap}) and forwards the request to RAM, ROM, an I/O device,
- * or nowhere.
+ * address. The bus looks at which region the address falls into (from its
+ * {@link MachineProfile}, M16) and forwards the request to RAM, ROM, an I/O
+ * device, or nowhere.
  *
  * <p>RAM and ROM are plain {@code int[]} arrays of words (DECISIONS.md D-004).
  * The I/O region is a table of 729 slots, one per register, each holding the
@@ -32,13 +25,47 @@ import org.triada.core.ternary.Word;
  */
 public final class Bus {
 
-    private final int[] ram = new int[RAM_SIZE];
-    private final int[] rom = new int[ROM_SIZE];
-    private final int[] extRom = new int[MemoryMap.EXT_ROM_SIZE];
-    private final IoDevice[] devices = new IoDevice[IoRegisters.COUNT];
+    private final MachineProfile profile;
+    // The profile's region bounds as plain fields: read() and write() run for
+    // every instruction, so they compare against fields, not method calls.
+    private final int ramStart;
+    private final int ramEnd;
+    private final int romStart;
+    private final int romEnd;
+    private final int ioBase;
+    private final int ioEnd;
+    private final int extRomStart;
+    private final int extRomEnd;
+    private final int[] ram;
+    private final int[] rom;
+    private final int[] extRom;
+    private final IoDevice[] devices;
 
-    /** A new bus in power-on state: RAM and ROM all 0, no devices (SPEC §2.4). */
+    /** A TRIADA-85 bus in power-on state: RAM and ROM all 0, no devices (SPEC §2.4). */
     public Bus() {
+        this(MachineProfiles.TRIADA_85);
+    }
+
+    /** A bus with the memory map of {@code profile} (M16), in power-on state. */
+    public Bus(MachineProfile profile) {
+        this.profile = profile;
+        ramStart = profile.ramStart();
+        ramEnd = profile.ramEnd();
+        romStart = profile.romStart();
+        romEnd = profile.romEnd();
+        ioBase = profile.ioBase();
+        ioEnd = profile.ioEnd();
+        extRomStart = profile.extRomStart();
+        extRomEnd = profile.extRomSize() > 0 ? profile.extRomEnd() : profile.extRomStart() - 1;   // empty
+        ram = new int[profile.ramSize()];
+        rom = new int[profile.romSize()];
+        extRom = new int[profile.extRomSize()];
+        devices = new IoDevice[profile.ioSize()];
+    }
+
+    /** The model whose memory map this bus has. */
+    public MachineProfile profile() {
+        return profile;
     }
 
     // ---------------------------------------------------------------- CPU side
@@ -50,19 +77,19 @@ public final class Bus {
      */
     public int read(int address) {
         // RAM first: it is by far the most common case.
-        if (address >= RAM_START && address <= RAM_END) {
-            return ram[address];
+        if (address >= ramStart && address <= ramEnd) {
+            return ram[address - ramStart];
         }
-        if (address >= ROM_START && address <= ROM_END) {
-            return rom[address - ROM_START];
+        if (address >= romStart && address <= romEnd) {
+            return rom[address - romStart];
         }
-        if (address >= IO_BASE && address <= IO_END) {
-            int k = address - IO_BASE;
+        if (address >= ioBase && address <= ioEnd) {
+            int k = address - ioBase;
             IoDevice device = devices[k];
             return device == null ? 0 : device.read(k);
         }
-        if (address >= MemoryMap.EXT_ROM_START && address <= MemoryMap.EXT_ROM_END) {
-            return extRom[address - MemoryMap.EXT_ROM_START];
+        if (address >= extRomStart && address <= extRomEnd) {
+            return extRom[address - extRomStart];
         }
         MemoryMap.checkAddress(address);
         return 0;
@@ -79,19 +106,19 @@ public final class Bus {
         if (!Word.isValid(value)) {
             throw new IllegalArgumentException("value " + value + " is not a word");
         }
-        if (address >= RAM_START && address <= RAM_END) {
-            ram[address] = value;
+        if (address >= ramStart && address <= ramEnd) {
+            ram[address - ramStart] = value;
             return;
         }
-        if (address >= IO_BASE && address <= IO_END) {
-            int k = address - IO_BASE;
+        if (address >= ioBase && address <= ioEnd) {
+            int k = address - ioBase;
             IoDevice device = devices[k];
             if (device != null) {
                 device.write(k, value);
             }
             return;
         }
-        if (address < ROM_START || address > ROM_END) {
+        if (address < romStart || address > romEnd) {
             MemoryMap.checkAddress(address);
         }
         // ROM or unmapped: ignored, as on the real (imaginary) machine.
@@ -104,8 +131,8 @@ public final class Bus {
      * shows the next key and leaves it in the queue. For the debugger and tests.
      */
     public int peek(int address) {
-        if (MemoryMap.regionOf(address) == MemoryMap.Region.IO) {
-            int k = address - IO_BASE;
+        if (MemoryMap.regionOf(profile, address) == MemoryMap.Region.IO) {
+            int k = address - ioBase;
             IoDevice device = devices[k];
             return device == null ? 0 : device.peek(k);
         }
@@ -122,9 +149,9 @@ public final class Bus {
         if (device == null) {
             throw new IllegalArgumentException("device must not be null");
         }
-        if (count < 1 || firstK < 0 || firstK + count > IoRegisters.COUNT) {
+        if (count < 1 || firstK < 0 || firstK + count > devices.length) {
             throw new IllegalArgumentException("registers " + firstK + " .. " + (firstK + count - 1)
-                    + " are outside 0 .. " + (IoRegisters.COUNT - 1));
+                    + " are outside 0 .. " + (devices.length - 1));
         }
         for (int k = firstK; k < firstK + count; k++) {
             if (devices[k] != null) {
@@ -148,9 +175,9 @@ public final class Bus {
      * the emulator "burns" the assembled ROM (M8); the CPU can never write ROM.
      */
     public void loadRom(int[] image) {
-        if (image.length > ROM_SIZE) {
+        if (image.length > rom.length) {
             throw new IllegalArgumentException(
-                    "ROM image has " + image.length + " words, ROM holds " + ROM_SIZE);
+                    "ROM image has " + image.length + " words, ROM holds " + rom.length);
         }
         checkWords(image);
         Arrays.fill(rom, 0);
@@ -162,9 +189,9 @@ public final class Bus {
      * word {@code i} goes to {@code EXT_ROM_START + i}, the rest becomes 0.
      */
     public void loadExtensionRom(int[] image) {
-        if (image.length > MemoryMap.EXT_ROM_SIZE) {
+        if (image.length > extRom.length) {
             throw new IllegalArgumentException("extension ROM image has " + image.length
-                    + " words, the extension ROM holds " + MemoryMap.EXT_ROM_SIZE);
+                    + " words, the extension ROM holds " + extRom.length);
         }
         checkWords(image);
         Arrays.fill(extRom, 0);
@@ -176,12 +203,12 @@ public final class Bus {
      * loaded at 243. The whole block must fit in RAM.
      */
     public void loadRam(int address, int[] words) {
-        if (address < RAM_START || (long) address + words.length - 1 > RAM_END) {
+        if (address < ramStart || (long) address + words.length - 1 > ramEnd) {
             throw new IllegalArgumentException("block of " + words.length + " words at " + address
-                    + " does not fit in RAM (" + RAM_START + " .. " + RAM_END + ")");
+                    + " does not fit in RAM (" + ramStart + " .. " + ramEnd + ")");
         }
         checkWords(words);
-        System.arraycopy(words, 0, ram, address, words.length);
+        System.arraycopy(words, 0, ram, address - ramStart, words.length);
     }
 
     /** Sets every RAM word to 0, as at power-on. ROM and devices are kept. */

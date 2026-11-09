@@ -21,14 +21,17 @@ import org.triada.core.io.IoRegisters;
  * <p><b>Levels.</b> A voice at full volume swings between −{@link #VOICE_PEAK}
  * and +{@link #VOICE_PEAK}; three voices together stay within ±30,000, below
  * the 16-bit limit of 32,767, so mixing never clips.
+ *
+ * <p>Since M16 the number of voices (1 … 3) and the frame rate come from the
+ * machine's profile; the static constants are the TRIADA-85's.
  */
 public final class SoundChip implements IoDevice {
 
     /** Samples per second. */
     public static final int SAMPLE_RATE = 44_100;
-    /** Samples per machine frame: 44,100 / 60. */
+    /** Samples per machine frame on the TRIADA-85: 44,100 / 60. */
     public static final int SAMPLES_PER_FRAME = SAMPLE_RATE / 60;   // 735
-    /** Number of voices. */
+    /** Number of voices on the TRIADA-85; also the most any model can have (registers 10 … 18). */
     public static final int VOICES = 3;
     /** Highest volume (SPEC §7). */
     public static final int MAX_VOLUME = 13;
@@ -40,27 +43,50 @@ public final class SoundChip implements IoDevice {
     public static final int WAVE_TRIANGLE = 0;
     public static final int WAVE_SQUARE = 1;
 
-    /** First I/O register (V1_FREQ) and count (3 voices × FREQ, VOL, WAVE). */
+    /** First I/O register (V1_FREQ) and count on the TRIADA-85 (3 voices × FREQ, VOL, WAVE). */
     public static final int FIRST_REGISTER = IoRegisters.V1_FREQ;
     public static final int REGISTER_COUNT = 3 * VOICES;
 
     /** Default noise seed; any non-zero value works. */
     public static final int NOISE_SEED = 0x7A1ADA;
 
-    private final int[] freq = new int[VOICES];
-    private final int[] vol = new int[VOICES];
-    private final int[] wave = new int[VOICES];
+    private final int voices;
 
-    private final int[] phase = new int[VOICES];        // 0 .. SAMPLE_RATE - 1
-    private final int[] quarter = new int[VOICES];      // quarter of the period (0..3), -1 = none yet
-    private final int[] noiseTrit = new int[VOICES];    // current noise level: -1, 0, +1
+    private final int[] freq;
+    private final int[] vol;
+    private final int[] wave;
+
+    private final int[] phase;        // 0 .. SAMPLE_RATE - 1
+    private final int[] quarter;      // quarter of the period (0..3), -1 = none yet
+    private final int[] noiseTrit;    // current noise level: -1, 0, +1
     private int noiseState = NOISE_SEED;
 
-    private final short[] frameSamples = new short[SAMPLES_PER_FRAME];
+    private final short[] frameSamples;
 
-    /** A silent sound chip in power-on state. */
+    /** A silent TRIADA-85 sound chip (three voices, 60 frames per second) in power-on state. */
     public SoundChip() {
+        this(VOICES, 60);
+    }
+
+    /** A silent sound chip with {@code voices} voices (1 … 3), rendering for {@code framesPerSecond}. */
+    public SoundChip(int voices, int framesPerSecond) {
+        if (voices < 1 || voices > VOICES || framesPerSecond < 1) {
+            throw new IllegalArgumentException(voices + " voices at " + framesPerSecond + " frames per second");
+        }
+        this.voices = voices;
+        freq = new int[voices];
+        vol = new int[voices];
+        wave = new int[voices];
+        phase = new int[voices];
+        quarter = new int[voices];
+        noiseTrit = new int[voices];
+        frameSamples = new short[SAMPLE_RATE / framesPerSecond];
         reset();
+    }
+
+    /** I/O registers this chip occupies from {@link #FIRST_REGISTER}: three per voice. */
+    public int registerCount() {
+        return 3 * voices;
     }
 
     // ================================================================ registers
@@ -96,7 +122,7 @@ public final class SoundChip implements IoDevice {
 
     /** Power-on: all registers 0 (silence), oscillators and noise generator restarted. */
     public void reset() {
-        for (int v = 0; v < VOICES; v++) {
+        for (int v = 0; v < voices; v++) {
             freq[v] = 0;
             vol[v] = 0;
             wave[v] = 0;
@@ -110,9 +136,9 @@ public final class SoundChip implements IoDevice {
 
     // ================================================================ samples
 
-    /** Generates this frame's {@link #SAMPLES_PER_FRAME} samples; read them with {@link #frameSamples()}. */
+    /** Generates this frame's samples (735 on the TRIADA-85); read them with {@link #frameSamples()}. */
     public void renderFrame() {
-        generate(frameSamples, 0, SAMPLES_PER_FRAME);
+        generate(frameSamples, 0, frameSamples.length);
     }
 
     /** The samples of the last frame (a buffer that is reused; copy it if you keep it). */
@@ -127,7 +153,7 @@ public final class SoundChip implements IoDevice {
     public void generate(short[] out, int offset, int count) {
         for (int i = 0; i < count; i++) {
             long mix = 0;
-            for (int v = 0; v < VOICES; v++) {
+            for (int v = 0; v < voices; v++) {
                 mix += (long) level(v) * effectiveVolume(v);
             }
             // mix is in units of 1/SAMPLE_RATE of full scale, times volume 0..13.

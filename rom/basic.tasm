@@ -39,7 +39,7 @@
 ;  a GOTO or a jump back into a loop simply resets SP there.
 ; ============================================================================
 
-B_MEMTOP    = 40000     ; program + variables stay below the tile patterns
+B_MEMTOP    = TILES     ; program + variables stay below the tile patterns
 CSTACK      = 45000     ; the control stack's bottom ...
 CSTACK_END  = 49990     ; ... and its limit
 INBUF       = 50000     ; INPUT's line (up to 81 words)
@@ -70,7 +70,7 @@ T_FALSE     = -32
 T_UNKNOWN   = -33
 T_FIRSTFN   = -51       ; ABS: the first function (-51 ... -68)
 
-        .org -59048                     ; the first extension ROM word
+        .org EXT_ROM_START              ; the first extension ROM word (-59,048)
 
 ; --- entry points: fixed addresses (SPEC 2.5) --------------------------------
         JMP b_cold                      ; -59,048  BASIC_COLD: clear the program, start

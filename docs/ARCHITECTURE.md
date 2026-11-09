@@ -41,8 +41,9 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
 
-## Current state (after M15, release v1.1)
+## Current state (after M16)
 
+- `triada-core` has `MachineProfile` and `MachineProfiles` (M16, D-057): every number that makes a model what it is, with one model today, `MachineProfiles.TRIADA_85`. `Machine`, `Bus`, `Cpu`, `VideoChip`, `SoundChip` and `TrisketteDevice` read their sizes from it; see [Machine profiles](#machine-profiles).
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
   - `Trit`, `Ternary`: single trits and `-0+` notation of any width.
   - `Word`: the 12-trit word, stored as a plain `int` (D-004), with wrap, carry and trit access.
@@ -68,6 +69,31 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `triada-web` (M12): the browser version, compiled to JavaScript by gdx-teavm. `WebLauncher` → `WebApp` (the same machine, `MachineScreen` and `InputMapper`, no debugger; programs from `?program=NAME` or a dropped file, assembled in the browser) and `WebPage` (one-line JavaScript glue). Since M13 `WebTriskette` keeps the triskette in browser storage, and the page has a Triskette panel for import and export (D-047). Its `index.html` holds the sound player (D-041) and the file drop. `.github/workflows/pages.yml` tests, builds and publishes it to GitHub Pages (D-042).
 - TRIBASIC (M14, D-048): `rom/basic.tasm` is assembled together with the main ROM (one symbol table) at `.org -59048`; `RomGenerator` splits the image into the main ROM and the extension ROM, and `Rom.newMachine()` loads both. The kernel boots into `BASIC_COLD`; `MON` and the monitor's `BASIC` switch between the two. Its tests: `BasicSuiteTest` runs `tests/basic/*.bas` against `*.expected` (D-050). Since M15 TRIBASIC is complete (D-051 … D-053): typed values, strings in fixed slots with per-statement temporaries, variables and arrays as entries of any length, functions through `fntab`, machine statements, and storage through the DISK routines. `BasicExamplesTest` plays `programs/basic/*.bas`; `BasicManualTest` checks `docs/manual/tribasic.md`.
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
+
+## Machine profiles
+
+Since M16 a machine is built from a **profile**: an immutable record, `MachineProfile`, that says how big each part is and what is plugged in (D-057). Today there is one, `MachineProfiles.TRIADA_85`, which holds exactly the numbers of [SPEC.md](SPEC.md).
+
+```
+              MachineProfiles.TRIADA_85   (or byId("triada-85") from --model)
+                          |
+        +-----------------+------------------+---------------------+
+        |                 |                  |                     |
+        v                 v                  v                     v
+  new Machine(p)    Rom.newMachine(p)   BuiltinSymbols.of(p)   frontends / CLI
+        |           = Machine(p) + the  -> new Assembler(       pick p at startup
+        |             ROM images p names    loader, p)
+        v
+  Bus(p)  ............ RAM / ROM / ext. ROM / I/O bounds and array sizes
+  Cpu(bus) ........... PC after reset = p.romStart()
+  VideoChip(bus) ..... screen, border, map size, TILES / MAP / SPRITES addresses
+  SoundChip(voices, fps)  samples per frame, voice count
+  TrisketteDevice .... RAM bounds for loads and names
+  devices ............ plugged in only if p.has(Device.X)
+  cycles per frame ... p.cyclesPerFrame()
+```
+
+What stays the same for every model is not in the profile: the 12-trit word, the instruction set, the pixel packing and the I/O register numbers. The old constants (`MemoryMap.RAM_END`, `VideoChip.FRAME_WIDTH`, `Machine.CYCLES_PER_FRAME`, …) are now computed from the TRIADA-85 profile and are used only by code that is about that model: its tests and the frontends. `ModifiedProfileTest` builds a smaller made-up model and checks that the machine follows it.
 
 ## Inside triada-core: the bus
 

@@ -20,6 +20,9 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M13 | Triskette storage device (Phase 2) | ✅ done | 2026-11-08 |
 | M14 | TRIBASIC I: the interpreter core | ✅ done | 2026-11-08 |
 | M15 | TRIBASIC II: strings, arrays, machine access, storage and release | ✅ done (v1.1) | 2026-11-08 |
+| M16 | Housekeeping: prior art, machine profiles | ✅ done | 2026-11-09 |
+
+**Next phase: TRIADA-NET**, numbered from M17 (the task file says M16; see DECISIONS.md D-056).
 
 ## Stretch goals (only after M11)
 

@@ -9,11 +9,14 @@ import org.triada.assembler.AssemblyError;
 import org.triada.assembler.AssemblyException;
 import org.triada.assembler.AssemblyResult;
 import org.triada.assembler.Assembler;
+import org.triada.core.MachineProfile;
+import org.triada.core.MachineProfiles;
 import org.triada.core.TriImage;
 
 /**
- * {@code triada tasm source.tasm [-o out.tri] [--listing out.lst]}: assembles a
- * source file into a {@code .tri} file and, if asked, a listing.
+ * {@code triada tasm source.tasm [-o out.tri] [--listing out.lst] [--model M]}: assembles a
+ * source file into a {@code .tri} file and, if asked, a listing. {@code --model}
+ * picks the machine whose built-in symbols it uses (M16; default triada-85).
  */
 final class TasmCommand {
 
@@ -29,8 +32,12 @@ final class TasmCommand {
         String source = null;
         String output = null;
         String listing = null;
+        MachineProfile model = MachineProfiles.TRIADA_85;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
+                case "--model":
+                    model = model(args, ++i);
+                    break;
                 case "-o":
                     output = value(args, ++i, "-o");
                     break;
@@ -61,7 +68,7 @@ final class TasmCommand {
         }
         AssemblyResult result;
         try {
-            result = new Assembler(new FileSourceLoader()).assemble(source);
+            result = new Assembler(new FileSourceLoader(), model).assemble(source);
         } catch (AssemblyException e) {
             for (AssemblyError error : e.errors()) {
                 err.println(error);
@@ -83,6 +90,15 @@ final class TasmCommand {
         out.println(source + ": " + image.size() + " words at " + image.loadAddress() + " -> " + output
                 + (listing != null ? " (listing: " + listing + ")" : ""));
         return Main.EXIT_OK;
+    }
+
+    /** The value of {@code --model}: a machine model by its id, e.g. "triada-85" (M16). */
+    static MachineProfile model(String[] args, int i) throws Main.UsageException {
+        try {
+            return MachineProfiles.byId(value(args, i, "--model"));
+        } catch (IllegalArgumentException e) {
+            throw new Main.UsageException("--model: " + e.getMessage());
+        }
     }
 
     static String value(String[] args, int i, String option) throws Main.UsageException {

@@ -71,11 +71,12 @@ public final class DebuggerView implements Disposable {
     private final Label breakpoints;
     private final TextField memoryField;
     private final TextField breakField;
-    private int memoryAddress = 243;
+    private int memoryAddress;
     private float screenHeight;
 
     public DebuggerView(Debugger debugger) {
         this.debugger = debugger;
+        this.memoryAddress = debugger.machine().profile().programStart();   // the memory view starts at 243
         this.font = TriadaFont.create();
         buildSkin();
 
@@ -89,7 +90,7 @@ public final class DebuggerView implements Disposable {
         right.top().left().pad(8);
 
         // ---- right panel
-        right.add(label("TRIADA-85 DEBUGGER   F1", HEAD)).left().row();
+        right.add(label(debugger.machine().profile().name() + " DEBUGGER   F1", HEAD)).left().row();
         status = label("", TEXT);
         status.setWrap(true);
         right.add(status).left().width(PANEL_WIDTH - 16).padBottom(4).row();

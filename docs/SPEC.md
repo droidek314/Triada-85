@@ -1,6 +1,6 @@
 # TRIADA-85 — Machine Specification
 
-Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15 and released on 2026-11-08 (see `CHANGELOG.md`). This document is the **source of truth** for the machine. If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
+Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15 and released on 2026-11-08 (see `CHANGELOG.md`). This document is the **source of truth** for the machine. Its numbers (memory map, timing, screen, voices, devices, ROM images) are those of the **TRIADA-85 profile**, `MachineProfiles.TRIADA_85` in `triada-core`. Since M16 the emulator builds a machine from such a profile, so a later model would be a new profile with its own numbers (D-057). If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
 
 ---
 
@@ -438,7 +438,7 @@ msg:    .str "HELLO, WORLD"
 | `.include "file"` | Include another source file |
 
 ### 9.3 Built-in symbols and pseudo-instructions
-- All ROM routine names (`PUTCHAR`, `PRINT`, …), `IO_BASE`, all I/O register names as offsets (`FRAME = 0`, `JOY_X = 1`, …), `TILES = 40000`, `MAP = 44000`, `SPRITES = 44600`.
+- All ROM routine names (`PUTCHAR`, `PRINT`, …), `IO_BASE`, all I/O register names as offsets (`FRAME = 0`, `JOY_X = 1`, …), `TILES = 40000`, `MAP = 44000`, `SPRITES = 44600`. Since M16 also `ROM_START = -19683`, `EXT_ROM_START = -59048`, `PROGRAM_START = 243`, `STACK_TOP = 59049`, `MAP_COLS = 27`, `MAP_ROWS = 18`, `MAP_CELLS = 486` (D-058). All these values come from the machine profile the source is assembled for (`tasm --model`).
 - `JN JZ JP JNZ JLE JGE addr` → `JIF`.
 - `INC rd` → `ADDI rd, 1`. `DEC rd` → `ADDI rd, -1`.
 - `ROT rd` → `ROT rd, 1`.

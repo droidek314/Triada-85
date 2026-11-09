@@ -1,60 +1,101 @@
 package org.triada.core;
 
+import org.triada.core.MachineProfile.Device;
 import org.triada.core.cpu.Cpu;
 import org.triada.core.io.DebugDevice;
 import org.triada.core.io.InputDevice;
 import org.triada.core.io.IoRegisters;
 import org.triada.core.io.SystemDevice;
 import org.triada.core.memory.Bus;
-import org.triada.core.memory.MemoryMap;
 import org.triada.core.sound.SoundChip;
 import org.triada.core.triskette.TrisketteDevice;
 import org.triada.core.ternary.Word;
 import org.triada.core.video.VideoChip;
 
 /**
- * The whole TRIADA-85 in one object: the bus with RAM and ROM, the CPU, and
+ * The whole machine in one object: the bus with RAM and ROM, the CPU, and
  * the devices plugged into the I/O registers. Frontends and the headless
  * runner drive it one frame at a time with {@link #runFrame()}.
  *
+ * <p>Since M16 a machine is built from a {@link MachineProfile}, which says
+ * how big each part is and which devices are plugged in; {@code new Machine()}
+ * is a TRIADA-85 ({@link MachineProfiles#TRIADA_85}).
+ *
  * <p>One frame (SPEC §6, 60 per second):
  * <ol>
- * <li>the CPU runs for up to {@link #CYCLES_PER_FRAME} cycles, or until WAIT or a halt;</li>
+ * <li>the CPU runs for up to the profile's cycles per frame (59,049), or until WAIT or a halt;</li>
  * <li>the video chip draws the picture from video memory;</li>
- * <li>the sound chip generates the frame's 735 samples from its registers;</li>
+ * <li>the sound chip generates the frame's samples (735) from its registers;</li>
  * <li>FRAME increases by 1.</li>
  * </ol>
  * A halted CPU does nothing, but the frames keep coming.
  */
 public final class Machine {
 
-    /** Frames per second (SPEC §6). */
-    public static final int FRAMES_PER_SECOND = 60;
-    /** CPU cycles per frame: 3^10 (SPEC §6). */
-    public static final int CYCLES_PER_FRAME = 59_049;
+    /** Frames per second on the TRIADA-85 (SPEC §6); a machine's own is {@code profile().framesPerSecond()}. */
+    public static final int FRAMES_PER_SECOND = MachineProfiles.TRIADA_85.framesPerSecond();
+    /** CPU cycles per frame on the TRIADA-85: 3^10 (SPEC §6). */
+    public static final int CYCLES_PER_FRAME = MachineProfiles.TRIADA_85.cyclesPerFrame();
 
-    private final Bus bus = new Bus();
-    private final Cpu cpu = new Cpu(bus);
+    private final MachineProfile profile;
+    private final int cyclesPerFrame;
+    private final Bus bus;
+    private final Cpu cpu;
     private final InputDevice input = new InputDevice();
     private final SystemDevice system = new SystemDevice();
-    private final DebugDevice debug = new DebugDevice(cpu::endFrame);
-    private final VideoChip video = new VideoChip(bus);
-    private final SoundChip sound = new SoundChip();
-    private final TrisketteDevice triskette = new TrisketteDevice(bus);
+    private final DebugDevice debug;
+    private final VideoChip video;
+    private final SoundChip sound;
+    private final TrisketteDevice triskette;
 
-    /** A machine in power-on state, with an empty (all-zero) ROM. */
+    /** A TRIADA-85 in power-on state, with an empty (all-zero) ROM. */
     public Machine() {
-        bus.attach(IoRegisters.FRAME, 1, system);
-        bus.attach(InputDevice.FIRST_REGISTER, InputDevice.REGISTER_COUNT, input);
-        bus.attach(VideoChip.FIRST_REGISTER, VideoChip.REGISTER_COUNT, video);
-        bus.attach(SoundChip.FIRST_REGISTER, SoundChip.REGISTER_COUNT, sound);
-        bus.attach(IoRegisters.RAND, 1, system);
-        bus.attach(DebugDevice.FIRST_REGISTER, DebugDevice.REGISTER_COUNT, debug);
-        bus.attach(TrisketteDevice.FIRST_REGISTER, TrisketteDevice.REGISTER_COUNT, triskette);
+        this(MachineProfiles.TRIADA_85);
     }
 
-    /** Cycles the CPU may still use in the current frame (less than 59,049 after a breakpoint stop). */
-    private int cyclesLeft = CYCLES_PER_FRAME;
+    /**
+     * A machine of the model {@code profile} in power-on state, with an empty
+     * (all-zero) ROM. Only the devices the profile lists are plugged in; the
+     * registers of a missing device read 0, like any empty I/O slot.
+     */
+    public Machine(MachineProfile profile) {
+        this.profile = profile;
+        cyclesPerFrame = profile.cyclesPerFrame();
+        bus = new Bus(profile);
+        cpu = new Cpu(bus);
+        debug = new DebugDevice(cpu::endFrame);
+        video = new VideoChip(bus);
+        sound = new SoundChip(profile.voices(), profile.framesPerSecond());
+        triskette = new TrisketteDevice(bus);
+        cyclesLeft = cyclesPerFrame;
+        if (profile.has(Device.SYSTEM)) {
+            bus.attach(IoRegisters.FRAME, 1, system);
+            bus.attach(IoRegisters.RAND, 1, system);
+        }
+        if (profile.has(Device.INPUT)) {
+            bus.attach(InputDevice.FIRST_REGISTER, InputDevice.REGISTER_COUNT, input);
+        }
+        if (profile.has(Device.VIDEO)) {
+            bus.attach(VideoChip.FIRST_REGISTER, VideoChip.REGISTER_COUNT, video);
+        }
+        if (profile.has(Device.SOUND)) {
+            bus.attach(SoundChip.FIRST_REGISTER, sound.registerCount(), sound);
+        }
+        if (profile.has(Device.DEBUG)) {
+            bus.attach(DebugDevice.FIRST_REGISTER, DebugDevice.REGISTER_COUNT, debug);
+        }
+        if (profile.has(Device.TRISKETTE)) {
+            bus.attach(TrisketteDevice.FIRST_REGISTER, TrisketteDevice.REGISTER_COUNT, triskette);
+        }
+    }
+
+    /** The model this machine is: its "birth certificate" (M16). */
+    public MachineProfile profile() {
+        return profile;
+    }
+
+    /** Cycles the CPU may still use in the current frame (less than a full frame after a breakpoint stop). */
+    private int cyclesLeft;
     /** Breakpoints, indexed by address + Word.MAX; null while there are none (no cost then). */
     private boolean[] breakAt;
     private int breakpointCount;
@@ -105,7 +146,7 @@ public final class Machine {
         video.render();             // the picture shows memory as the CPU left it
         sound.renderFrame();        // and the sound plays the registers as the CPU left them
         system.advanceFrame();
-        cyclesLeft = CYCLES_PER_FRAME;
+        cyclesLeft = cyclesPerFrame;
     }
 
     /** True if the last {@link #runFrame()} stopped at a breakpoint (the frame isn't finished). */
@@ -164,7 +205,7 @@ public final class Machine {
     public void powerOn() {
         bus.clearRam();
         cpu.reset();
-        cyclesLeft = CYCLES_PER_FRAME;
+        cyclesLeft = cyclesPerFrame;
         atBreakpoint = false;
         system.resetFrame();
         input.clearKeys();
@@ -177,20 +218,20 @@ public final class Machine {
 
     /**
      * Loads a program image into RAM and points the CPU at its first word, with
-     * SP = 59,049: what the headless runner and the desktop do with a {@code .tri}
+     * SP one past the top of RAM (59,049): what the headless runner and the desktop do with a {@code .tri}
      * file (DECISIONS.md D-017).
      *
      * @throws IllegalArgumentException if the image isn't entirely inside RAM
      */
     public void loadProgram(TriImage image) {
         long last = (long) image.loadAddress() + image.size() - 1;
-        if (image.loadAddress() < MemoryMap.RAM_START || last > MemoryMap.RAM_END) {
+        if (image.loadAddress() < profile.ramStart() || last > profile.ramEnd()) {
             throw new IllegalArgumentException("the program occupies addresses " + image.loadAddress() + " .. "
-                    + last + ", which is not inside RAM (" + MemoryMap.RAM_START + " .. " + MemoryMap.RAM_END + ")");
+                    + last + ", which is not inside RAM (" + profile.ramStart() + " .. " + profile.ramEnd() + ")");
         }
         bus.loadRam(image.loadAddress(), image.words());
         cpu.setPc(image.loadAddress());
-        cpu.setRegister(8, MemoryMap.STACK_TOP);
+        cpu.setRegister(8, profile.stackTop());
     }
 
     public Bus bus() {
