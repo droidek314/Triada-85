@@ -551,3 +551,10 @@ We ran the result in Node.js 22.
 **Decision:** B. `--model triada-85` is the default; an unknown name is a usage error that lists the known ones (`MachineProfiles.byId`). The desktop and web keep `Rom.newMachine()`; `Rom.newMachine(profile)` loads the ROM images the profile names.
 **Why:** A menu with one entry is clutter. The CLI option costs a few lines and proves the path works from the start of a program to the machine.
 **Consequences:** The frontends still size their picture with the TRIADA-85 constants (`VideoChip.FRAME_WIDTH`, and 240 × 168 in the web page's JavaScript). A model with a different screen will need `MachineScreen` and the page to take the size from the machine; this is noted in the M16 doc.
+
+## D-060 — TRIADA-NET is milestones M17–M19, merged into CLAUDE.md, SPEC.md and a new NET-SPEC.md   (Phase 3, 2026-11-09)
+**Situation:** `TRIADA-NET.md` numbers its milestones M16–M18 and refers to "the machine profile code (M15)". The housekeeping that built the machine profile became M16 (D-056), so both numbers are one off.
+**Options:** A: renumber the housekeeping. B: number TRIADA-NET from M17 and fix the cross-references.
+**Decision:** B. Modem, protocol and TRIMODEM are M17; the server is M18; terminal, content and release v1.2 are M19. The work plan is in CLAUDE.md §3 ("Phase 3"). The machine side of the specification is in SPEC.md: the modem registers in §5 and §5.2, the TRIBASIC statements in §10.6.5, TERM.TRI in §11.1. The server and protocol side is in the new `docs/NET-SPEC.md` (wire protocol §2, TRIMODEM §3, features §4, security §5, content §6, deployment §7). I/O registers 28–35 are free (SPEC §5 had them reserved), so they are used as planned.
+**Why:** Released milestone documents keep their numbers (the same rule as D-044 and D-056). Splitting the specification keeps SPEC.md about the machine, and gives other people one complete document to write their own clients and boards from.
+**Consequences:** Anyone reading `TRIADA-NET.md` literally reads "M16" where we write "M17". The task file stays in the repository as the record of what was asked, like `TRIBASIC.md`.

@@ -49,6 +49,8 @@ You are building **TRIADA-85**, a fantasy home computer from an alternate 1985 w
     M01-ternary-math.md
     ...
   manual/                  ← in-universe TRIADA-85 user manual (M11)
+  NET-SPEC.md              ← TRIADA-NET server and wire protocol specification (Phase 3)
+  net/                     ← TRIADA-NET deployment guide and story outline (M18–M19)
 /triada-core/              ← ternary math, memory, CPU, video, sound, I/O. Plain Java, NO libGDX.
 /triada-assembler/         ← assembler + disassembler library (depends on core)
 /triada-rom/               ← builds the ROM from /rom into the emulator
@@ -56,6 +58,8 @@ You are building **TRIADA-85**, a fantasy home computer from an alternate 1985 w
 /triada-app/               ← libGDX frontend parts shared by desktop and web (M12)
 /triada-desktop/           ← libGDX desktop frontend (display, sound, input, debugger UI)
 /triada-web/               ← libGDX web frontend, published on GitHub Pages (M12)
+/triada-net-core/          ← TRIADA-NET boards, users, menus, messages, files. Pure Java, no sockets (M18)
+/triada-net-server/        ← TRIADA-NET server: TCP and WebSocket transports, persistence, admin (M18)
 /rom/                      ← ROM source in TRIADA assembly (*.tasm), incl. the extension ROM (TRIBASIC)
 /programs/                 ← example programs and games (*.tasm); TRIBASIC examples in programs/basic/
 /tests/basic/              ← TRIBASIC test programs: NAME.bas + NAME.expected (M14)
@@ -201,6 +205,67 @@ Written **in TRIADA assembly**, in the extension ROM (SPEC §2.5).
   Each one has a smoke test.
 - In-universe manual chapter `docs/manual/tribasic.md`: *"TRIBASIC: Programming with Three Answers"*. It covers every statement with a short example, written as a friendly 1985 manual.
 - **Release v1.1:** update the README (with a TRIBASIC section and screenshots), the changelog and the GitHub Pages deployment. Verify the deployed web build boots into TRIBASIC and can SAVE/LOAD through browser storage.
+
+### M16 — Housekeeping (done)
+Between the phases: a "Prior art and related work" section (README and `docs/PRIOR-ART.md`), and every model-specific number gathered into one **machine profile** (`MachineProfile`, `MachineProfiles.TRIADA_85`), from which the machine and the assembler are built. CLI `--model`. No change in behaviour. (The task file `SMALL-TASKS.md` called it M15; see DECISIONS.md D-056.)
+
+### Phase 3 — TRIADA-NET (M17–M19)
+Phase 3 adds **TRIADA-NET**: a fictional 1985 network of bulletin board systems (BBSes) that a TRIADA-85 can **really dial into**. The machine gets a modem. A real Java server hosts the boards, and the machine runs a terminal program to use them. The machine side is specified in SPEC §5.2, §10.6.5 and §11; the server and the protocol in `docs/NET-SPEC.md`. (These milestones were numbered M16–M18 in the task file `TRIADA-NET.md`; M16 was already the housekeeping, so they are M17–M19, see DECISIONS.md D-060.)
+
+**Why this matters:** it's the feature no other ternary or fantasy-computer project has. Games like *Digital: A Love Story* simulate BBSes inside a closed game. TRIADA-NET is a real server and protocol that a working emulated machine connects to, and other people can write their own clients and boards for it.
+
+**Before writing any code:**
+1. TRIADA-85 v1.1 is **released and deployed on GitHub Pages**. Don't break it. Every existing program, game and test must still work at the end of each milestone.
+2. Read the current `docs/SPEC.md`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, the machine profile code (M16), the ROM and TRIBASIC sources. **Reuse what exists, never duplicate it**, and **the released behaviour wins** where it differs from the plan. Log every adaptation in `DECISIONS.md`.
+3. Check that I/O registers 28–35 are free (SPEC §5.2). If they aren't, pick free ones and log it.
+4. The modem is a device listed in the **TRIADA-85 machine profile**, and its line rate comes from the profile.
+5. **Never create accounts on hosting services and never deploy to a public server yourself.** Prepare everything (Docker image, config, docs) so the human can deploy. Local servers for development and tests are fine.
+
+All rules in this file still apply in full, especially §5 (documentation).
+
+### M17 — Modem device, protocol and TRIMODEM
+- The modem device in `triada-core` (SPEC §5.2), behind a `ModemPort` interface. Backends:
+  - **TCP** (desktop, CLI);
+  - **WebSocket** (web build; it must use `wss://` because GitHub Pages is HTTPS);
+  - **in-process loopback** (tests).
+- Client side of the wire protocol (NET-SPEC §2).
+- **TRIMODEM** encoding and transfer protocol (NET-SPEC §3) as a shared pure-Java library, used by both the server and the tests. The machine-side version is written in TRIADA assembly in M19.
+- A minimal **echo test server**, enough to test the modem end to end.
+- TRIBASIC modem statements (SPEC §10.6.5).
+- Tests: every modem status, the character rate limit, buffer overflow, and hang-up from either side. Include a TRIBASIC test program that dials the echo server and checks what comes back.
+
+### M18 — The TRIADA-NET server
+- New modules:
+  - **`triada-net-core`:** pure Java, no sockets. Boards, users, sessions, menus, messages, mail, file areas, rendering for a 27×18 screen.
+  - **`triada-net-server`:** TCP and WebSocket transports, persistence, config, admin.
+- **Recommended stack** (change it only with a DECISIONS entry):
+  - Java 21+ **virtual threads** (one per caller);
+  - **Javalin** for WebSocket, the health endpoint and the admin page;
+  - plain `ServerSocket` for TCP;
+  - **SQLite** through JDBC, with versioned SQL migration scripts run by a small in-house runner;
+  - passwords hashed with **PBKDF2** from the JDK (no extra library).
+- All features in NET-SPEC §4, security and moderation in NET-SPEC §5.
+- **Deployment kit:** Dockerfile, `docker-compose.yml` (server plus a Caddy reverse proxy for TLS and `wss://`), all config through environment variables, a `/health` endpoint, structured logs. Write `docs/net/DEPLOY.md` explaining deployment to a small VPS or a container host, step by step, for someone who has never deployed a server.
+- Tests:
+  - unit tests for every menu action;
+  - migration tests;
+  - a protocol test suite;
+  - a **load test**: 50 simulated callers at once on a local server, every session completes, no errors;
+  - a **security test list**: wrong passwords, oversized input, flooding, path tricks in file names.
+
+### M19 — Terminal, content and release v1.2
+- **`TERM.TRI`**, the terminal program, written in TRIADA assembly and shipped on the default triskette (SPEC §11). Includes dial sounds, the control codes, TRIMODEM download and upload to the triskette, and a phonebook.
+- TRIBASIC `DIAL "number"` starts TERM with that number (SPEC §10.6.5).
+- **Content** (NET-SPEC §6): the starter boards, seeded fictional posts, the hidden story **outline**, and the files available for download.
+- **End-to-end test:** a headless TRIADA boots, dials an in-process server, logs in as GUEST, reads a message, downloads a program with TRIMODEM, saves it to the triskette, hangs up, then `BRUN`s or `LOAD`s and `RUN`s it successfully.
+- **Web build:**
+  - the server URL is a build-time setting;
+  - if no server is configured or it's unreachable, dialing gives `NO CARRIER` and the terminal prints "TRIADA-NET IS OFFLINE";
+  - the deployed site must never break because the server is down.
+- **Desktop:** a "Start local node" option (or `triada net-server --local`), so anyone can try TRIADA-NET offline.
+- **Optional, only if cheap:** compile `triada-net-core` into the web build as an in-browser offline node. Spike it first and log the result.
+- Manual chapter `docs/manual/triada-net.md`, *"Calling the World: Your TRIADA-85 Modem"*, written in-universe.
+- **Release v1.2:** README section with screenshots or a GIF of a call, changelog, Pages redeploy. Add TRIADA-NET to `docs/PRIOR-ART.md`'s "what's new" paragraph.
 
 ---
 

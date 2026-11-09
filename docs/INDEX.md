@@ -5,7 +5,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 ## Start here
 
 1. [../README.md](../README.md): what this project is, in a few paragraphs, with pictures.
-2. [SPEC.md](SPEC.md): the exact description of the TRIADA-85 machine. This is the law.
+2. [SPEC.md](SPEC.md): the exact description of the TRIADA-85 machine. Its companion [NET-SPEC.md](NET-SPEC.md) describes the TRIADA-NET server and the protocol a machine uses to dial it (Phase 3). This is the law.
 3. [ARCHITECTURE.md](ARCHITECTURE.md): how the software parts fit together.
 
 ## The milestones, in reading order

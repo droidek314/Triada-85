@@ -1,6 +1,6 @@
 # TRIADA-85 — Machine Specification
 
-Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15 and released on 2026-11-08 (see `CHANGELOG.md`). This document is the **source of truth** for the machine. Its numbers (memory map, timing, screen, voices, devices, ROM images) are those of the **TRIADA-85 profile**, `MachineProfiles.TRIADA_85` in `triada-core`. Since M16 the emulator builds a machine from such a profile, so a later model would be a new profile with its own numbers (D-057). If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
+Version 1.1. Version 1.0 was the released machine (M0–M12). Version 1.1 adds the triskette storage device and TRIBASIC (§2.5, §5.1, §8.5, §10), built in milestones M13–M15 and released on 2026-11-08 (see `CHANGELOG.md`). Version 1.2, in progress, adds **TRIADA-NET**: a modem, modem statements in TRIBASIC and a terminal program (§5.2, §10.6.5, §11), built in M17–M19; the server and the wire protocol are specified in `docs/NET-SPEC.md`. This document is the **source of truth** for the machine. Its numbers (memory map, timing, screen, voices, devices, ROM images) are those of the **TRIADA-85 profile**, `MachineProfiles.TRIADA_85` in `triada-core`. Since M16 the emulator builds a machine from such a profile, so a later model would be a new profile with its own numbers (D-057). If code and spec disagree, the code is wrong — or the spec is changed on purpose and the change is logged in `docs/DECISIONS.md`.
 
 ---
 
@@ -276,7 +276,15 @@ Register `k` lives at address `IO_BASE + k`, where **IO_BASE = −20,412**. All 
 | 25 | −20,387 | TS_ADDR | R/W | Triskette: RAM address of the data |
 | 26 | −20,386 | TS_LEN | R/W | Triskette: length in words |
 | 27 | −20,385 | TS_STATUS | R | Triskette: result of the last command |
-| 28–728 | | reserved | | Read 0, writes ignored |
+| 28 | −20,384 | MDM_CMD | W | Modem: 1 = dial, 2 = hang up (§5.2) |
+| 29 | −20,383 | MDM_ADDR | R/W | Modem: RAM address of the number string |
+| 30 | −20,382 | MDM_STATUS | R | Modem: line state |
+| 31 | −20,381 | MDM_TX | W | Modem: send one character |
+| 32 | −20,380 | MDM_RX | R | Modem: next received character. **Reading removes it** |
+| 33 | −20,379 | MDM_RXCOUNT | R | Modem: characters waiting |
+| 34 | −20,378 | MDM_TXFREE | R | Modem: free space in the send buffer |
+| 35 | −20,377 | MDM_SPEED | R | Modem: line speed in bits per second |
+| 36–728 | | reserved | | Read 0, writes ignored |
 
 Debug port details (D-018): DEBUG_CHAR prints printable ASCII (32–126), newline, carriage return and tab as themselves, and any other value as its number in angle brackets, e.g. `<0>`. Writing HOST_EXIT ends the CPU's current frame immediately, so no instruction runs after it.
 
@@ -312,6 +320,26 @@ Details settled while building the device (D-045):
 - DIR lists the names in alphabetical order. If they don't fit in TS_LEN words, nothing is written, the status is −2 and TS_LEN is set to the number of words needed.
 - Any other TS_CMD value does nothing but set the status to −4.
 - Power-on clears the five registers; the files on the triskette stay.
+
+### 5.2 Modem device (v1.2, M17)
+The modem connects the TRIADA-85 to TRIADA-NET (§11, `docs/NET-SPEC.md`). It is listed in the machine profile; a model without one reads 0 from these registers.
+
+| k | Address | Name | R/W | Meaning |
+|---|---|---|---|---|
+| 28 | −20,384 | MDM_CMD | W | 1 = DIAL (number string at MDM_ADDR), 2 = HANG UP |
+| 29 | −20,383 | MDM_ADDR | R/W | RAM address of the number string (one char per word, 0-terminated) |
+| 30 | −20,382 | MDM_STATUS | R | 0 = idle, 1 = dialing, 2 = connected, −1 = no carrier / lost, −2 = busy, −3 = no such number, −4 = network offline |
+| 31 | −20,381 | MDM_TX | W | Send one character (0–255) |
+| 32 | −20,380 | MDM_RX | R | Next received character. **Reading removes it.** Undefined if MDM_RXCOUNT = 0 |
+| 33 | −20,379 | MDM_RXCOUNT | R | Number of characters waiting |
+| 34 | −20,378 | MDM_TXFREE | R | Free space in the send buffer |
+| 35 | −20,377 | MDM_SPEED | R | Line speed in bits per second (1200) |
+
+Rules:
+- **Speed is simulated.** At 1200 bit/s, at most **2 characters per frame** move in each direction, so text appears at a real 1985 pace. The rate comes from the machine profile. Frontends may offer a "turbo" setting, off by default.
+- Buffers hold 729 characters in each direction. Received characters beyond that are dropped, and the drops are counted for the debugger.
+- Dialing takes a realistic moment, 1–3 seconds of frames, before the result. The terminal fills this with dial sounds.
+- On a hang-up from either side, or a lost connection, the status becomes −1.
 
 ---
 
@@ -592,6 +620,19 @@ Example:
 | `BLOAD "NAME"[,addr]` | Loads `NAME.TRI` (to its own address by default) |
 | `BRUN "NAME"` | `BLOAD`, then `SYS` to its load address. Existing games run with this |
 
+#### 10.6.5 Modem statements (v1.2, M17 and M19)
+
+| Statement / function | Meaning |
+|---|---|
+| `DIAL "number"` | Runs `TERM.TRI` with that number (loaded from the triskette); M19 |
+| `MDIAL "number"` | Low-level dial without the terminal, for programs and bots |
+| `MHANGUP` | Hang up |
+| `MSTATUS` | The MDM_STATUS value |
+| `MSEND s$` | Send a string |
+| `MRECV$` | All received characters, as a string of up to 80 |
+
+With these, users can write their own terminal or bot in TRIBASIC. Example: `programs/basic/AUTOCALL.bas`.
+
 ### 10.7 Errors
 Format: `?<MESSAGE> ERROR IN <line>` (no `IN …` in direct mode), then `READY.`
 
@@ -629,3 +670,24 @@ The first line keeps the released single spacing, exactly 27 characters (D-027, 
 - **Machine statements:** `TILE`, `SPRITE` and `SOUND` with a column, row, sprite or voice outside the screen or the chip do nothing. `DEFTILE` takes each pixel value MOD 27, which is −13 … 13 exactly; a tile or row outside 0 … 242, 0 … 7 does nothing. `COLOR` takes its colours MOD 27 too; if the font has a single colour (after `COLOR c, c`), it is first drawn afresh. `WAIT` checks Esc every frame. `SYS` keeps TRIBASIC's place (R7) on the stack.
 - **Storage:** a name without a `.` gets `.TB` (`SAVE`, `LOAD`) or `.TRI` (`BSAVE`, `BLOAD`, `BRUN`); `ERASE` takes the name as it is. Status −1 is `?FILE NOT FOUND`, any other failure `?DISK`. `SAVE` writes 243 up to and including the end marker, loaded back to 243; `LOAD` checks the records and does `NEW` plus `?DISK ERROR` if they aren't a program, and ends a running program. If `BLOAD` or `BRUN` load over the program or its variables, TRIBASIC does `NEW` and says `READY.`. `FILES` lists one name per line.
 - **Keys:** while B_KEYS (16 keys) is full, further keys stay in the keyboard queue, so typing ahead and paste-typing lose nothing.
+
+---
+
+## 11. TRIADA-NET on the machine (v1.2, M17–M19)
+TRIADA-NET is a fictional 1985 network of bulletin board systems (BBSes) that the machine really dials into, through the modem (§5.2). The server, the wire protocol between emulator and server, and the TRIMODEM transfer protocol are specified in [`NET-SPEC.md`](NET-SPEC.md). Phone numbers have the form `D-DD-DD`; `0-00-00` is TRIADA-NET INFO, the directory.
+
+### 11.1 TERM.TRI (terminal program, M19)
+Written in TRIADA assembly and shipped on the default triskette.
+- Shows a phonebook (saved on the triskette as `PHONE.DAT`). You can dial a number from the list or type one.
+- **Dial sounds:** a dial tone, then tones for each digit (two voices at once, like real phones), then a short "handshake" screech on the third voice. Skipped in turbo mode.
+- Prints `CONNECT 1200` and then shows the board.
+- **Control codes** received from the board:
+  - 12 clears the screen;
+  - 13 starts a new line;
+  - 8 is backspace;
+  - 7 rings the bell;
+  - `ESC 'C' fg bg` sets the text color;
+  - `ESC 'L' col row` positions the cursor (values offset by 32);
+  - TRIMODEM sequences (NET-SPEC §3) start transfers.
+- **Downloads** show a progress bar, save to the triskette, and report the result. **Uploads** send a triskette file the same way.
+- **Esc + H** hangs up, and the program returns to TRIBASIC.
