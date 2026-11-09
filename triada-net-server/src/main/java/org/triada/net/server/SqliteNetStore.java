@@ -299,4 +299,15 @@ public final class SqliteNetStore implements NetStore, AutoCloseable {
         update(banned ? "INSERT OR IGNORE INTO banned_ips (ip) VALUES (?)" : "DELETE FROM banned_ips WHERE ip = ?",
                 ip);
     }
+
+    // ------------------------------------------------------------ content (M19)
+
+    @Override
+    public synchronized boolean markSeeded(String key) {
+        try (PreparedStatement p = prepare("INSERT OR IGNORE INTO seeds (key) VALUES (?)", key)) {
+            return p.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw fail(e);
+        }
+    }
 }

@@ -9,8 +9,8 @@ dependencies {
     implementation(project(":triada-core"))
     implementation(project(":triada-assembler"))
     implementation(project(":triada-rom"))
+    implementation(project(":triada-net-core"))      // --local-node: TRIADA-NET in process (M19)
     // Modem tests call a real TRIADA-NET server (M17).
-    testImplementation(project(":triada-net-core"))
     testImplementation(project(":triada-net-server"))
 }
 

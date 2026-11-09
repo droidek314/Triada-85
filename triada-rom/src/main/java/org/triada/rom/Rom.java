@@ -7,6 +7,7 @@ import org.triada.core.Machine;
 import org.triada.core.MachineProfile;
 import org.triada.core.MachineProfiles;
 import org.triada.core.TriImage;
+import org.triada.core.triskette.TriskettePort;
 import org.triada.core.ternary.Word;
 
 /**
@@ -24,7 +25,11 @@ public final class Rom {
     /** The 27-letter alphabet of the encoded words: 4 characters = 12 trits. */
     static final String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQ";
 
+    /** The terminal program's file name on the triskette (M19). */
+    public static final String TERM_FILE = "TERM.TRI";
+
     private static TriImage image;
+    private static TriImage term;
     private static TriImage extension;
     private static Map<String, Integer> symbols;
 
@@ -46,6 +51,25 @@ public final class Rom {
                     decode(RomData.EXT_SIZE, RomData.EXT_WORDS));
         }
         return extension;
+    }
+
+    /** TERM, the terminal program (programs/term.tasm, M19), as a program image at its own address. */
+    public static synchronized TriImage term() {
+        if (term == null) {
+            term = new TriImage(TermData.LOAD, decode(TermData.SIZE, TermData.WORDS));
+        }
+        return term;
+    }
+
+    /**
+     * Makes {@code port} a default triskette (M19): puts TERM.TRI on it unless
+     * a file of that name is already there. Hosts call this for the triskette
+     * they plug in; a fresh machine's own triskette stays empty.
+     */
+    public static void prepareTriskette(TriskettePort port) {
+        if (port.read(TERM_FILE) == null) {
+            port.write(TERM_FILE, term());
+        }
     }
 
     private static int[] decode(int size, String[] chunks) {

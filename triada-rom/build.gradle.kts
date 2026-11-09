@@ -21,6 +21,8 @@ dependencies {
 val romDir = rootProject.layout.projectDirectory.dir("rom")
 val generatedJava = layout.buildDirectory.dir("generated/sources/rom/java")
 val romListing = layout.buildDirectory.file("rom/rom.lst")
+// The terminal program (M19): built in like the ROM, put on the triskette as TERM.TRI.
+val termSource = rootProject.layout.projectDirectory.file("programs/term.tasm")
 
 val generateRom by tasks.registering(JavaExec::class) {
     description = "Assembles rom/rom.tasm into Java source and a listing."
@@ -28,6 +30,7 @@ val generateRom by tasks.registering(JavaExec::class) {
     classpath = generator.runtimeClasspath
     mainClass.set("org.triada.rom.tools.RomGenerator")
     inputs.dir(romDir).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(termSource).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(generatedJava)
     outputs.file(romListing)
     argumentProviders.add(CommandLineArgumentProvider {
@@ -35,6 +38,7 @@ val generateRom by tasks.registering(JavaExec::class) {
             romDir.file("rom.tasm").asFile.absolutePath,
             generatedJava.get().asFile.absolutePath,
             romListing.get().asFile.absolutePath,
+            termSource.asFile.absolutePath,
         )
     })
 }

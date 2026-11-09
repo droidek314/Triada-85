@@ -32,13 +32,23 @@ gdxTeaVM {
     }
 }
 
-// Put our page next to the generated app.js.
+// The TRIADA-NET server the web version dials (M19), set when building:
+//   ./gradlew :triada-web:gdx_teavm_web_js_build -Ptriada.netUrl=wss://net.example.org/net
+// Empty (the default): no network, and every call ends "TRIADA-NET IS OFFLINE".
+val netUrl = (findProperty("triada.netUrl") as String?)?.trim().orEmpty()
+require(netUrl.isEmpty() || netUrl.startsWith("wss://") || netUrl.startsWith("ws://localhost")) {
+    "triada.netUrl must be a wss:// address (the page is served over HTTPS), not '$netUrl'"
+}
+
+// Put our page next to the generated app.js, with the server address filled in.
 tasks.matching { it.name == "gdx_teavm_web_js_build" }.configureEach {
     inputs.file("src/main/webapp/index.html")
+    inputs.property("netUrl", netUrl)
     doLast {
         copy {
             from("src/main/webapp/index.html")
             into(layout.buildDirectory.dir("dist/js/webapp"))
+            filter { line -> line.replace("var TRIADA_NET_URL = \"\";", "var TRIADA_NET_URL = \"$netUrl\";") }
         }
     }
 }

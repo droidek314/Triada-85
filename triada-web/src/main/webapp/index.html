@@ -142,9 +142,10 @@
             e.preventDefault();
         });
 
-        // TRIADA-NET (M17): the address of the server the modem dials, a wss:// WebSocket
-        // address. Empty means no network: every call ends "network offline". For testing,
-        // ?net=ws://localhost:2386/net in the page address overrides it.
+        // TRIADA-NET (M17, M19): the address of the server the modem dials, a wss:// WebSocket
+        // address, filled in by the build (-Ptriada.netUrl=...). Empty means no network: every
+        // call ends "TRIADA-NET IS OFFLINE". For testing, ?net=ws://localhost:2386/net in the
+        // page address overrides it.
         var TRIADA_NET_URL = "";
 
         // The modem's lines (WebModemLink): one WebSocket per call. Received bytes wait in

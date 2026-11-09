@@ -28,6 +28,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.triada.net.Boards;
+import org.triada.net.Content;
 import org.triada.net.EchoExchange;
 import org.triada.net.Exchange;
 import org.triada.net.Limits;
@@ -373,7 +375,9 @@ public final class NetServer implements AutoCloseable {
                 return;
             }
             NetStore store = new SqliteNetStore(config.database());
-            Network network = new Network(Boards.load(config.boards()), store, Limits.DEFAULT, Clock.systemUTC(), log);
+            List<org.triada.net.BoardDef> boards = Boards.load(config.boards());
+            Content.seed(store, boards, Boards::file);         // the starting posts and files, once (M19)
+            Network network = new Network(boards, store, Limits.DEFAULT, Clock.systemUTC(), log);
             Options options = new Options(config.origins(), config.connectionsPerIp(), config.connectionsPerMinute(),
                     config.trustProxy(), config.adminToken(), new Moderation(store, log, "admin page"));
             NetServer s = new NetServer(network, config.tcpPort(), config.wsPort(), options, log);

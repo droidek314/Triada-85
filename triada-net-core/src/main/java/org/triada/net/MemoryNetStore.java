@@ -26,6 +26,7 @@ public final class MemoryNetStore implements NetStore {
     private final Map<String, List<OneLiner>> oneLiners = new HashMap<>();
     private final Map<String, Long> seconds = new HashMap<>();
     private final Set<String> bannedIps = new HashSet<>();
+    private final Set<String> seeded = new HashSet<>();
     private long nextId = 1;
 
     @Override
@@ -226,5 +227,10 @@ public final class MemoryNetStore implements NetStore {
         } else {
             bannedIps.remove(ip);
         }
+    }
+
+    @Override
+    public synchronized boolean markSeeded(String key) {
+        return seeded.add(key);
     }
 }

@@ -1,0 +1,15 @@
+# The programs the starter boards offer (M19), built during the build by
+# ContentGenerator: a .tasm is assembled, a .bas is typed into TRIBASIC and SAVEd.
+# name on the boards   source, from the project folder
+HELLO.TRI      programs/hello.tasm
+COLORS.TRI     programs/colors.tasm
+TRIANGLE.TRI   programs/triangle.tasm
+TRIZMEYK.TRI   programs/trizmeyka.tasm
+TROIKA.TRI     programs/troika.tasm
+OBLAKA.TRI     programs/oblaka.tasm
+PIANO.TRI      programs/piano.tasm
+TYPEIN.TB      programs/basic/TYPEIN.bas
+TERNCLOCK.TB   programs/basic/TERNCLOCK.bas
+ORACLE.TB      programs/basic/ORACLE.bas
+ZMEYKA.TB      programs/basic/ZMEYKA.bas
+GUESS.TB       programs/basic/GUESS.bas

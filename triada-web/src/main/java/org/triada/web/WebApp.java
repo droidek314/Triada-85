@@ -43,7 +43,9 @@ final class WebApp extends ApplicationAdapter {
 
     @Override
     public void create() {
-        machine.triskette().setPort(new WebTriskette());   // files kept in browser storage (M13)
+        WebTriskette disk = new WebTriskette();             // files kept in browser storage (M13)
+        machine.triskette().setPort(disk);
+        Rom.prepareTriskette(disk);                         // ... and TERM.TRI on it (M19)
         String net = WebPage.netAddress();                  // TRIADA-NET (M17); none: offline
         if (!net.isEmpty()) {
             machine.modem().setPort(new WireModemPort(() -> new WebModemLink(net), machine.profile()));

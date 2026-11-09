@@ -13,6 +13,7 @@ import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.MachineInfo;
 import org.triada.core.modem.WireModemPort;
+import org.triada.net.LocalNode;
 import org.triada.core.TriImage;
 import org.triada.core.video.VideoChip;
 import org.triada.cli.FolderTriskette;
@@ -57,7 +58,12 @@ public final class DesktopLauncher {
         }
         String program = options.program();
         Machine machine = Rom.newMachine();
-        machine.triskette().setPort(new FolderTriskette(options.disk()));
+        FolderTriskette disk = new FolderTriskette(options.disk());
+        machine.triskette().setPort(disk);
+        Rom.prepareTriskette(disk);                         // the triskette carries TERM.TRI (M19)
+        if (options.localNode()) {
+            machine.modem().setPort(new WireModemPort(LocalNode.line(), machine.profile()));
+        }
         if (options.modem() != null) {
             try {
                 machine.modem().setPort(new WireModemPort(TcpModemLink.opener(options.modem()), machine.profile()));

@@ -20,7 +20,7 @@ import java.util.List;
 public final class Migrations {
 
     /** The scripts, in order. Script i (from 1) brings the database to version i. */
-    public static final List<String> SCRIPTS = List.of("V001__schema.sql");
+    public static final List<String> SCRIPTS = List.of("V001__schema.sql", "V002__seeds.sql");
 
     private Migrations() {
     }

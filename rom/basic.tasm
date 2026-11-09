@@ -3183,6 +3183,63 @@ sms_end: POP R4
         POP R3
         RET
 
+; --- DIAL "number" (M19): loads TERM.TRI from the triskette to its own
+; address, puts the number into TERM's number slot (2 words in: TERM starts
+; with a 2-word JMP, then 17 words for the number) and calls it, like BRUN.
+; TERM comes back with RET, or through BASIC_WARM if a transfer used the
+; program area. No TERM.TRI on the triskette: ?FILE NOT FOUND ERROR.
+st_dial: JSR b_strexpr                  ; R0 = the number's SLOT
+        PUSH R0
+        LDI R1, term_file               ; "TERM.TRI" into FNAME (RAM, for the drive)
+        LDI R2, FNAME
+sdl_name: LD R0, [R1]
+        ST R0, [R2]
+        INC R1
+        INC R2
+        MOV R0, R0
+        JNZ sdl_name
+        LDI R0, FNAME
+        LDI R1, -1                      ; to its own address
+        JSR diskload
+        PUSH R1
+        PUSH R2
+        JSR b_diskstatus
+        POP R2
+        POP R1
+        POP R0                          ; the number's SLOT
+        PUSH R3
+        PUSH R4
+        LD R3, [R0]                     ; R3 = its length, at most 16
+        LDI R4, 16
+        CMP R3, R4
+        JLE sdl_len
+        MOV R3, R4
+sdl_len: MOV R4, R1
+        ADDI R4, 2                      ; R4 = TERM's number slot
+sdl_copy: MOV R3, R3
+        JZ sdl_end
+        INC R0
+        PUSH R1
+        LD R1, [R0]
+        ST R1, [R4]
+        POP R1
+        INC R4
+        DEC R3
+        JMP sdl_copy
+sdl_end: LDI R0, 0
+        ST R0, [R4]
+        POP R4
+        POP R3
+        PUSH R1                         ; and run it (as BRUN does)
+        PUSH R2
+        MOV R0, R1
+        JSR b_call
+        POP R2
+        POP R1
+        JMP b_afterload
+
+term_file:  .str "TERM.TRI"
+
 ; --- MSTATUS: the modem's status (SPEC 5.2)
 fn_mstatus: LDI R2, IO_BASE
         LD R0, [R2+MDM_STATUS]
@@ -3224,7 +3281,7 @@ sttab:  .word st_print, st_input, st_ask, st_let, st_goto, st_gosub, st_return
         .word st_wait, st_color, st_poke, st_sys, st_save, st_load, st_files
         .word st_erase, st_bsave, st_bload, st_brun
         .fill 18, 0                     ; the functions (-51 ... -68)
-        .word 0, st_mdial, st_mhangup, st_msend ; DIAL (M19), MDIAL ... (-69 ... -72)
+        .word st_dial, st_mdial, st_mhangup, st_msend ; DIAL (M19), MDIAL ... (-69 ... -72)
         .fill 2, 0                      ; MSTATUS, MRECV$ (-73, -74)
 
 ; fntab: the routine for each function, from ABS (-51) to TERN$ (-68), then

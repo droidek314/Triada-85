@@ -1,0 +1,1405 @@
+; ============================================================================
+;  TERM -- the TRIADA-85 terminal program (SPEC 11.1, M19)
+;
+;  It turns the TRIADA into a terminal for TRIADA-NET: it dials a number with
+;  the modem (SPEC 5.2), plays the dial sounds, shows what the board sends
+;  (with its control codes), sends what you type, and moves files with
+;  TRIMODEM (NET-SPEC 3) between the board and the triskette.
+;
+;    BRUN "TERM"          the phonebook: 1 ... 9 dial, N a new number, Esc quits
+;    DIAL "1-85-01"       TRIBASIC loads TERM, puts the number into t_number
+;                         and starts it: it dials at once
+;    while connected:     Esc then H hangs up and returns to TRIBASIC,
+;                         Esc then U uploads a file from the triskette
+;
+;  Memory: TERM lives at 34,000 ... (under the tile patterns at 40,000), high
+;  in the program area, so a TRIBASIC program below it survives a call. A file
+;  arrives straight at its own load address, which must lie in 243 ... 33,999.
+;  If a transfer used the program area, TERM leaves through TRIBASIC's warm
+;  start (BASIC_WARM), which keeps a valid program and clears anything else.
+;
+;  Registers: TERM's routines use R0 ... R6 freely; the ROM's keep R3 ... R8.
+;
+;  Window:  ./gradlew :triada-desktop:run --args="--local-node"   then  DIAL "0-00-00"
+; ============================================================================
+
+        .org 34000
+
+TERM_TOP   = 34000          ; nothing may be received at or above this address
+FIRST_FREE = PROGRAM_START  ; ... nor below the program area
+BASIC_WARM = EXT_ROM_START + 2
+FONT_FG    = 41             ; TRIBASIC's record of the font's colours (sysvars)
+FONT_BG    = 42
+FONT_FIRST = TILES + 512    ; tile 32's first word
+FONT_END   = TILES + 512 + 1520
+
+ESC  = 27
+ACK  = 6
+NAK  = 21
+
+; states of the incoming-character reader
+S_TEXT = 0                  ; ordinary text
+S_ESC  = 1                  ; just after ESC
+S_P1   = 2                  ; ESC C / ESC L: the first parameter is next
+S_P2   = 3                  ; ... the second
+S_HDR  = 4                  ; a TRIMODEM start message (name;len;type;addr)
+S_BLK  = 5                  ; a TRIMODEM block
+
+term:   JMP t_start
+t_number: .fill 17, 0       ; DIAL puts the number here (16 characters and a 0)
+
+; ===========================================================================
+; Start and quit
+; ===========================================================================
+
+t_start: LDI R2, t_sp
+        ST SP, [R2]                     ; to return from anywhere
+        LDI R2, FONT_FG
+        LD R0, [R2]
+        LDI R2, t_fg0
+        ST R0, [R2]
+        LDI R2, FONT_BG
+        LD R0, [R2]
+        LDI R2, t_bg0
+        ST R0, [R2]
+        LDI R2, t_number
+        LD R0, [R2]
+        JZ t_book                       ; no number: the phonebook
+        LDI R0, 1
+        LDI R2, t_fromdial
+        ST R0, [R2]
+        JMP t_dial
+
+; t_quit: silence, hang up, the old colours back, then home to TRIBASIC.
+t_quit: JSR t_silence
+        LDI R2, IO_BASE
+        LDI R0, 2                       ; HANG UP (harmless when idle)
+        ST R0, [R2+MDM_CMD]
+        LDI R2, t_fg0
+        LD R0, [R2]
+        LDI R2, t_bg0
+        LD R1, [R2]
+        JSR t_color
+        LDI R0, 10
+        JSR PUTCHAR
+        LDI R2, t_sp
+        LD SP, [R2]
+        LDI R2, t_clob
+        LD R0, [R2]
+        JZ t_ret
+        JMP BASIC_WARM                  ; the program area was used: TRIBASIC checks it
+t_ret:  RET
+
+; ===========================================================================
+; The phonebook (PHONE.DAT on the triskette, or the built-in one)
+; ===========================================================================
+
+t_book: JSR CLS
+        LDI R0, t_title
+        JSR PRINT
+        LDI R0, t_phonename             ; PHONE.DAT into t_list ...
+        LDI R1, t_list
+        JSR DISKLOAD
+        JZ tb_show
+        LDI R1, t_deflist               ; ... or the built-in list
+        LDI R2, t_list
+tb_copy: LD R0, [R1]
+        ST R0, [R2]
+        INC R1
+        INC R2
+        LDI R0, t_deflist_end
+        CMP R1, R0
+        JN tb_copy
+tb_show: LDI R3, t_list                 ; R3 = the entry, R4 = its number 1 ... 9
+        LDI R4, 1
+tb_entry: LD R0, [R3]
+        JZ tb_menu
+        LDI R0, '0'
+        ADD R0, R4
+        JSR PUTCHAR
+        LDI R0, ' '
+        JSR PUTCHAR
+        MOV R0, R3
+        JSR PRINT
+        LDI R0, 10
+        JSR PUTCHAR
+tb_skip: LD R0, [R3]                    ; past this entry's 0
+        INC R3
+        MOV R0, R0
+        JNZ tb_skip
+        INC R4
+        LDI R0, 10
+        CMP R4, R0
+        JN tb_entry
+tb_menu: LDI R2, t_count
+        DEC R4
+        ST R4, [R2]                     ; entries listed
+        LDI R0, t_bookhelp
+        JSR PRINT
+tb_key: JSR GETKEY
+        LDI R1, ESC
+        CMP R0, R1
+        JZ t_quit
+        LDI R1, 'N'
+        CMP R0, R1
+        JZ t_newnumber
+        LDI R1, 'n'
+        CMP R0, R1
+        JZ t_newnumber
+        LDI R1, '1'
+        SUB R0, R1                      ; 0 ... 8 for keys 1 ... 9
+        JN tb_key
+        LDI R2, t_count
+        LD R1, [R2]
+        CMP R0, R1
+        JGE tb_key                      ; no such entry
+        LDI R3, t_list                  ; find entry R0
+tb_find: MOV R0, R0
+        JZ tb_found
+tb_over: LD R1, [R3]
+        INC R3
+        MOV R1, R1
+        JNZ tb_over
+        DEC R0
+        JMP tb_find
+tb_found: LDI R2, t_number              ; the number is the entry up to its first space
+        LDI R4, 16
+tb_num: LD R0, [R3]
+        JZ tb_end
+        LDI R1, ' '
+        CMP R0, R1
+        JZ tb_end
+        ST R0, [R2]
+        INC R2
+        INC R3
+        DEC R4
+        JNZ tb_num
+tb_end: LDI R0, 0
+        ST R0, [R2]
+        JMP t_dial
+
+; N: type a number, add it to the phonebook, dial it.
+t_newnumber: LDI R0, t_asknumber
+        JSR PRINT
+        LDI R0, t_number
+        LDI R1, 16
+        JSR t_readline
+        LDI R2, t_number
+        LD R0, [R2]
+        JZ t_book                       ; nothing typed
+        LDI R2, t_count
+        LD R0, [R2]
+        LDI R1, 9
+        CMP R0, R1
+        JGE t_dial                      ; the book is full: just dial
+        LDI R3, t_list                  ; find the end of the list
+tn_end: LD R0, [R3]
+        JZ tn_add
+tn_over: LD R0, [R3]
+        INC R3
+        MOV R0, R0
+        JNZ tn_over
+        JMP tn_end
+tn_add: LDI R1, t_number                ; append the number and a new end
+tn_copy: LD R0, [R1]
+        ST R0, [R3]
+        INC R1
+        INC R3
+        MOV R0, R0
+        JNZ tn_copy
+        LDI R0, 0
+        ST R0, [R3]
+        LDI R0, t_phonename             ; save PHONE.DAT (if it fails, never mind)
+        LDI R1, t_list
+        MOV R2, R3
+        SUB R2, R1
+        INC R2
+        JSR DISKSAVE
+        JMP t_dial
+
+; ===========================================================================
+; Dialing, with the sounds of a real line
+; ===========================================================================
+
+t_dial: JSR CLS
+        LDI R0, t_dialing
+        JSR PRINT
+        LDI R0, t_number
+        JSR PRINT
+        LDI R0, 10
+        JSR PUTCHAR
+        LDI R2, IO_BASE
+        LDI R0, t_number
+        ST R0, [R2+MDM_ADDR]
+        LDI R0, 1                       ; DIAL
+        ST R0, [R2+MDM_CMD]
+        ; the dial tone: 350 Hz and 440 Hz together, half a second
+        LDI R0, 350
+        LDI R1, 440
+        JSR t_tones
+        LDI R3, 30
+td_tone: JSR t_dialframe
+        JNZ td_done                     ; answered (or Esc)
+        DEC R3
+        JNZ td_tone
+        ; the digits: two tones each (low and high), then a short gap
+        LDI R4, t_number
+td_digit: LD R0, [R4]
+        JZ td_screech
+        INC R4
+        LDI R1, '0'
+        SUB R0, R1
+        JN td_digit                     ; '-' and anything else: no tone
+        LDI R1, 9
+        CMP R0, R1
+        JP td_digit
+        LDI R2, t_low
+        ADD R2, R0
+        LDI R3, t_high
+        ADD R3, R0
+        LD R0, [R2]
+        LD R1, [R3]
+        JSR t_tones
+        LDI R3, 8
+td_on:  JSR t_dialframe
+        JNZ td_done
+        DEC R3
+        JNZ td_on
+        JSR t_silence
+        LDI R3, 4
+td_off: JSR t_dialframe
+        JNZ td_done
+        DEC R3
+        JNZ td_off
+        JMP td_digit
+        ; the handshake screech: noise on voice 3, a whistle jumping on voice 1
+td_screech: LDI R2, IO_BASE
+        LDI R0, 3000
+        ST R0, [R2+V3_FREQ]
+        LDI R0, 7
+        ST R0, [R2+V3_VOL]
+        LDI R0, -1
+        ST R0, [R2+V3_WAVE]
+        LDI R0, 6
+        ST R0, [R2+V1_VOL]
+        LDI R0, 1
+        ST R0, [R2+V1_WAVE]
+        LDI R3, 0
+td_sc:  LDI R2, IO_BASE
+        LDI R0, 1800
+        MOV R1, R3
+        LDI R5, 8
+        MOD R1, R5                      ; -4 ... 4: half the time high
+        JN td_low
+        LDI R0, 2400
+td_low: ST R0, [R2+V1_FREQ]
+        INC R3
+        JSR t_dialframe
+        JZ td_sc
+td_done: JSR t_silence
+        LDI R2, t_cancel
+        LD R0, [R2]
+        JNZ t_quit                      ; Esc while dialing
+        LDI R2, IO_BASE
+        LD R0, [R2+MDM_STATUS]
+        LDI R1, 2
+        CMP R0, R1
+        JZ t_online
+        ; the call failed: say why
+        LDI R1, t_m_nocarrier
+        LDI R2, -2
+        CMP R0, R2
+        JNZ td_nb
+        LDI R1, t_m_busy
+td_nb:  LDI R2, -3
+        CMP R0, R2
+        JNZ td_nn
+        LDI R1, t_m_nonumber
+td_nn:  PUSH R0
+        MOV R0, R1
+        JSR PRINT
+        POP R0
+        LDI R2, -4
+        CMP R0, R2
+        JNZ td_wait
+        LDI R0, t_m_offline
+        JSR PRINT
+td_wait: LDI R0, t_presskey
+        JSR PRINT
+        JSR GETKEY
+        LDI R2, t_fromdial
+        LD R0, [R2]
+        JNZ t_quit
+        JMP t_book
+
+; t_dialframe: waits one frame. S = 0 while still dialing; otherwise not 0
+; (answered, failed, or Esc pressed: then t_cancel = 1 and the call is hung up).
+t_dialframe: WAIT
+        LDI R2, IO_BASE
+        LD R0, [R2+KEY]
+        LDI R1, ESC
+        CMP R0, R1
+        JNZ tdf_status
+        LDI R0, 2                       ; HANG UP
+        ST R0, [R2+MDM_CMD]
+        LDI R0, 1
+        LDI R1, t_cancel
+        ST R0, [R1]
+        RET                             ; S = +1
+tdf_status: LD R0, [R2+MDM_STATUS]
+        LDI R1, 1                       ; DIALING
+        CMP R0, R1
+        RET
+
+; t_tones: R0, R1 = two frequencies on voices 1 and 2 (triangle, volume 8).
+t_tones: LDI R2, IO_BASE
+        ST R0, [R2+V1_FREQ]
+        ST R1, [R2+V2_FREQ]
+        LDI R0, 8
+        ST R0, [R2+V1_VOL]
+        ST R0, [R2+V2_VOL]
+        LDI R0, 0
+        ST R0, [R2+V1_WAVE]
+        ST R0, [R2+V2_WAVE]
+        RET
+
+; t_silence: all three voices off.
+t_silence: LDI R2, IO_BASE
+        LDI R0, 0
+        ST R0, [R2+V1_VOL]
+        ST R0, [R2+V2_VOL]
+        ST R0, [R2+V3_VOL]
+        RET
+
+; ===========================================================================
+; Online: show what comes, send what is typed
+; ===========================================================================
+
+t_online: LDI R0, t_m_connect
+        JSR PRINT
+to_loop: LDI R2, IO_BASE
+        LD R0, [R2+MDM_RXCOUNT]
+        JZ to_status
+        LD R0, [R2+MDM_RX]
+        JSR t_incoming
+        JMP to_loop
+to_status: LDI R2, IO_BASE
+        LD R0, [R2+MDM_STATUS]
+        LDI R1, 2
+        CMP R0, R1
+        JNZ to_lost
+        JSR t_bellframe
+        LDI R2, IO_BASE
+        LD R0, [R2+KEY]
+        JZ to_wait
+        JSR t_key
+to_wait: WAIT
+        JMP to_loop
+to_lost: LDI R0, t_m_nocarrier2
+        JSR PRINT
+        LDI R0, t_presskey
+        JSR PRINT
+        JSR GETKEY
+        JMP t_quit
+
+; t_key: R0 = a key typed while online.
+t_key:  LDI R2, t_keyesc
+        LD R1, [R2]
+        JZ tk_plain
+        LDI R1, 0                       ; the key after Esc is a command
+        ST R1, [R2]
+        LDI R1, 'H'
+        CMP R0, R1
+        JZ tk_hangup
+        LDI R1, 'h'
+        CMP R0, R1
+        JZ tk_hangup
+        LDI R1, 'U'
+        CMP R0, R1
+        JZ t_upload
+        LDI R1, 'u'
+        CMP R0, R1
+        JZ t_upload
+        RET                             ; any other key: nothing
+tk_hangup: LDI R0, t_m_hungup
+        JSR PRINT
+        JMP t_quit
+tk_plain: LDI R1, ESC
+        CMP R0, R1
+        JNZ tk_send
+        LDI R0, 1
+        ST R0, [R2]
+        RET
+tk_send: LDI R1, 10                     ; Return: the board wants 13
+        CMP R0, R1
+        JNZ t_send
+        LDI R0, 13
+        ; (falls through)
+
+; t_send: sends R0, waiting while the send buffer is full. Keeps R3 ... R6.
+t_send: LDI R2, IO_BASE
+        LD R1, [R2+MDM_TXFREE]
+        JP ts_go
+        LD R1, [R2+MDM_STATUS]          ; full: wait, unless the line is gone
+        LDI R2, 2
+        CMP R1, R2
+        JNZ ts_ret
+        WAIT
+        JMP t_send
+ts_go:  ST R0, [R2+MDM_TX]
+ts_ret: RET
+
+; t_bellframe: counts down the bell; silences it at the end.
+t_bellframe: LDI R2, t_bell
+        LD R0, [R2]
+        JZ tbf_ret
+        DEC R0
+        ST R0, [R2]
+        JNZ tbf_ret
+        LDI R2, IO_BASE
+        ST R0, [R2+V1_VOL]
+tbf_ret: RET
+
+; ===========================================================================
+; The incoming characters: text, control codes, TRIMODEM
+; ===========================================================================
+
+; t_incoming: R0 = a character from the line.
+t_incoming: LDI R2, t_state
+        LD R1, [R2]
+        JZ ti_text
+        LDI R2, S_ESC
+        CMP R1, R2
+        JZ ti_esc
+        LDI R2, S_P1
+        CMP R1, R2
+        JZ ti_p1
+        LDI R2, S_P2
+        CMP R1, R2
+        JZ ti_p2
+        LDI R2, S_HDR
+        CMP R1, R2
+        JZ t_hdrchar
+        JMP t_blkchar
+
+ti_text: LDI R1, ESC
+        CMP R0, R1
+        JZ ti_toesc
+        LDI R1, 12
+        CMP R0, R1
+        JZ CLS
+        LDI R1, 13
+        CMP R0, R1
+        JZ ti_nl
+        LDI R1, 8
+        CMP R0, R1
+        JZ PUTCHAR                      ; the ROM's backspace
+        LDI R1, 7
+        CMP R0, R1
+        JZ ti_bell
+        LDI R1, 32                      ; other control characters: ignored
+        CMP R0, R1
+        JN ti_ret
+        LDI R1, 126
+        CMP R0, R1
+        JP ti_ret
+        JMP PUTCHAR
+ti_nl:  LDI R0, 10
+        JMP PUTCHAR
+ti_bell: LDI R2, IO_BASE
+        LDI R0, 880
+        ST R0, [R2+V1_FREQ]
+        LDI R0, 1
+        ST R0, [R2+V1_WAVE]
+        LDI R0, 9
+        ST R0, [R2+V1_VOL]
+        LDI R0, 6                       ; a tenth of a second
+        LDI R2, t_bell
+        ST R0, [R2]
+ti_ret: RET
+ti_toesc: LDI R0, S_ESC
+        LDI R2, t_state
+        ST R0, [R2]
+        RET
+
+ti_esc: LDI R2, t_state
+        LDI R1, S_TEXT
+        ST R1, [R2]                     ; most letters end the sequence
+        LDI R1, ESC
+        CMP R0, R1
+        JZ ti_toesc                     ; ESC ESC: still waiting
+        LDI R1, 'C'
+        CMP R0, R1
+        JZ ti_param
+        LDI R1, 'L'
+        CMP R0, R1
+        JZ ti_param
+        LDI R1, 'F'
+        CMP R0, R1
+        JZ t_hdrstart
+        LDI R1, 'B'
+        CMP R0, R1
+        JZ t_blkstart
+        LDI R1, 'E'
+        CMP R0, R1
+        JZ t_dlend
+        LDI R1, 'X'
+        CMP R0, R1
+        JZ t_dlabort
+        RET
+ti_param: LDI R2, t_esckind
+        ST R0, [R2]
+        LDI R0, S_P1
+        LDI R2, t_state
+        ST R0, [R2]
+        RET
+ti_p1:  ADDI R0, -32
+        LDI R2, t_escfirst
+        ST R0, [R2]
+        LDI R0, S_P2
+        LDI R2, t_state
+        ST R0, [R2]
+        RET
+ti_p2:  ADDI R0, -32
+        MOV R1, R0                      ; R1 = the second parameter
+        LDI R2, t_state
+        LDI R0, S_TEXT
+        ST R0, [R2]
+        LDI R2, t_escfirst
+        LD R0, [R2]                     ; R0 = the first
+        LDI R2, t_esckind
+        LD R2, [R2]
+        LDI R3, 'L'
+        CMP R2, R3
+        JZ LOCATE                       ; ESC L col row
+        JMP t_color                     ; ESC C fg bg
+
+; t_color: R0 = foreground, R1 = background (-13 ... 13): re-colours the
+; font, as TRIBASIC's COLOR does (every pixel of the old foreground colour
+; becomes the new foreground, every other pixel the new background).
+t_color: LDI R2, FONT_FG
+        LD R3, [R2]
+        LDI R2, FONT_BG
+        LD R4, [R2]
+        CMP R3, R4
+        JZ tc_ret                       ; one colour only: can't tell them apart
+        CMP R0, R1
+        JZ tc_ret                       ; text in its own background: refused
+        CMP R0, R3
+        JNZ tc_go
+        CMP R1, R4
+        JZ tc_ret                       ; nothing changes
+tc_go:  PUSH R0
+        PUSH R1
+        LDI R5, FONT_FIRST
+tc_word: LD R4, [R5]                    ; R4 = the old word, R6 = the new
+        LDI R6, 0
+        LDI R1, 1                       ; R1 = the place of the current pixel
+tc_pix: MOV R0, R4
+        LDI R2, 27
+        MOD R0, R2                      ; the lowest pixel ...
+        SUB R4, R0
+        DIV R4, R2                      ; ... and the rest
+        CMP R0, R3
+        JZ tc_fg
+        LD R0, [SP]                     ; background
+        JMP tc_put
+tc_fg:  LD R0, [SP+1]                   ; foreground
+tc_put: MUL R0, R1
+        ADD R6, R0
+        LDI R2, 27
+        MUL R1, R2                      ; 1, 27, 729, 19683, then 3^12 wraps to 0
+        MOV R1, R1
+        JNZ tc_pix
+        ST R6, [R5]
+        INC R5
+        LDI R2, FONT_END
+        CMP R5, R2
+        JN tc_word
+        POP R1
+        POP R0
+        LDI R2, FONT_FG
+        ST R0, [R2]
+        LDI R2, FONT_BG
+        ST R1, [R2]
+tc_ret: RET
+
+; ===========================================================================
+; TRIMODEM download: the board sends, we answer ACK or NAK (NET-SPEC 3)
+; ===========================================================================
+
+; ESC F: a start message begins. Its fields are read one by one:
+; t_hphase 0 = the name (to ';'), 1 = the length (3 digits), 2 = ';',
+; 3 = the type (to ';'), 4 = the address (3 digits).
+t_hdrstart: LDI R2, t_state
+        LDI R0, S_HDR
+        ST R0, [R2]
+        LDI R0, 0
+        LDI R2, t_hphase
+        ST R0, [R2]
+        LDI R2, t_hcount
+        ST R0, [R2]
+        LDI R2, t_acc
+        ST R0, [R2]
+        RET
+
+t_hdrchar: LDI R1, ESC
+        CMP R0, R1
+        JZ t_hdrbad
+        LDI R2, t_hphase
+        LD R1, [R2]
+        JZ th_name
+        LDI R2, 2
+        CMP R1, R2
+        JZ th_semi
+        LDI R2, 3
+        CMP R1, R2
+        JZ th_type
+        ; phases 1 and 4: a digit of a number
+        JSR t_digit
+        JN t_hdrbad
+        LDI R2, t_hcount
+        LD R0, [R2]
+        INC R0
+        ST R0, [R2]
+        LDI R1, 3
+        CMP R0, R1
+        JN th_ret
+        LDI R2, t_hphase
+        LD R0, [R2]
+        LDI R1, 1
+        CMP R0, R1
+        JNZ th_addr
+        LDI R2, t_acc                   ; the length is complete
+        LD R0, [R2]
+        LDI R2, t_len
+        ST R0, [R2]
+        LDI R0, 2
+        JMP th_phase
+th_addr: LDI R2, t_acc                  ; the address: the start message is complete
+        LD R0, [R2]
+        LDI R2, t_addr
+        ST R0, [R2]
+        LDI R2, t_state
+        LDI R0, S_TEXT
+        ST R0, [R2]
+        JMP t_hdrcheck
+th_name: LDI R1, ';'
+        CMP R0, R1
+        JZ th_nameend
+        LDI R2, t_hcount
+        LD R1, [R2]
+        LDI R3, 12
+        CMP R1, R3
+        JGE t_hdrbad                    ; more than 12 characters
+        LDI R3, t_name
+        ADD R3, R1
+        ST R0, [R3]
+        INC R1
+        ST R1, [R2]
+        RET
+th_nameend: LDI R2, t_hcount
+        LD R1, [R2]
+        JZ t_hdrbad                     ; no name
+        LDI R3, t_name
+        ADD R3, R1
+        LDI R0, 0
+        ST R0, [R3]
+        LDI R0, 1
+        JMP th_phase
+th_semi: LDI R1, ';'
+        CMP R0, R1
+        JNZ t_hdrbad
+        LDI R0, 3
+        JMP th_phase
+th_type: LDI R1, ';'
+        CMP R0, R1
+        JZ th_typeend
+        LDI R2, t_hcount
+        LD R1, [R2]
+        INC R1
+        ST R1, [R2]
+        LDI R2, 2
+        CMP R1, R2
+        JNZ th_ret
+        LDI R2, t_type2                 ; keep the second letter: B (TB) or R (TRI)
+        ST R0, [R2]
+        RET
+th_typeend: LDI R0, 4
+        ; (falls through)
+th_phase: LDI R2, t_hphase              ; R0 = the next phase; counters to 0
+        ST R0, [R2]
+        LDI R0, 0
+        LDI R2, t_hcount
+        ST R0, [R2]
+        LDI R2, t_acc
+        ST R0, [R2]
+th_ret: RET
+
+; t_hdrcheck: the file must fit in 243 ... 33,999; then ACK and get ready.
+t_hdrcheck: LDI R2, t_len
+        LD R0, [R2]
+        JN t_hdrbad
+        LDI R2, t_addr
+        LD R1, [R2]
+        LDI R2, FIRST_FREE
+        CMP R1, R2
+        JN t_hdrbad
+        ADD R0, R1                      ; the first word after the file
+        LDI R2, TERM_TOP
+        CMP R0, R2
+        JP t_hdrbad
+        LDI R2, t_dl
+        LD R0, [R2]
+        JZ thc_new
+        LDI R2, t_expect                ; the start again (our ACK was lost)
+        LD R0, [R2]
+        JZ t_sendack
+        JMP t_hdrbad
+thc_new: LDI R0, 1
+        ST R0, [R2]                     ; t_dl = 1
+        LDI R0, 0
+        LDI R2, t_expect
+        ST R0, [R2]
+        LDI R2, t_fails
+        ST R0, [R2]
+        LDI R2, t_shown
+        ST R0, [R2]
+        LDI R2, t_len                   ; blocks = (length + 80) / 81, rounded down
+        LD R0, [R2]
+        ADDI R0, 80
+        JSR t_div81
+        LDI R2, t_blocks
+        ST R0, [R2]
+        LDI R0, t_m_receiving
+        JSR PRINT
+        LDI R0, t_name
+        JSR PRINT
+        LDI R0, 10
+        JSR PUTCHAR
+        JMP t_sendack
+
+t_hdrbad: LDI R2, t_state
+        LDI R0, S_TEXT
+        ST R0, [R2]
+        JMP t_fail
+
+; ESC B: a block begins: 3 digits block number, 81 words, 3 digits checksum.
+t_blkstart: LDI R2, t_dl
+        LD R0, [R2]
+        JZ ti_ret                       ; not receiving: ignore
+        LDI R2, t_state
+        LDI R0, S_BLK
+        ST R0, [R2]
+        LDI R0, 0
+        LDI R2, t_hcount
+        ST R0, [R2]
+        LDI R2, t_acc
+        ST R0, [R2]
+        LDI R0, -1                      ; word -1 is the block number
+        LDI R2, t_wi
+        ST R0, [R2]
+        RET
+
+t_blkchar: JSR t_digit
+        JN tb_bad
+        LDI R2, t_hcount
+        LD R0, [R2]
+        INC R0
+        ST R0, [R2]
+        LDI R1, 3
+        CMP R0, R1
+        JN ti_ret
+        LDI R0, 0                       ; a word is complete
+        ST R0, [R2]
+        LDI R2, t_acc
+        LD R0, [R2]
+        LDI R1, 0
+        ST R1, [R2]
+        LDI R2, t_wi
+        LD R1, [R2]
+        JN tbc_num
+        LDI R3, 81
+        CMP R1, R3
+        JZ t_blkdone                    ; word 81 is the checksum (in R0)
+        LDI R3, t_words
+        ADD R3, R1
+        ST R0, [R3]
+        JMP tbc_next
+tbc_num: LDI R3, t_bnum
+        ST R0, [R3]
+tbc_next: INC R1
+        ST R1, [R2]
+        RET
+tb_bad: LDI R2, t_state                 ; R0 = the character (t_digit keeps it)
+        LDI R1, S_TEXT
+        ST R1, [R2]
+        LDI R1, ESC
+        CMP R0, R1
+        JNZ t_fail
+        LDI R1, S_ESC                   ; an ESC: a new message is starting
+        ST R1, [R2]
+        JMP t_fail
+
+; t_blkdone: R0 = the checksum sent. Check it, then store the block.
+t_blkdone: LDI R2, t_state
+        LDI R1, S_TEXT
+        ST R1, [R2]
+        PUSH R0
+        LDI R2, t_bnum                  ; sum = n + 1*w0 + 2*w1 + ... + 81*w80
+        LD R4, [R2]
+        LDI R3, 0
+tbd_sum: LDI R2, t_words
+        ADD R2, R3
+        LD R0, [R2]
+        MOV R1, R3
+        INC R1
+        MUL R0, R1
+        ADD R4, R0
+        INC R3
+        LDI R2, 81
+        CMP R3, R2
+        JN tbd_sum
+        POP R0
+        CMP R0, R4
+        JNZ t_fail                      ; damaged
+        LDI R2, t_bnum
+        LD R0, [R2]
+        LDI R2, t_expect
+        LD R1, [R2]
+        MOV R3, R1
+        DEC R3
+        CMP R0, R3
+        JZ t_sendack                    ; a repeat: our ACK was lost
+        CMP R0, R1
+        JNZ t_fail
+        LDI R2, t_blocks
+        LD R3, [R2]
+        CMP R1, R3
+        JGE t_fail                      ; more blocks than the file has
+        ; copy min(81, length - 81*expect) words to address + 81*expect
+        LDI R2, 81
+        MUL R1, R2                      ; R1 = 81 * expect
+        LDI R2, t_len
+        LD R4, [R2]
+        SUB R4, R1                      ; R4 = words still to come
+        LDI R2, 81
+        CMP R4, R2
+        JLE tbd_count
+        LDI R4, 81
+tbd_count: LDI R2, t_addr
+        LD R3, [R2]
+        ADD R3, R1                      ; R3 = where they go
+        LDI R5, t_words
+tbd_copy: MOV R4, R4
+        JZ tbd_copied
+        LD R0, [R5]
+        ST R0, [R3]
+        INC R5
+        INC R3
+        DEC R4
+        JMP tbd_copy
+tbd_copied: LDI R2, t_expect
+        LD R0, [R2]
+        INC R0
+        ST R0, [R2]
+        LDI R2, t_fails
+        LDI R0, 0
+        ST R0, [R2]
+        LDI R2, t_clob
+        LDI R0, 1
+        ST R0, [R2]                     ; the program area has changed
+        JSR t_progress
+        JMP t_sendack
+
+; ESC E: the end. Every block must be here; then save the file.
+t_dlend: LDI R2, t_dl
+        LD R0, [R2]
+        JZ ti_ret
+        LDI R2, t_expect
+        LD R0, [R2]
+        LDI R2, t_blocks
+        LD R1, [R2]
+        CMP R0, R1
+        JNZ t_fail
+        LDI R0, ACK
+        JSR t_send
+        LDI R2, t_dl
+        LDI R0, 0
+        ST R0, [R2]
+        LDI R2, t_clob
+        LDI R0, 1
+        ST R0, [R2]
+        LDI R0, 10
+        JSR PUTCHAR
+        LDI R0, t_name
+        LDI R2, t_addr
+        LD R1, [R2]
+        LDI R2, t_len
+        LD R2, [R2]
+        JSR DISKSAVE
+        JNZ tde_err
+        LDI R0, t_m_saved
+        JSR PRINT
+        LDI R0, t_name
+        JSR PRINT
+        LDI R0, 10
+        JMP PUTCHAR
+tde_err: LDI R0, t_m_diskerr
+        JMP PRINT
+
+; ESC X: the board gave up.
+t_dlabort: LDI R2, t_dl
+        LD R0, [R2]
+        JZ ti_ret
+        LDI R0, 0
+        ST R0, [R2]
+        LDI R0, t_m_failed
+        JMP PRINT
+
+t_sendack: LDI R0, ACK
+        JMP t_send
+
+; t_fail: NAK; the third failure in a row ends the download.
+t_fail: LDI R2, t_fails
+        LD R0, [R2]
+        INC R0
+        ST R0, [R2]
+        LDI R1, 3
+        CMP R0, R1
+        JN tf_nak
+        LDI R2, t_dl
+        LDI R0, 0
+        ST R0, [R2]
+        LDI R0, t_m_failed
+        JSR PRINT
+tf_nak: LDI R0, NAK
+        JMP t_send
+
+; t_digit: R0 = a character. If it is a TRIMODEM digit (33 ... 113), adds it
+; to t_acc (t_acc = t_acc * 81 + digit - 40, the balanced base-81 value that
+; never overflows) and sets S = 0; otherwise S = -1.
+t_digit: LDI R1, 33
+        CMP R0, R1
+        JN td_no
+        LDI R1, 113
+        CMP R0, R1
+        JP td_no
+        ADDI R0, -73                    ; 33 + 40: the digit, -40 ... 40
+        LDI R2, t_acc
+        LD R1, [R2]
+        LDI R3, 81
+        MUL R1, R3
+        ADD R1, R0
+        ST R1, [R2]
+        LDI R0, 0
+        MOV R0, R0                      ; S = 0
+        RET
+td_no:  LDI R1, -1                      ; S = -1; R0 keeps the character
+        RET
+
+; t_div81: R0 = R0 / 81 rounded down (R0 >= 0). DIV rounds to the nearest.
+t_div81: MOV R1, R0
+        LDI R2, 81
+        DIV R0, R2
+        MOV R3, R0
+        MUL R3, R2
+        CMP R3, R1
+        JLE td_ok
+        DEC R0
+td_ok:  RET
+
+; t_progress: one '#' for every twentieth of the file.
+t_progress: LDI R2, t_expect
+        LD R0, [R2]
+        LDI R1, 20
+        MUL R0, R1
+        LDI R2, t_blocks
+        LD R1, [R2]
+        MOV R4, R1                      ; target = expect * 20 / blocks, rounded down
+        PUSH R0
+        DIV R0, R1
+        MOV R3, R0
+        MUL R3, R4
+        POP R1
+        CMP R3, R1
+        JLE tp_loop
+        DEC R0
+tp_loop: LDI R2, t_shown
+        LD R1, [R2]
+        CMP R1, R0
+        JGE tp_ret
+        INC R1
+        ST R1, [R2]
+        PUSH R0
+        LDI R0, '#'
+        JSR PUTCHAR
+        POP R0
+        JMP tp_loop
+tp_ret: RET
+
+; ===========================================================================
+; TRIMODEM upload: we send, the board answers (after Esc U)
+; ===========================================================================
+
+t_upload: LDI R0, t_askfile
+        JSR PRINT
+        LDI R0, t_name
+        LDI R1, 12
+        JSR t_readline
+        LDI R2, t_name
+        LD R0, [R2]
+        JZ tu_ret                       ; nothing typed
+        LDI R0, t_name
+        LDI R1, -1                      ; to the file's own address
+        JSR DISKLOAD
+        JZ tu_found
+        LDI R0, t_m_nofile
+        JMP PRINT
+tu_found: LDI R0, t_addr                ; R1 = where it loaded, R2 = its length
+        ST R1, [R0]
+        LDI R0, t_len
+        ST R2, [R0]
+        LDI R0, t_clob
+        LDI R1, 1
+        ST R1, [R0]                     ; it loaded into the program area
+        LDI R0, 0                       ; the type: TB if the name ends in .TB
+        LDI R2, t_istb
+        ST R0, [R2]
+        LDI R3, t_name
+tu_scan: LD R0, [R3]
+        JZ tu_type
+        INC R3
+        JMP tu_scan
+tu_type: LDI R2, t_name + 3
+        CMP R3, R2
+        JN tu_blocks                    ; too short for X.TB
+        LD R0, [R3 - 1]
+        JSR t_upper
+        LDI R1, 'B'
+        CMP R0, R1
+        JNZ tu_blocks
+        LD R0, [R3 - 2]
+        JSR t_upper
+        LDI R1, 'T'
+        CMP R0, R1
+        JNZ tu_blocks
+        LD R0, [R3 - 3]
+        LDI R1, '.'
+        CMP R0, R1
+        JNZ tu_blocks
+        LDI R0, 1
+        LDI R2, t_istb
+        ST R0, [R2]
+tu_blocks: LDI R2, t_len
+        LD R0, [R2]
+        ADDI R0, 80
+        JSR t_div81
+        LDI R2, t_blocks
+        ST R0, [R2]
+        LDI R0, 0
+        LDI R2, t_fails
+        ST R0, [R2]
+        LDI R2, t_shown
+        ST R0, [R2]
+        LDI R2, t_expect
+        ST R0, [R2]
+        LDI R0, -1                      ; the start message first
+        LDI R2, t_msg
+        ST R0, [R2]
+        LDI R0, t_m_sending
+        JSR PRINT
+tu_send: JSR t_sendmsg
+        LDI R4, 600                     ; ten seconds for an answer
+tu_wait: LDI R2, IO_BASE
+        LD R0, [R2+MDM_STATUS]
+        LDI R1, 2
+        CMP R0, R1
+        JNZ tu_failed
+        LD R0, [R2+MDM_RXCOUNT]
+        JZ tu_frame
+        LD R0, [R2+MDM_RX]
+        LDI R1, ACK
+        CMP R0, R1
+        JZ tu_ack
+        LDI R1, NAK
+        CMP R0, R1
+        JZ tu_nak
+        JMP tu_wait                     ; anything else: ignored
+tu_frame: WAIT
+        DEC R4
+        JNZ tu_wait
+tu_nak: LDI R2, t_fails                 ; a NAK or silence: send it again ...
+        LD R0, [R2]
+        INC R0
+        ST R0, [R2]
+        LDI R1, 3
+        CMP R0, R1
+        JN tu_send
+        LDI R0, ESC                     ; ... but the third time, give up
+        JSR t_send
+        LDI R0, 'X'
+        JSR t_send
+tu_failed: LDI R0, t_m_failed
+        JMP PRINT
+tu_ack: LDI R2, t_fails
+        LDI R0, 0
+        ST R0, [R2]
+        LDI R2, t_msg
+        LD R0, [R2]
+        LDI R2, t_blocks
+        LD R1, [R2]
+        CMP R0, R1
+        JZ tu_done                      ; the end was acknowledged
+        INC R0
+        LDI R2, t_msg
+        ST R0, [R2]
+        MOV R0, R0
+        JLE tu_send                     ; the start was acknowledged (now 0)
+        LDI R2, t_expect                ; a block was: progress
+        ST R0, [R2]
+        JSR t_progress
+        JMP tu_send
+tu_done: LDI R0, t_m_sent
+        JMP PRINT
+tu_ret: RET
+
+; t_sendmsg: sends message t_msg: -1 the start, 0 ... blocks - 1 a block,
+; blocks the end.
+t_sendmsg: LDI R2, t_msg
+        LD R3, [R2]
+        JN tsm_start
+        LDI R2, t_blocks
+        LD R1, [R2]
+        CMP R3, R1
+        JZ tsm_end
+        LDI R0, ESC                     ; ESC B, the block number, 81 words, the checksum
+        JSR t_send
+        LDI R0, 'B'
+        JSR t_send
+        MOV R0, R3
+        JSR t_sendword
+        MOV R4, R3                      ; R4 = the checksum so far (the block number)
+        LDI R5, 0                       ; R5 = i
+        MOV R6, R3
+        LDI R1, 81
+        MUL R6, R1                      ; R6 = the word's place in the file
+tsm_word: LDI R0, 0
+        LDI R2, t_len
+        LD R1, [R2]
+        CMP R6, R1
+        JGE tsm_have                    ; past the end: padding 0
+        LDI R2, t_addr
+        LD R0, [R2]
+        ADD R0, R6
+        LD R0, [R0]
+tsm_have: PUSH R0
+        MOV R1, R5
+        INC R1
+        MUL R0, R1
+        ADD R4, R0                      ; checksum += (i + 1) * word
+        POP R0
+        JSR t_sendword
+        INC R5
+        INC R6
+        LDI R1, 81
+        CMP R5, R1
+        JN tsm_word
+        MOV R0, R4
+        JMP t_sendword
+tsm_start: LDI R0, ESC                  ; ESC F name ; length ; type ; address
+        JSR t_send
+        LDI R0, 'F'
+        JSR t_send
+        LDI R3, t_name
+tsm_name: LD R0, [R3]
+        JZ tsm_named
+        JSR t_upper
+        JSR t_send
+        INC R3
+        JMP tsm_name
+tsm_named: LDI R0, ';'
+        JSR t_send
+        LDI R2, t_len
+        LD R0, [R2]
+        JSR t_sendword
+        LDI R0, ';'
+        JSR t_send
+        LDI R0, 'T'
+        JSR t_send
+        LDI R2, t_istb
+        LD R0, [R2]
+        JZ tsm_tri
+        LDI R0, 'B'
+        JSR t_send
+        JMP tsm_type
+tsm_tri: LDI R0, 'R'
+        JSR t_send
+        LDI R0, 'I'
+        JSR t_send
+tsm_type: LDI R0, ';'
+        JSR t_send
+        LDI R2, t_addr
+        LD R0, [R2]
+        JMP t_sendword
+tsm_end: LDI R0, ESC
+        JSR t_send
+        LDI R0, 'E'
+        JMP t_send
+
+; t_sendword: R0 = a word, sent as three TRIMODEM digits. The digits are
+; balanced base 81 (-40 ... 40), which TRIADA's rounding MOD gives directly,
+; so nothing overflows; digit d goes out as character 73 + d. Keeps R3 ... R6.
+t_sendword: PUSH R3
+        PUSH R4
+        LDI R1, 81
+        MOV R3, R0
+        MOD R3, R1                      ; the lowest digit
+        SUB R0, R3
+        DIV R0, R1
+        MOV R4, R0
+        MOD R4, R1                      ; the middle digit
+        SUB R0, R4
+        DIV R0, R1                      ; the highest digit
+        ADDI R0, 73
+        JSR t_send
+        MOV R0, R4
+        ADDI R0, 73
+        JSR t_send
+        MOV R0, R3
+        ADDI R0, 73
+        JSR t_send
+        POP R4
+        POP R3
+        RET
+
+; t_upper: R0 = a character, small letters made capital.
+t_upper: LDI R1, 'a'
+        CMP R0, R1
+        JN tup_ret
+        LDI R1, 'z'
+        CMP R0, R1
+        JP tup_ret
+        ADDI R0, -32
+tup_ret: RET
+
+; ===========================================================================
+; Helpers
+; ===========================================================================
+
+; t_readline: R0 = a buffer, R1 = the most characters. Reads a line from the
+; keyboard (echoed; Backspace works; Esc gives an empty line) into the
+; buffer, ending it with a 0.
+t_readline: PUSH R3
+        PUSH R4
+        MOV R3, R0
+        MOV R4, R1
+        LDI R5, 0                       ; characters so far
+trl_key: JSR GETKEY
+        LDI R1, 10
+        CMP R0, R1
+        JZ trl_end
+        LDI R1, ESC
+        CMP R0, R1
+        JZ trl_esc
+        LDI R1, 8
+        CMP R0, R1
+        JZ trl_bs
+        LDI R1, 32
+        CMP R0, R1
+        JN trl_key
+        LDI R1, 126
+        CMP R0, R1
+        JP trl_key
+        CMP R5, R4
+        JGE trl_key                     ; full
+        MOV R1, R3
+        ADD R1, R5
+        ST R0, [R1]
+        INC R5
+        JSR PUTCHAR
+        JMP trl_key
+trl_bs: MOV R5, R5
+        JZ trl_key
+        DEC R5
+        JSR PUTCHAR
+        JMP trl_key
+trl_esc: LDI R5, 0
+trl_end: MOV R1, R3
+        ADD R1, R5
+        LDI R0, 0
+        ST R0, [R1]
+        LDI R0, 10
+        JSR PUTCHAR
+        POP R4
+        POP R3
+        RET
+
+; ===========================================================================
+; Data
+; ===========================================================================
+
+t_low:  .word 941, 697, 697, 697, 770, 770, 770, 852, 852, 852      ; the tone pairs
+t_high: .word 1336, 1209, 1336, 1477, 1209, 1336, 1477, 1209, 1336, 1477
+
+t_title:     .str "TRIADA TERM  PHONEBOOK\n\n"
+t_bookhelp:  .str "\nN NEW NUMBER   ESC QUIT\n"
+t_asknumber: .str "\nNUMBER: "
+t_askfile:   .str "\nUPLOAD FILE: "
+t_dialing:   .str "DIALING "
+t_presskey:  .str "PRESS ANY KEY.\n"
+t_m_connect: .str "CONNECT 1200\n"
+t_m_nocarrier: .str "NO CARRIER\n"
+t_m_nocarrier2: .str "\nNO CARRIER\n"
+t_m_busy:    .str "BUSY\n"
+t_m_nonumber: .str "NO SUCH NUMBER\n"
+t_m_offline: .str "TRIADA-NET IS OFFLINE\n"
+t_m_hungup:  .str "\nHUNG UP.\n"
+t_m_receiving: .str "\nRECEIVING "
+t_m_saved:   .str "SAVED "
+t_m_diskerr: .str "DISK ERROR\n"
+t_m_failed:  .str "\nTRANSFER FAILED\n"
+t_m_nofile:  .str "FILE NOT FOUND\n"
+t_m_sending: .str "SENDING\n"
+t_m_sent:    .str "\nSENT\n"
+t_phonename: .str "PHONE.DAT"
+
+; The built-in phonebook: used until PHONE.DAT exists.
+t_deflist:   .str "0-00-00 TRIADA-NET INFO"
+             .str "1-85-01 TRIADA SUPPORT"
+             .str "2-27-81 TRIT AND TRYTE"
+             .str "3-43-21 PIONEER PALACE"
+             .word 0
+t_deflist_end:
+
+; variables
+t_sp:       .word 0
+t_fg0:      .word 0
+t_bg0:      .word 0
+t_fromdial: .word 0
+t_cancel:   .word 0
+t_clob:     .word 0
+t_count:    .word 0
+t_keyesc:   .word 0
+t_bell:     .word 0
+t_state:    .word 0
+t_esckind:  .word 0
+t_escfirst: .word 0
+t_dl:       .word 0
+t_hphase:   .word 0
+t_hcount:   .word 0
+t_acc:      .word 0
+t_type2:    .word 0
+t_len:      .word 0
+t_addr:     .word 0
+t_blocks:   .word 0
+t_expect:   .word 0
+t_fails:    .word 0
+t_shown:    .word 0
+t_bnum:     .word 0
+t_wi:       .word 0
+t_msg:      .word 0
+t_istb:     .word 0
+t_name:     .fill 13, 0
+t_words:    .fill 81, 0
+t_list:     .fill 300, 0

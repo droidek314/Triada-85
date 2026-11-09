@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.triada.core.TriImage;
 import org.triada.net.BoardDef;
+import org.triada.net.Boards;
 import org.triada.net.Limits;
 import org.triada.net.MemoryNetStore;
 import org.triada.net.Moderation;
@@ -218,7 +219,7 @@ class AdminTest {
     @Test
     void boardsFromAFolderOrBuiltIn() throws Exception {
         List<BoardDef> builtIn = Boards.load(null);
-        assertEquals("1-00-00", builtIn.get(0).number());
+        assertEquals("1-85-01", builtIn.get(0).number(), "the starter boards (M19)");
         Files.writeString(dir.resolve("b.board"), "NUMBER 2-00-00\nNAME B\nMESSAGES G G\n");
         Files.writeString(dir.resolve("a.board"), "NUMBER 3-00-00\nNAME A\nMESSAGES G G\n");
         Files.writeString(dir.resolve("notes.txt"), "not a board");

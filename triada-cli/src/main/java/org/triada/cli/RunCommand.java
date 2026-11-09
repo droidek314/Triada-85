@@ -13,6 +13,7 @@ import org.triada.core.MachineProfile;
 import org.triada.core.MachineProfiles;
 import org.triada.core.io.KeyFeeder;
 import org.triada.core.modem.WireModemPort;
+import org.triada.net.LocalNode;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
 import org.triada.rom.Rom;
@@ -62,6 +63,7 @@ final class RunCommand {
         String disk = null;
         String typeFile = null;
         String modem = null;
+        boolean localNode = false;
         boolean boot = true;
         MachineProfile model = MachineProfiles.TRIADA_85;
         for (int i = 0; i < args.length; i++) {
@@ -92,6 +94,9 @@ final class RunCommand {
                     break;
                 case "--modem":
                     modem = TasmCommand.value(args, ++i, "--modem");
+                    break;
+                case "--local-node":
+                    localNode = true;
                     break;
                 case "--disk":
                     disk = TasmCommand.value(args, ++i, "--disk");
@@ -131,6 +136,9 @@ final class RunCommand {
             }
         }
         Machine machine = Rom.newMachine(model);
+        if (modem != null && localNode) {
+            throw new Main.UsageException("--modem and --local-node: one line at a time");
+        }
         if (modem != null) {
             try {
                 machine.modem().setPort(new WireModemPort(TcpModemLink.opener(modem), model));
@@ -138,8 +146,13 @@ final class RunCommand {
                 throw new Main.UsageException("--modem: " + e.getMessage());
             }
         }
+        if (localNode) {
+            machine.modem().setPort(new WireModemPort(LocalNode.line(), model));   // TRIADA-NET in here (M19)
+        }
         if (disk != null) {
-            machine.triskette().setPort(new FolderTriskette(Path.of(disk)));   // else an empty one in memory
+            machine.triskette().setPort(new FolderTriskette(Path.of(disk)));   // the user's own folder, as it is
+        } else {
+            Rom.prepareTriskette(machine.triskette().port());   // the memory triskette carries TERM.TRI (M19)
         }
         try {
             if (image == null) {

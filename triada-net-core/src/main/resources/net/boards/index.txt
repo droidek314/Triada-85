@@ -1,0 +1,5 @@
+# The boards built into TRIADA-NET (M19), one board file per line.
+npo-support.board
+trit-and-tryte.board
+pioneer-palace.board
+quiet-line.board

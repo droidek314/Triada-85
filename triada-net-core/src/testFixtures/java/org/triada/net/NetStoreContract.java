@@ -124,5 +124,8 @@ public abstract class NetStoreContract {
         assertTrue(s.ipBanned("10.0.0.9"));
         s.banIp("10.0.0.9", false);
         assertFalse(s.ipBanned("10.0.0.9"));
+        assertTrue(s.markSeeded("post 1-85-01 #1"));
+        assertFalse(s.markSeeded("post 1-85-01 #1"), "seeded once only");
+        assertTrue(s.markSeeded("post 1-85-01 #2"));
     }
 }

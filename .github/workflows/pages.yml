@@ -29,7 +29,10 @@ jobs:
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v6
       # The tests are the gate: a build that fails them is never published.
-      - run: ./gradlew build :triada-web:gdx_teavm_web_js_build
+      # TRIADA_NET_URL is a repository variable (Settings > Secrets and variables > Actions >
+      # Variables): the wss:// address of a deployed TRIADA-NET server. Unset: the web version
+      # is offline (docs/net/DEPLOY.md, M19).
+      - run: ./gradlew build :triada-web:gdx_teavm_web_js_build "-Ptriada.netUrl=${{ vars.TRIADA_NET_URL }}"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: triada-web/build/dist/js/webapp

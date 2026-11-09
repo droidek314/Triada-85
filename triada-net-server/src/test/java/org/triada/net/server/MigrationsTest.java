@@ -45,7 +45,7 @@ class MigrationsTest {
             assertEquals(0, Migrations.version(db));
             assertEquals(Migrations.SCRIPTS.size(), Migrations.run(db));
             assertEquals(List.of("banned_ips", "calls", "files", "mail", "messages", "one_liners", "reports",
-                    "schema_version", "time_used", "users"), tables(db));
+                    "schema_version", "seeds", "time_used", "users"), tables(db));
         }
     }
 
@@ -56,7 +56,7 @@ class MigrationsTest {
             try (Statement s = db.createStatement()) {
                 s.execute("INSERT INTO banned_ips (ip) VALUES ('10.0.0.1')");
             }
-            assertEquals(1, Migrations.run(db));
+            assertEquals(Migrations.SCRIPTS.size(), Migrations.run(db));
             try (Statement s = db.createStatement(); ResultSet r = s.executeQuery("SELECT COUNT(*) FROM banned_ips")) {
                 r.next();
                 assertEquals(1, r.getInt(1), "the data is still there");
@@ -86,9 +86,9 @@ class MigrationsTest {
         try (Connection db = open("broken.db")) {
             Migrations.run(db);
             SQLException e = assertThrows(SQLException.class,
-                    () -> Migrations.run(db, List.of("V001__schema.sql", "test/V002__broken.sql")));
-            assertTrue(e.getMessage().contains("V002__broken.sql"), e.getMessage());
-            assertEquals(1, Migrations.version(db));
+                    () -> Migrations.run(db, List.of("V001__schema.sql", "V002__seeds.sql", "test/V003__broken.sql")));
+            assertTrue(e.getMessage().contains("V003__broken.sql"), e.getMessage());
+            assertEquals(Migrations.SCRIPTS.size(), Migrations.version(db));
             assertTrue(!tables(db).contains("half_done"), "the whole script was rolled back");
         }
     }

@@ -126,4 +126,9 @@ public interface NetStore {
     boolean ipBanned(String ip);
 
     void banIp(String ip, boolean banned);
+
+    // ------------------------------------------------------------ content (M19)
+
+    /** Records that {@code key} was seeded; true the first time, false ever after. */
+    boolean markSeeded(String key);
 }
