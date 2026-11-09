@@ -150,7 +150,8 @@ class InputDeviceTest {
         String[] names = {"FRAME", "JOY_X", "JOY_Y", "BTN_A", "BTN_B", "BTN_C", "KEY", "SCROLL_X",
             "SCROLL_Y", "BORDER", "V1_FREQ", "V1_VOL", "V1_WAVE", "V2_FREQ", "V2_VOL", "V2_WAVE",
             "V3_FREQ", "V3_VOL", "V3_WAVE", "RAND", "DEBUG_CHAR", "DEBUG_NUM", "HOST_EXIT",
-            "TS_CMD", "TS_NAME", "TS_ADDR", "TS_LEN", "TS_STATUS"};
+            "TS_CMD", "TS_NAME", "TS_ADDR", "TS_LEN", "TS_STATUS",
+            "MDM_CMD", "MDM_ADDR", "MDM_STATUS", "MDM_TX", "MDM_RX", "MDM_RXCOUNT", "MDM_TXFREE", "MDM_SPEED"};
         for (int k = 0; k < names.length; k++) {
             assertEquals(names[k], IoRegisters.nameOf(k));
             assertEquals(-20_412 + k, MemoryMap.IO_BASE + k);
@@ -158,7 +159,8 @@ class InputDeviceTest {
         assertEquals(-20_390, MemoryMap.IO_BASE + IoRegisters.HOST_EXIT);
         assertEquals(IoRegisters.DEFINED_COUNT, names.length);
         assertEquals(-20_385, MemoryMap.IO_BASE + IoRegisters.TS_STATUS);
-        assertNull(IoRegisters.nameOf(28));
+        assertEquals(-20_377, MemoryMap.IO_BASE + IoRegisters.MDM_SPEED);     // SPEC §5.2 (M17)
+        assertNull(IoRegisters.nameOf(36));
         assertNull(IoRegisters.nameOf(-1));
         assertEquals(6, IoRegisters.KEY);
         assertEquals(22, IoRegisters.HOST_EXIT);

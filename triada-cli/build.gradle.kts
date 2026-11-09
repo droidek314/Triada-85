@@ -9,6 +9,9 @@ dependencies {
     implementation(project(":triada-core"))
     implementation(project(":triada-assembler"))
     implementation(project(":triada-rom"))
+    // Modem tests call a real TRIADA-NET server (M17).
+    testImplementation(project(":triada-net-core"))
+    testImplementation(project(":triada-net-server"))
 }
 
 application {

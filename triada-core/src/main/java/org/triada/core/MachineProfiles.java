@@ -27,6 +27,7 @@ public final class MachineProfiles {
             216, 144, 12,                   // screen 216 x 144, border 12
             8, 243, 27,                     // 8 x 8 tiles, 243 of them, 27 sprites
             3,                              // three voices
+            1_200,                          // a 1200 bit/s modem (M17)
             EnumSet.allOf(Device.class),
             List.of("main", "tribasic"));
 

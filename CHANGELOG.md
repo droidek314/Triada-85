@@ -11,6 +11,12 @@ Housekeeping (M16). The machine behaves exactly as in v1.1.
 - New built-in assembler symbols: `ROM_START`, `EXT_ROM_START`, `PROGRAM_START`, `STACK_TOP`, `MAP_COLS`, `MAP_ROWS`, `MAP_CELLS`. A source that defines one of these names itself must rename it.
 - A "Prior art and related work" section in the README and `docs/PRIOR-ART.md`.
 
+TRIADA-NET, part 1 (M17):
+- **A modem** on I/O registers 28–35 (SPEC §5.2): it dials, connects and moves 2 characters per frame each way, like a 1200 bit/s line. The debugger shows it.
+- **TRIBASIC:** `MDIAL`, `MHANGUP`, `MSEND`, `MSTATUS`, `MRECV$` (and the keyword `DIAL`, for the terminal of M19). Example: `programs/basic/AUTOCALL.bas`.
+- `triada run --modem HOST:PORT` and the desktop's `--modem HOST:PORT` connect the modem to a TRIADA-NET server; the web version dials the address set in its page (none yet, so it is offline as before).
+- **TRIADA-NET:** the wire protocol and TRIMODEM in `docs/NET-SPEC.md`, the modules `triada-net-core` and `triada-net-server`, and an echo server: `./gradlew :triada-net-server:run`.
+
 ## v1.1 — TRIBASIC and the triskette (2026-11-08)
 
 The machine now greets you with a programming language of its own, and can keep your programs.

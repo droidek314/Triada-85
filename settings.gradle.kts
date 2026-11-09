@@ -19,6 +19,8 @@ include(
     "triada-app",        // frontend parts shared by desktop and web (M12)
     "triada-desktop",    // libGDX desktop frontend
     "triada-web",        // libGDX web frontend, for GitHub Pages (M12)
+    "triada-net-core",   // TRIADA-NET: TRIMODEM, the server side of the protocol, boards (pure Java, M17)
+    "triada-net-server", // TRIADA-NET server: TCP and WebSocket transports (M17, M18)
 )
 
 dependencyResolutionManagement {

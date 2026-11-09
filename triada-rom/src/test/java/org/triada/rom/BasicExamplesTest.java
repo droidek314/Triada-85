@@ -11,7 +11,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.triada.core.io.IoRegisters;
 import org.triada.core.memory.MemoryMap;
+import org.triada.core.modem.ModemDevice;
+import org.triada.core.modem.WireModemPort;
+import org.triada.net.EchoExchange;
+import org.triada.net.LoopbackNetwork;
 
 /**
  * Smoke tests for the TRIBASIC example programs in {@code programs/basic/}
@@ -156,6 +161,35 @@ class BasicExamplesTest {
         t.m.input().pushKey('Q');
         t.waitForPrompt(600);
         assertEquals("THANK YOU FOR TYPING!", t.row(0));
+    }
+
+    /** AUTOCALL (M17) calls the echo board, prints its answer and hangs up. */
+    @Test
+    void autocallTalksToTheEchoBoard() throws IOException {
+        Triada t = new Triada();
+        t.m.modem().setPort(new WireModemPort(new LoopbackNetwork(new EchoExchange()), t.m.profile()));
+        t.waitForPrompt();
+        t.typeOnly(source("AUTOCALL.bas"));
+        t.frames(2);
+        t.clearScreen();
+        t.typeOnly("RUN\n");
+        t.waitForPrompt(600);
+        noError(t);
+        assertEquals(List.of("RUN", "DIALING 1-11-11", "CONNECT 1200", "ECHO READY", "HELLO FROM TRIADA",
+                "HUNG UP.", "READY."), t.screen().subList(0, 7));
+        assertEquals(ModemDevice.NO_CARRIER, t.m.bus().read(MemoryMap.IO_BASE + IoRegisters.MDM_STATUS));
+    }
+
+    /** Without a network (the machine's default), AUTOCALL says so. */
+    @Test
+    void autocallWithoutANetwork() throws IOException {
+        Triada t = typedIn("AUTOCALL.bas");
+        t.clearScreen();
+        t.typeOnly("RUN\n");
+        t.waitForPrompt(600);
+        noError(t);
+        assertEquals(List.of("RUN", "DIALING 1-11-11", "TRIADA-NET IS OFFLINE", "READY."),
+                t.screen().subList(0, 4));
     }
 
     private static int cell(Triada t, int col, int row) {

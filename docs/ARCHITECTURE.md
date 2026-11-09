@@ -40,8 +40,12 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 | `triada-rom` | The ROM (M8): kernel, monitor, font, written in TRIADA assembly in `rom/`. A build-time step assembles it into a generated Java class; `Rom.newMachine()` gives a machine that boots. Holds the ROM's integration tests. | core (and the assembler at build time only) |
 | `triada-cli` | The command-line tool `triada` (M5), with `tasm` and `run`. It reads and writes files and holds the end-to-end tests. | core, assembler, rom |
 | `triada-desktop` | The libGDX window, sound, input and debugger (M6, M7, M9). | core, assembler, rom, libGDX |
+| `triada-net-core` | TRIADA-NET without network code (M17): TRIMODEM, the server side of the wire protocol, the echo exchange, an in-process network. Boards from M18. | core |
+| `triada-net-server` | The TRIADA-NET server (M17): TCP and WebSocket (Javalin) around `triada-net-core`. The emulator never depends on it; the CLI's tests do. | net-core, Javalin |
 
-## Current state (after M16)
+## Current state (after M17)
+
+- **The modem (M17):** `org.triada.core.modem` has `ModemDevice` (registers 28–35, plugged in when the profile lists `Device.MODEM`), `ModemPort` (the line behind it; `ModemPort.OFFLINE` by default), `WireModemPort` (the client side of the wire protocol over a `ModemLink`) and `LoopbackLink` (an in-process pipe). The transports are `TcpModemLink` (triada-cli; `run --modem`, desktop `--modem`) and `WebModemLink` (triada-web; the page's `triadaModem`). See [The modem and TRIADA-NET](#the-modem-and-triada-net).
 
 - `triada-core` has `MachineProfile` and `MachineProfiles` (M16, D-057): every number that makes a model what it is, with one model today, `MachineProfiles.TRIADA_85`. `Machine`, `Bus`, `Cpu`, `VideoChip`, `SoundChip` and `TrisketteDevice` read their sizes from it; see [Machine profiles](#machine-profiles).
 - `triada-core` contains `MachineInfo` (the machine's name and spec version) and the package `org.triada.core.ternary`:
@@ -69,6 +73,30 @@ Arrows point from a module to the module it *uses*. Nothing points into `triada-
 - `triada-web` (M12): the browser version, compiled to JavaScript by gdx-teavm. `WebLauncher` → `WebApp` (the same machine, `MachineScreen` and `InputMapper`, no debugger; programs from `?program=NAME` or a dropped file, assembled in the browser) and `WebPage` (one-line JavaScript glue). Since M13 `WebTriskette` keeps the triskette in browser storage, and the page has a Triskette panel for import and export (D-047). Its `index.html` holds the sound player (D-041) and the file drop. `.github/workflows/pages.yml` tests, builds and publishes it to GitHub Pages (D-042).
 - TRIBASIC (M14, D-048): `rom/basic.tasm` is assembled together with the main ROM (one symbol table) at `.org -59048`; `RomGenerator` splits the image into the main ROM and the extension ROM, and `Rom.newMachine()` loads both. The kernel boots into `BASIC_COLD`; `MON` and the monitor's `BASIC` switch between the two. Its tests: `BasicSuiteTest` runs `tests/basic/*.bas` against `*.expected` (D-050). Since M15 TRIBASIC is complete (D-051 … D-053): typed values, strings in fixed slots with per-statement temporaries, variables and arrays as entries of any length, functions through `fntab`, machine statements, and storage through the DISK routines. `BasicExamplesTest` plays `programs/basic/*.bas`; `BasicManualTest` checks `docs/manual/tribasic.md`.
 - `docs/spikes/m06-teavm/` is a separate throwaway build proving `triada-core` and `triada-assembler` compile to JavaScript with TeaVM (D-022).
+
+## The modem and TRIADA-NET
+
+Since M17 the machine has a modem, and there is a server for it to call (D-061, D-062). The parts, from the program in the machine to the board on the server:
+
+```
+  TRIBASIC: MDIAL, MSEND, MRECV$     (or any program writing registers 28-35)
+        |
+  ModemDevice  (triada-core)   buffers of 729, 2 characters per frame each way,
+        |                      the dialing pause; moved in Machine.finishFrame
+  ModemPort ---- OFFLINE (no network)  or
+        |
+  WireModemPort  HELLO / WELCOME / DIAL / CONNECT, then raw bytes
+        |
+  ModemLink ---- TcpModemLink (CLI, desktop) | WebModemLink (web) | LoopbackLink (tests)
+        |                  ~~~ TCP 2385 ~~~      ~~~ WebSocket 2386 /net ~~~    (in process)
+  NetServer  (triada-net-server)  one virtual thread per TCP caller; Javalin for WebSocket
+        |
+  ServerConnection (triada-net-core)  reads HELLO and DIAL, asks the Exchange
+        |
+  Exchange -> Answer -> Call     EchoExchange today; the boards from M18
+```
+
+Every layer above the link is pure Java with nothing that waits: the device asks the port once per frame, and the port reads whatever the link has. Only the transports touch the network. `LoopbackNetwork` (triada-net-core) joins a `LoopbackLink` straight to a `ServerConnection`, so a test machine calls a server inside the same program. TRIMODEM (`Trimodem`, `TrimodemSender`, `TrimodemReceiver`) moves files over a connected line; the server and the tests use it, and the machine gets its own version in assembly in M19.
 
 ## Machine profiles
 

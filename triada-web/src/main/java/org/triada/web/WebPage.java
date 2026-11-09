@@ -38,6 +38,30 @@ final class WebPage {
     @JSBody(script = "var t = triadaPaste; triadaPaste = null; return t;")
     static native String takePaste();
 
+    /** The TRIADA-NET server address (M17): {@code ?net=} in the page address, else the page's setting; "" for none. */
+    @JSBody(script = "return new URLSearchParams(location.search).get('net') || TRIADA_NET_URL || '';")
+    static native String netAddress();
+
+    /** Opens a WebSocket line to {@code url}; returns its number. */
+    @JSBody(params = "url", script = "return triadaModem.open(url);")
+    static native int modemOpen(String url);
+
+    /** The next byte received on line {@code id}, or −1. */
+    @JSBody(params = "id", script = "return triadaModem.read(id);")
+    static native int modemRead(int id);
+
+    /** Sends bytes on line {@code id}. */
+    @JSBody(params = {"id", "bytes"}, script = "triadaModem.send(id, bytes);")
+    static native void modemSend(int id, @JSByRef byte[] bytes);
+
+    /** True if line {@code id} was closed or could not be opened. */
+    @JSBody(params = "id", script = "return triadaModem.closed(id);")
+    static native boolean modemClosed(int id);
+
+    /** Hangs up line {@code id}. */
+    @JSBody(params = "id", script = "triadaModem.close(id);")
+    static native void modemClose(int id);
+
     /** Shows a line of text under the screen (what is running, or what went wrong). */
     @JSBody(params = "text", script = "document.getElementById('status').textContent = text;")
     static native void status(String text);

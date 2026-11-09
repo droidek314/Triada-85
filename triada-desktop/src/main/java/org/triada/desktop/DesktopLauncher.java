@@ -12,9 +12,11 @@ import org.triada.assembler.AssemblyException;
 import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.MachineInfo;
+import org.triada.core.modem.WireModemPort;
 import org.triada.core.TriImage;
 import org.triada.core.video.VideoChip;
 import org.triada.cli.FolderTriskette;
+import org.triada.cli.TcpModemLink;
 import org.triada.rom.Rom;
 
 /**
@@ -56,6 +58,14 @@ public final class DesktopLauncher {
         String program = options.program();
         Machine machine = Rom.newMachine();
         machine.triskette().setPort(new FolderTriskette(options.disk()));
+        if (options.modem() != null) {
+            try {
+                machine.modem().setPort(new WireModemPort(TcpModemLink.opener(options.modem()), machine.profile()));
+            } catch (IllegalArgumentException e) {
+                System.err.println("triada: --modem: " + e.getMessage());
+                System.exit(2);
+            }
+        }
         String title = MachineInfo.NAME;
         if (program != null) {
             try {

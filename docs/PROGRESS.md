@@ -21,7 +21,7 @@ One line per milestone. A milestone is **done** only when its code, its passing 
 | M14 | TRIBASIC I: the interpreter core | ✅ done | 2026-11-08 |
 | M15 | TRIBASIC II: strings, arrays, machine access, storage and release | ✅ done (v1.1) | 2026-11-08 |
 | M16 | Housekeeping: prior art, machine profiles | ✅ done | 2026-11-09 |
-| M17 | Modem device, protocol and TRIMODEM (Phase 3: TRIADA-NET) | 🔨 in progress | |
+| M17 | Modem device, protocol and TRIMODEM (Phase 3: TRIADA-NET) | ✅ done | 2026-11-09 |
 | M18 | The TRIADA-NET server | ⏳ planned | |
 | M19 | Terminal, content and release v1.2 | ⏳ planned | |
 

@@ -24,14 +24,73 @@ The `cols`/`rows` values let future models (a TRIADA-88) get wider screens from 
 
 The web build must use `wss://` (TLS WebSocket), because GitHub Pages is served over HTTPS.
 
+### 2.1 Details settled in M17 (D-061)
+- **Lines** end with a line feed (10). A carriage return (13) before it is ignored, so CR LF works too. A control line may be at most 256 characters; a longer one ends the call (the server answers `ERROR line too long`).
+- **HELLO** fields are `key=value` words after `HELLO TRIADA-NET/1`, in any order. Unknown keys are ignored, so later clients can add fields. `cols` and `rows` must be 1 … 243; missing or other values mean 27 and 18.
+- **WELCOME** carries the in-world date as `YYYY-MM-DD` (§4): `WELCOME TRIADA-NET/1 1985-11-09`.
+- After `BUSY`, `NO NUMBER`, `NO CARRIER` or `ERROR …` the server closes the connection.
+- **What the client makes of it** (the modem's status, SPEC §5.2): `CONNECT …` is connected (2); `BUSY` is −2; `NO NUMBER` is −3; `NO CARRIER` or any other answer to DIAL is −1; `ERROR …`, any other answer to HELLO, a connection that can't be opened, or one closed before WELCOME is "network offline" (−4); one closed after WELCOME is −1.
+- **Bytes in the same packet as `CONNECT`**, after its line feed, are already raw characters.
+- **Where:** TCP port 2385; WebSocket `ws://host:2386/net` (behind TLS: `wss://`). Both carry exactly the same byte stream; a WebSocket message may be binary or text. `GET /health` on the WebSocket port answers `OK`.
+- **WebSocket origin check:** a browser sends the address of the page it runs on (its *origin*). The server can be given the allowed origins; a WebSocket from any other is closed at once with code 1008. With none configured, all are allowed (for development).
+
+### 2.2 The echo exchange (M17)
+The server of M17 serves a test exchange; M18 replaces it with the boards.
+
+| Number | What happens |
+|---|---|
+| `1-11-11` | Connects. Sends `ECHO READY` and a carriage return, then echoes every character. Character 4 (end of transmission) makes it say `BYE` and a carriage return, and hang up |
+| `2-22-22` | `BUSY` |
+| `3-33-33` | `NO CARRIER` |
+| any other | `NO NUMBER` |
+
 ---
 
 ## 3. TRIMODEM (program transfer)
 - **Encoding:** 3^12 = 81^3, so **every word is exactly 3 characters** in base 81, using the printable characters 33…113.
 - **Transfer:** blocks of 81 words. Each block is `ESC 'B'`, the block number (3 chars), 243 data chars and a checksum (3 chars). The receiver answers `ACK` (character 6) or `NAK` (character 21). After 3 failures, abort.
-- **Start:** `ESC 'F'`, the file name, `;`, the length in words (3 chars), `;`, the type (`TB` or `TRI`). **End:** `ESC 'E'`.
+- **Start:** `ESC 'F'`, the file name, `;`, the length in words (3 chars), `;`, the type (`TB` or `TRI`), `;`, the load address (3 chars). **End:** `ESC 'E'`.
 - **Uploads** use the same protocol in the other direction.
-- The exact checksum is defined in M17, with a worked example here and in the manual.
+
+### 3.1 Details settled in M17 (D-063)
+**Three characters per word.** Add 265,720 to the word, so it lies in 0 … 531,440. Write that in base 81: three digits, most significant first. Send digit *d* as the character 33 + *d*.
+
+```
+word 1000:  1000 + 265,720 = 266,720 = 40·6,561 + 52·81 + 68
+            digits 40, 52, 68  ->  characters 73, 85, 101  =  "IUe"
+word 0:     265,720 = 40·6,561 + 40·81 + 40  ->  "III"
+word -265,720 -> "!!!"        word 265,720 -> "qqq"
+```
+
+Numbers in messages (block numbers, lengths, addresses, checksums) are words, encoded the same way. Every field has a fixed size, so messages are read by position. The character `;` (59) is itself a digit and may appear inside a number.
+
+**Messages** (each starts with ESC, 27):
+
+| Message | Bytes | The receiver answers |
+|---|---|---|
+| Start | `ESC 'F'` name `;` length(3) `;` type `;` address(3) | ACK, or NAK if the name, type or numbers are bad |
+| Block | `ESC 'B'` number(3) data(243) checksum(3) | ACK, or NAK if a character isn't a digit, the checksum is wrong, or the number is out of order |
+| End | `ESC 'E'` | ACK if every block arrived, otherwise NAK |
+| Abort | `ESC 'X'` | nothing: the transfer is over |
+
+- **The load address** is part of the start message, so a `.TRI` program arrives where it must run (`BRUN`). `TRIADA-NET.md` didn't include it; D-063 adds it. A `.TB` program carries 243.
+- The **name** follows the triskette's rules (SPEC §5.1): 1 – 12 characters, A–Z, 0–9, at most one `.`. The **length** is 0 … 59,049 words, and the file must fit below the top address.
+- Blocks are numbered from 0. The **last block is padded** with 0 words to 81; the length says how many words are real. A file of 0 words has no blocks: start, then end.
+- **Checksum** of block *n* with the words w₀ … w₈₀: *n* + 1·w₀ + 2·w₁ + … + 81·w₈₀, wrapped to a word like any TRIADA sum (SPEC §1.3). Weighting by position catches two swapped words, which a plain sum misses, and the machine can compute it with MUL and ADD.
+- **Repeats:** if a block or the start arrives a second time (because an ACK got lost), the receiver answers ACK again and keeps only one copy.
+- **Failures:** a NAK, or no answer in time (the sender decides how long it waits), counts as one failure. The sender sends the same message again; at its third failure in a row it sends `ESC 'X'` and gives up. The receiver gives up after its third NAK in a row.
+- Anything received while waiting for an ESC is ignored (line noise).
+
+**Worked example.** The two-word TRIBASIC file `A.TB` = [5, 7], loaded at 243:
+
+```
+start:  ESC F A . T B ; I I K ; T B ; I L I        length 2 = "IIK", address 243 = "ILI"
+block:  ESC B  I I I  I I N  I I P  I I I … (79 × "III")  I I \
+               block 0  5      7      the padding            checksum
+end:    ESC E
+```
+
+The checksum is 0 + 1·5 + 2·7 = 19 = `II\` (19 + 265,720 = 40·6,561 + 40·81 + 59, and 33 + 59 = 92 is `\`). The receiver answers ACK three times, and the file is [5, 7] at 243.
 
 ---
 

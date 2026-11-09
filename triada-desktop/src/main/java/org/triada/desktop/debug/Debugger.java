@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TreeSet;
 import org.triada.assembler.Disassembler;
+import org.triada.core.io.IoRegisters;
 import org.triada.core.Machine;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
@@ -312,6 +313,11 @@ public final class Debugger {
         }
         lines.add(regLine("PC", cpu.pc()));
         lines.add("S " + trit(cpu.flagS()) + "   O " + trit(cpu.flagO()) + "   CYCLES " + cpu.cycles());
+        // The modem (M17): its status, the characters waiting, and those dropped
+        // because the receive buffer was full (SPEC §5.2 asks for the count here).
+        int io = machine.profile().ioBase();
+        lines.add("MODEM " + machine.bus().peek(io + IoRegisters.MDM_STATUS) + "   RX "
+                + machine.bus().peek(io + IoRegisters.MDM_RXCOUNT) + "   DROPPED " + machine.modem().droppedCharacters());
         return lines;
     }
 

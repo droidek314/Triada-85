@@ -29,6 +29,7 @@ class ModifiedProfileTest {
             120, 96, 4,                     // 120 x 96 screen, border 4
             8, 243, 27,
             1,                              // one voice
+            1_200,
             EnumSet.of(Device.SYSTEM, Device.INPUT, Device.VIDEO, Device.SOUND, Device.DEBUG),
             List.of("main"));
 

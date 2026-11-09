@@ -29,6 +29,7 @@ Read the milestone documents in order. Together they form the book *"How to buil
 | M14 | [TRIBASIC I: the interpreter core](milestones/M14-tribasic-core.md) | A programming language in the machine's own assembly: storing lines as tokens, evaluating expressions, three-valued logic and the three-way IF on BR3, and a test suite of 66 small programs. |
 | M15 | [TRIBASIC II and release 1.1](milestones/M15-tribasic-complete.md) | Strings without garbage collection, arrays with a middle, the picture and sound chips from BASIC, SAVE and LOAD, paste-typing, example programs, the manual chapter, and releasing version 1.1. |
 | M16 | [Housekeeping: prior art and machine profiles](milestones/M16-housekeeping.md) | Who came before TRIADA, and the machine's birth certificate: every model-specific number in one record, the machine built from it, and a test with a made-up model proving nothing is still hard-coded. |
+| M17 | [The modem, the wire protocol and TRIMODEM](milestones/M17-modem.md) | Phase 3 begins: a modem that really calls a server, at a 1985 pace; one protocol over TCP, WebSocket or an in-process pipe; three characters per word; an echo server; TRIBASIC's modem words. |
 
 Then read the [retrospective](RETROSPECTIVE.md): what went well, what was hard, and what we would do differently.
 

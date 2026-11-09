@@ -142,6 +142,64 @@
             e.preventDefault();
         });
 
+        // TRIADA-NET (M17): the address of the server the modem dials, a wss:// WebSocket
+        // address. Empty means no network: every call ends "network offline". For testing,
+        // ?net=ws://localhost:2386/net in the page address overrides it.
+        var TRIADA_NET_URL = "";
+
+        // The modem's lines (WebModemLink): one WebSocket per call. Received bytes wait in
+        // an inbox until the machine reads them; bytes sent before the socket is open wait
+        // in an outbox. Every failure just marks the line closed, so the page never breaks.
+        var triadaModem = {
+            next: 1,
+            lines: {},
+            open: function (url) {
+                var id = this.next++;
+                var line = { inbox: [], outbox: [], closed: false, ws: null };
+                this.lines[id] = line;
+                try {
+                    var ws = new WebSocket(url);
+                    ws.binaryType = "arraybuffer";
+                    line.ws = ws;
+                    ws.onopen = function () {
+                        line.outbox.forEach(function (b) { ws.send(b); });
+                        line.outbox = null;
+                    };
+                    ws.onmessage = function (e) {
+                        var d = typeof e.data === "string" ? new TextEncoder().encode(e.data) : new Uint8Array(e.data);
+                        for (var i = 0; i < d.length; i++) line.inbox.push(d[i]);
+                    };
+                    ws.onclose = ws.onerror = function () { line.closed = true; };
+                } catch (e) {
+                    line.closed = true;
+                }
+                return id;
+            },
+            read: function (id) {
+                var line = this.lines[id];
+                return line && line.inbox.length ? line.inbox.shift() : -1;
+            },
+            send: function (id, bytes) {
+                var line = this.lines[id];
+                if (!line || line.closed) return;
+                var copy = new Uint8Array(bytes);
+                if (line.outbox) { line.outbox.push(copy); return; }
+                try { line.ws.send(copy); } catch (e) { line.closed = true; }
+            },
+            closed: function (id) {
+                var line = this.lines[id];
+                return !line || line.closed;
+            },
+            close: function (id) {
+                var line = this.lines[id];
+                if (line) {
+                    line.closed = true;
+                    try { if (line.ws) line.ws.close(); } catch (e) { }
+                }
+                delete this.lines[id];
+            }
+        };
+
         // A dropped or imported file waits here until the machine picks it up (WebApp.insert
         // stores it on the triskette and, if it is machine code, runs it).
         var triadaDrop = { name: null, bytes: null };

@@ -15,6 +15,7 @@ dependencies {
     api(project(":triada-core"))
     "generatorImplementation"(project(":triada-assembler"))
     testImplementation(project(":triada-assembler"))
+    testImplementation(project(":triada-net-core"))   // the echo board for the modem tests (M17)
 }
 
 val romDir = rootProject.layout.projectDirectory.dir("rom")

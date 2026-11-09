@@ -36,9 +36,18 @@ public final class IoRegisters {
     public static final int TS_ADDR = 25;
     public static final int TS_LEN = 26;
     public static final int TS_STATUS = 27;
+    /** Modem (SPEC §5.2, M17). */
+    public static final int MDM_CMD = 28;
+    public static final int MDM_ADDR = 29;
+    public static final int MDM_STATUS = 30;
+    public static final int MDM_TX = 31;
+    public static final int MDM_RX = 32;
+    public static final int MDM_RXCOUNT = 33;
+    public static final int MDM_TXFREE = 34;
+    public static final int MDM_SPEED = 35;
 
-    /** Number of registers the spec defines (0 … 27); the rest are reserved. */
-    public static final int DEFINED_COUNT = 28;
+    /** Number of registers the spec defines (0 … 35); the rest are reserved. */
+    public static final int DEFINED_COUNT = 36;
 
     /** Total number of register slots (0 … 728). */
     public static final int COUNT = 729;
@@ -50,6 +59,7 @@ public final class IoRegisters {
         "V3_FREQ", "V3_VOL", "V3_WAVE",
         "RAND", "DEBUG_CHAR", "DEBUG_NUM", "HOST_EXIT",
         "TS_CMD", "TS_NAME", "TS_ADDR", "TS_LEN", "TS_STATUS",
+        "MDM_CMD", "MDM_ADDR", "MDM_STATUS", "MDM_TX", "MDM_RX", "MDM_RXCOUNT", "MDM_TXFREE", "MDM_SPEED",
     };
 
     private IoRegisters() {

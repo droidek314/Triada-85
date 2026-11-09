@@ -34,7 +34,7 @@ class ProfileSymbolsTest {
     void anotherModelGetsItsOwnValues() throws AssemblyException {
         MachineProfile p = new MachineProfile("test", "TEST", "1.1",
                 0, 19_683, -19_683, 19_683, -59_048, 0, -20_412, 729,
-                100, 10_000, 14_000, 14_600, 15_000, 1_000, 50, 120, 96, 4, 8, 243, 27, 1,
+                100, 10_000, 14_000, 14_600, 15_000, 1_000, 50, 120, 96, 4, 8, 243, 27, 1, 1_200,
                 EnumSet.allOf(MachineProfile.Device.class), List.of("main"));
         TriImage image = assemble(p);
         assertEquals(100, image.loadAddress());

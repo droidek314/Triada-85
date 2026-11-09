@@ -264,6 +264,7 @@ class DebuggerTest {
         assertTrue(r.get(8).startsWith("SP "));
         assertTrue(r.get(9).startsWith("PC "));
         assertTrue(r.get(10).startsWith("S "));
+        assertEquals("MODEM 0   RX 0   DROPPED 0", r.get(11), "the modem, idle (M17)");
     }
 
     @Test

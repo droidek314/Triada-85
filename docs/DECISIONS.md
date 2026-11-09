@@ -558,3 +558,37 @@ We ran the result in Node.js 22.
 **Decision:** B. Modem, protocol and TRIMODEM are M17; the server is M18; terminal, content and release v1.2 are M19. The work plan is in CLAUDE.md §3 ("Phase 3"). The machine side of the specification is in SPEC.md: the modem registers in §5 and §5.2, the TRIBASIC statements in §10.6.5, TERM.TRI in §11.1. The server and protocol side is in the new `docs/NET-SPEC.md` (wire protocol §2, TRIMODEM §3, features §4, security §5, content §6, deployment §7). I/O registers 28–35 are free (SPEC §5 had them reserved), so they are used as planned.
 **Why:** Released milestone documents keep their numbers (the same rule as D-044 and D-056). Splitting the specification keeps SPEC.md about the machine, and gives other people one complete document to write their own clients and boards from.
 **Consequences:** Anyone reading `TRIADA-NET.md` literally reads "M16" where we write "M17". The task file stays in the repository as the record of what was asked, like `TRIBASIC.md`.
+
+## D-061 — The modem's line: a polled port, a byte-pipe link, and LF-ended control lines   (Milestone M17, 2026-11-09)
+**Situation:** The modem must reach a server over TCP (desktop, CLI), WebSocket (web) or an in-process loopback (tests), while `triada-core` has no threads, sockets or waiting. The wire protocol (NET-SPEC §2) didn't say how lines end or what a client makes of odd answers.
+**Options:** A: one port class per transport, each speaking the protocol. B: the device talks to a `ModemPort` (dial, status, read, write, hang up), and one `WireModemPort` speaks the protocol over a `ModemLink`, a plain two-way byte pipe each transport provides. Control lines ended by CR LF, by LF, or by either.
+**Decision:** B. Every method returns at once: the device asks for the status once per frame, and a link just has nothing to read until bytes arrive (the TCP link reads on a virtual thread of its own; the browser delivers WebSocket data by itself). Lines end with LF, and a CR before it is ignored. Anything unexpected before WELCOME is "network offline" (−4), after it "no carrier" (−1). Default ports: TCP 2385, WebSocket 2386 at `/net`.
+**Why:** The protocol is written once and tested once, against a scripted server on a loopback link; each transport is twenty lines. Accepting both line endings costs nothing and makes the protocol easy to try by hand.
+**Consequences:** A new transport needs only a `ModemLink`. The web version's address comes from the page (`TRIADA_NET_URL`, or `?net=` for testing); M19 turns it into a build setting.
+
+## D-062 — The TRIADA-NET modules start in M17, with Javalin for WebSocket   (Milestone M17, 2026-11-09)
+**Situation:** M17 needs TRIMODEM "as a shared library" and an echo server on TCP and WebSocket; M18 plans the modules `triada-net-core` and `triada-net-server` and recommends Javalin.
+**Options:** A: put TRIMODEM and the echo server in `triada-cli` now and move them in M18. B: create the two modules now; the echo exchange is their first content.
+**Decision:** B. `triada-net-core` (pure Java, depends on `triada-core`) holds TRIMODEM, the server side of the wire protocol (`ServerConnection`, `Exchange`, `Call`, `Wire`), the echo exchange and an in-process `LoopbackNetwork`. `triada-net-server` holds `NetServer`: a `ServerSocket` with a virtual thread per caller, and Javalin 7.2.4 for WebSocket and `/health`, with `slf4j-simple` so its log has somewhere to go. The CLI's tests use the server; the emulator itself never depends on it.
+**Why:** Nothing has to move later, and the dependencies are the ones CLAUDE.md recommends. Javalin brings Jetty, which is large, but only the server carries it.
+**Consequences:** `./gradlew :triada-net-server:run` starts an echo server today. M18 swaps the echo exchange for the boards and adds persistence and the admin tools.
+
+## D-063 — TRIMODEM: a weighted checksum, the load address in the start message, fixed-size fields   (Milestone M17, 2026-11-09)
+**Situation:** NET-SPEC §3 left the checksum to us. Its start message also has no load address, which a `.TRI` program needs in order to run where it was built. And `;` separates the start's fields, but character 59 is itself one of the 81 digit characters.
+**Options:** Checksum: A: the plain sum of the words; B: the sum weighted by position, plus the block number; C: a CRC. Load address: leave it out (always 243), or add a fourth field.
+**Decision:** The checksum is *n* + Σ (i+1)·wᵢ over the 81 words, wrapped to a word (B). The start message ends with `;` and the load address (3 characters). Every field has a fixed size and is read by position, never by splitting at `;`. A repeated start or block (a lost ACK) is acknowledged again; the third failure in a row aborts with `ESC 'X'`.
+**Why:** A plain sum misses two swapped words; a CRC is costly to write in TRIADA assembly (M19), while MUL and ADD wrap exactly as the checksum needs. Without the address, `BRUN` of a downloaded game would put it in the wrong place.
+**Consequences:** The start message is one field longer than in `TRIADA-NET.md`. The worked example in NET-SPEC §3.1 is checked by `TrimodemTest`.
+
+## D-064 — Modem details: the dialing pause, bad numbers, hang-ups and the debugger   (Milestone M17, 2026-11-09)
+**Situation:** SPEC §5.2 gives the registers and the rules, but not: how long exactly dialing takes, what a broken number does, what HANG UP does with no call, what MDM_RX gives when empty, or how MDM_TX treats values outside 0 … 255.
+**Decision:** The pause is 60 + 12 frames per digit, at most 180 (two seconds for `1-11-11`), so a longer number takes longer, like a rotary dial. A number that isn't 1 … 32 printable characters ends the call with −3 without dialing. HANG UP always gives −1 and empties the send buffer but keeps what was received. Empty MDM_RX reads 0. MDM_TX takes the value MOD 256. When the other side hangs up, −1 shows only after its last character has arrived. The debugger shows the status, the characters waiting and the dropped ones; peeking at MDM_RX (the debugger's memory view) doesn't take a character.
+**Why:** Each is the simplest rule that never leaves a program waiting forever and never loses what the other side said before hanging up.
+**Consequences:** Written down in SPEC §5.2 and tested in `ModemDeviceTest`.
+
+## D-065 — TRIBASIC's modem keywords are tokens −69 … −74   (Milestone M17, 2026-11-09)
+**Situation:** Tokens −1 … −68 are taken, and the interpreter treats every token from −51 down as a function. The new keywords are four statements (DIAL, MDIAL, MHANGUP, MSEND) and two functions (MSTATUS, MRECV$).
+**Options:** A: renumber the functions so all functions stay together. B: append the six in the order of SPEC §10.6.5 and give the function table four "syntax error" entries for the statements in between.
+**Decision:** B: −69 DIAL, −70 MDIAL, −71 MHANGUP, −72 MSEND, −73 MSTATUS, −74 MRECV$. DIAL gets its token now and its routine in M19 (until then `?SYNTAX ERROR`).
+**Why:** Renumbering would change the tokens of programs already saved on triskettes. Four table entries cost four words.
+**Consequences:** `LIST` shows the new keywords, saved programs keep working, and a variable can no longer be called `MSEND` or `DIAL`.

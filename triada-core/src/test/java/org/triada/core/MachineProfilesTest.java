@@ -71,6 +71,8 @@ class MachineProfilesTest {
     @Test
     void soundDevicesAndRomsAreSpec5To8() {
         assertEquals(3, P.voices());
+        assertEquals(1_200, P.modemBitsPerSecond());            // SPEC §5.2
+        assertEquals(2, P.modemCharsPerFrame());
         assertEquals(EnumSet.allOf(Device.class), P.devices());
         assertEquals(List.of("main", "tribasic"), P.romImages());
     }
@@ -90,6 +92,6 @@ class MachineProfilesTest {
         // RAM 0 ... 59,048 and a ROM that starts inside it.
         assertThrows(IllegalArgumentException.class, () -> new MachineProfile("bad", "BAD", "1.1",
                 0, 59_049, 59_000, 100, 0, 0, -20_412, 729, 243, 40_000, 44_000, 44_600, 45_000,
-                59_049, 60, 216, 144, 12, 8, 243, 27, 3, EnumSet.allOf(Device.class), List.of()));
+                59_049, 60, 216, 144, 12, 8, 243, 27, 3, 1_200, EnumSet.allOf(Device.class), List.of()));
     }
 }

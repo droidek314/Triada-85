@@ -12,6 +12,7 @@ import org.triada.core.Machine;
 import org.triada.core.MachineProfile;
 import org.triada.core.MachineProfiles;
 import org.triada.core.io.KeyFeeder;
+import org.triada.core.modem.WireModemPort;
 import org.triada.core.TriImage;
 import org.triada.core.cpu.Cpu;
 import org.triada.rom.Rom;
@@ -19,7 +20,8 @@ import org.triada.rom.Rom;
 /**
  * {@code triada run program.tri [--frames N] [--dump-screen out.png] [--disk DIR] [--model M]}:
  * runs a program on a machine without window, sound or keyboard ("headless").
- * {@code --model} picks the machine (M16; default triada-85).
+ * {@code --model} picks the machine (M16; default triada-85). {@code --modem HOST:PORT}
+ * connects the modem to a TRIADA-NET server over TCP (M17).
  *
  * <p>Since M8 the machine has its ROM and boots as usual; the program is
  * copied into RAM and started by the ROM through AUTORUN, as if RUN had been
@@ -59,6 +61,7 @@ final class RunCommand {
         String dumpAudio = null;
         String disk = null;
         String typeFile = null;
+        String modem = null;
         boolean boot = true;
         MachineProfile model = MachineProfiles.TRIADA_85;
         for (int i = 0; i < args.length; i++) {
@@ -86,6 +89,9 @@ final class RunCommand {
                     break;
                 case "--dump-audio":
                     dumpAudio = TasmCommand.value(args, ++i, "--dump-audio");
+                    break;
+                case "--modem":
+                    modem = TasmCommand.value(args, ++i, "--modem");
                     break;
                 case "--disk":
                     disk = TasmCommand.value(args, ++i, "--disk");
@@ -125,6 +131,13 @@ final class RunCommand {
             }
         }
         Machine machine = Rom.newMachine(model);
+        if (modem != null) {
+            try {
+                machine.modem().setPort(new WireModemPort(TcpModemLink.opener(modem), model));
+            } catch (IllegalArgumentException e) {
+                throw new Main.UsageException("--modem: " + e.getMessage());
+            }
+        }
         if (disk != null) {
             machine.triskette().setPort(new FolderTriskette(Path.of(disk)));   // else an empty one in memory
         }

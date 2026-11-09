@@ -4,6 +4,8 @@
 [versions]
 gdx = "1.14.2"
 junit = "5.14.4"
+javalin = "7.2.4"
+slf4j = "2.0.17"
 
 [libraries]
 gdx-core = { module = "com.badlogicgames.gdx:gdx", version.ref = "gdx" }
@@ -12,3 +14,5 @@ gdx-platform = { module = "com.badlogicgames.gdx:gdx-platform", version.ref = "g
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+javalin = { module = "io.javalin:javalin", version.ref = "javalin" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }

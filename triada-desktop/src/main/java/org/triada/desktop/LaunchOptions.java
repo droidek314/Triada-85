@@ -13,6 +13,7 @@ import java.nio.file.Path;
  *                           picture (scaled 3x, with --crt if given) and quit (M11)
  *   --frames N              frames before the capture (default 120: boot plus a second)
  *   --disk DIR              the triskette: a folder of .tri files (default triskettes, M13)
+ *   --modem HOST:PORT       the modem's line: a TRIADA-NET server over TCP (M17)
  * </pre>
  *
  * @param program       the program file, or null for none
@@ -20,8 +21,10 @@ import java.nio.file.Path;
  * @param capture       where to save a capture, or null for a normal window
  * @param captureFrames how many frames to run before capturing
  * @param disk          the triskette folder
+ * @param modem         the TRIADA-NET server as host:port, or null: no network
  */
-public record LaunchOptions(String program, boolean crt, Path capture, int captureFrames, Path disk) {
+public record LaunchOptions(String program, boolean crt, Path capture, int captureFrames, Path disk,
+        String modem) {
 
     /** Frames before a capture unless --frames says otherwise: the boot (about 48) and a second more. */
     public static final int DEFAULT_CAPTURE_FRAMES = 120;
@@ -44,6 +47,7 @@ public record LaunchOptions(String program, boolean crt, Path capture, int captu
         Path capture = null;
         int frames = DEFAULT_CAPTURE_FRAMES;
         Path disk = DEFAULT_DISK;
+        String modem = null;
         for (int i = 0; i < args.length; i++) {
             String a = args[i];
             switch (a) {
@@ -52,16 +56,18 @@ public record LaunchOptions(String program, boolean crt, Path capture, int captu
                 case "--capture" -> capture = Path.of(value(args, ++i, a + " needs a PNG file name"));
                 case "--frames" -> frames = positive(value(args, ++i, a + " needs a number of frames"));
                 case "--disk" -> disk = Path.of(value(args, ++i, a + " needs a folder, e.g. --disk triskettes"));
+                case "--modem" -> modem = value(args, ++i, a + " needs a server, e.g. --modem localhost:2385");
                 default -> {
                     if (a.startsWith("--")) {
                         throw new IllegalArgumentException("unknown option " + a
-                                + " (options: --load FILE, --crt, --capture PNG, --frames N, --disk DIR)");
+                                + " (options: --load FILE, --crt, --capture PNG, --frames N, --disk DIR,"
+                                + " --modem HOST:PORT)");
                     }
                     program = setOnce(program, a);
                 }
             }
         }
-        return new LaunchOptions(program, crt, capture, frames, disk);
+        return new LaunchOptions(program, crt, capture, frames, disk, modem);
     }
 
     private static String value(String[] args, int i, String message) {

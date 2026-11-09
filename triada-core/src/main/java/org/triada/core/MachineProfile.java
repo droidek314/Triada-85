@@ -41,6 +41,7 @@ import org.triada.core.ternary.Word;
  * @param tileCount       number of tiles (SPEC §4.4)
  * @param spriteCount     number of sprites (SPEC §4.7)
  * @param voices          sound voices, 1 … 3 (SPEC §7)
+ * @param modemBitsPerSecond the modem's line speed (SPEC §5.2): 1200; 10 bits carry one character
  * @param devices         the devices plugged into the I/O registers
  * @param romImages       the ROM images to load, by name, e.g. "main", "tribasic"
  */
@@ -70,6 +71,7 @@ public record MachineProfile(
         int tileCount,
         int spriteCount,
         int voices,
+        int modemBitsPerSecond,
         Set<Device> devices,
         List<String> romImages) {
 
@@ -86,7 +88,9 @@ public record MachineProfile(
         /** DEBUG_CHAR, DEBUG_NUM, HOST_EXIT: the link to the host. */
         DEBUG,
         /** The triskette drive (SPEC §5.1). */
-        TRISKETTE
+        TRISKETTE,
+        /** The modem (SPEC §5.2, M17). */
+        MODEM
     }
 
     /** Checks that the regions fit in the word range and don't overlap; copies the collections. */
@@ -120,6 +124,9 @@ public record MachineProfile(
         }
         if (cyclesPerFrame < 1 || framesPerSecond < 1) {
             throw new IllegalArgumentException(id + ": timing must be positive");
+        }
+        if (modemBitsPerSecond < 1) {
+            throw new IllegalArgumentException(id + ": the modem speed must be positive");
         }
     }
 
@@ -168,6 +175,11 @@ public record MachineProfile(
 
     public int mapRows() {
         return screenHeight / tileSize;
+    }
+
+    /** Characters the modem moves per frame in each direction: 1200 / 10 / 60 = 2 (SPEC §5.2), at least 1. */
+    public int modemCharsPerFrame() {
+        return Math.max(1, modemBitsPerSecond / (10 * framesPerSecond));
     }
 
     /** True if the model has that device. */

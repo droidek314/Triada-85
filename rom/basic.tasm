@@ -29,7 +29,8 @@
 ;  string variable owns its own SLOT, so nothing ever needs tidying up (no
 ;  "garbage collection"); M15, D-051.
 ;  Keywords are stored as tokens: one negative word each, -1 for PRINT ...
-;  -68 for TERN$ (the order of kwtab below). Text is 32 ... 126.
+;  -68 for TERN$, then the modem's -69 DIAL ... -74 MRECV$ (M17), in the
+;  order of kwtab below. Text is 32 ... 126.
 ;  Every expression has a type, kept in B_TYPE: 0 = a number (R0 is its
 ;  value), 1 = a string (R0 is the address of its SLOT).
 ;
@@ -68,7 +69,7 @@ T_MOD       = -30
 T_TRUE      = -31
 T_FALSE     = -32
 T_UNKNOWN   = -33
-T_FIRSTFN   = -51       ; ABS: the first function (-51 ... -68)
+T_FIRSTFN   = -51       ; ABS: the first function (-51 ... -68, then -73, -74)
 
         .org EXT_ROM_START              ; the first extension ROM word (-59,048)
 
@@ -3136,6 +3137,80 @@ st_brun: JSR b_bload
         JMP b_afterload
 
 ; ===========================================================================
+; The modem (SPEC 5.2, 10.6.5; M17): MDIAL, MHANGUP, MSEND, MSTATUS, MRECV$.
+; They only drive the modem's registers; a program polls MSTATUS itself.
+; DIAL (the terminal program, M19) has its token already, but no routine yet.
+; ===========================================================================
+
+; --- MDIAL "number": starts a call (the first 13 characters of the string)
+st_mdial: LDI R0, 0
+        JSR b_fname                     ; the number, 0-terminated, into FNAME
+        LDI R2, IO_BASE
+        LDI R0, FNAME
+        ST R0, [R2+MDM_ADDR]
+        LDI R0, 1                       ; DIAL
+        ST R0, [R2+MDM_CMD]
+        RET
+
+; --- MHANGUP
+st_mhangup: LDI R2, IO_BASE
+        LDI R0, 2                       ; HANG UP
+        ST R0, [R2+MDM_CMD]
+        RET
+
+; --- MSEND s$: sends the characters. While the send buffer is full it waits
+; a frame at a time (Esc still stops the program). Not connected: the modem
+; ignores them, and its buffer never fills.
+st_msend: JSR b_strexpr
+        PUSH R3
+        PUSH R4
+        LD R3, [R0]                     ; R3 = characters left
+        MOV R4, R0                      ; R4 = the last one sent
+sms_loop: MOV R3, R3
+        JZ sms_end
+        LDI R2, IO_BASE
+        LD R0, [R2+MDM_TXFREE]
+        JP sms_send                     ; room for one more
+        WAIT                            ; full: a frame carries two away
+        JSR b_poll
+        JMP sms_loop
+sms_send: INC R4
+        LD R0, [R4]
+        ST R0, [R2+MDM_TX]
+        DEC R3
+        JMP sms_loop
+sms_end: POP R4
+        POP R3
+        RET
+
+; --- MSTATUS: the modem's status (SPEC 5.2)
+fn_mstatus: LDI R2, IO_BASE
+        LD R0, [R2+MDM_STATUS]
+        JMP b_isnum
+
+; --- MRECV$: everything received so far, up to 80 characters
+fn_mrecv: JSR b_tmpnew
+        PUSH R3
+        MOV R3, R0                      ; R3 = the string
+        MOV R1, R0                      ; R1 = where the last character went
+        LDI R2, IO_BASE
+fmr_loop: MOV R0, R1
+        SUB R0, R3
+        ADDI R0, -80
+        JZ fmr_end                      ; 80 characters: the string is full
+        LD R0, [R2+MDM_RXCOUNT]
+        JZ fmr_end
+        LD R0, [R2+MDM_RX]              ; reading takes it from the modem
+        INC R1
+        ST R0, [R1]
+        JMP fmr_loop
+fmr_end: SUB R1, R3
+        ST R1, [R3]                     ; the length
+        MOV R0, R3
+        POP R3
+        JMP b_isstr
+
+; ===========================================================================
 ; Tables and texts
 ; ===========================================================================
 
@@ -3149,11 +3224,17 @@ sttab:  .word st_print, st_input, st_ask, st_let, st_goto, st_gosub, st_return
         .word st_wait, st_color, st_poke, st_sys, st_save, st_load, st_files
         .word st_erase, st_bsave, st_bload, st_brun
         .fill 18, 0                     ; the functions (-51 ... -68)
+        .word 0, st_mdial, st_mhangup, st_msend ; DIAL (M19), MDIAL ... (-69 ... -72)
+        .fill 2, 0                      ; MSTATUS, MRECV$ (-73, -74)
 
-; fntab: the routine for each function, from ABS (-51) to TERN$ (-68).
+; fntab: the routine for each function, from ABS (-51) to TERN$ (-68), then
+; the modem's (M17): every token from -51 down is looked up here, so the four
+; statements in between (-69 ... -72) are errors when used as values.
 fntab:  .word fn_abs, fn_sgn, fn_rnd, fn_peek, fn_joyx, fn_joyy, fn_btn
         .word fn_inkey, fn_frame, fn_len, fn_left, fn_right, fn_mid, fn_chr
         .word fn_asc, fn_str, fn_val, fn_tern
+        .word err_syntax, err_syntax, err_syntax, err_syntax
+        .word fn_mstatus, fn_mrecv
 
 ; kwtab: every keyword, in token order (-1, -2, ...). The whole language is
 ; here from the start, so saved programs keep their tokens when M15 adds the
@@ -3168,6 +3249,7 @@ kwtab:  .word kw_print, kw_input, kw_ask, kw_let, kw_goto, kw_gosub, kw_return
         .word kw_sgn, kw_rnd, kw_peek, kw_joyx, kw_joyy, kw_btn, kw_inkey
         .word kw_frame, kw_len, kw_left, kw_right, kw_mid, kw_chr, kw_asc
         .word kw_str, kw_val, kw_tern
+        .word kw_dial, kw_mdial, kw_mhangup, kw_msend, kw_mstatus, kw_mrecv
         .word 0
 kw_print:   .str "PRINT"
 kw_input:   .str "INPUT"
@@ -3237,6 +3319,12 @@ kw_asc:     .str "ASC"
 kw_str:     .str "STR$"
 kw_val:     .str "VAL"
 kw_tern:    .str "TERN$"
+kw_dial:    .str "DIAL"
+kw_mdial:   .str "MDIAL"
+kw_mhangup: .str "MHANGUP"
+kw_msend:   .str "MSEND"
+kw_mstatus: .str "MSTATUS"
+kw_mrecv:   .str "MRECV$"
 
 ; errtab: the messages of SPEC 10.7, by error number (1 = SYNTAX)
 errtab: .word e_syntax, e_undef, e_return, e_next, e_memory, e_div0, e_overflow

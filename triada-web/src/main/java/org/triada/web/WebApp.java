@@ -15,6 +15,7 @@ import org.triada.assembler.Assembler;
 import org.triada.core.Machine;
 import org.triada.core.TriImage;
 import org.triada.core.io.KeyFeeder;
+import org.triada.core.modem.WireModemPort;
 import org.triada.core.triskette.TrisketteNames;
 import org.triada.rom.Rom;
 
@@ -43,6 +44,10 @@ final class WebApp extends ApplicationAdapter {
     @Override
     public void create() {
         machine.triskette().setPort(new WebTriskette());   // files kept in browser storage (M13)
+        String net = WebPage.netAddress();                  // TRIADA-NET (M17); none: offline
+        if (!net.isEmpty()) {
+            machine.modem().setPort(new WireModemPort(() -> new WebModemLink(net), machine.profile()));
+        }
         screen = new MachineScreen(false);
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override

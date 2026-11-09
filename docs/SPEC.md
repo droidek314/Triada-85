@@ -341,6 +341,16 @@ Rules:
 - Dialing takes a realistic moment, 1–3 seconds of frames, before the result. The terminal fills this with dial sounds.
 - On a hang-up from either side, or a lost connection, the status becomes −1.
 
+Details settled while building the modem (M17, D-064):
+- **The dialing pause** is one second plus a fifth of a second per digit in the number, at most three seconds: 60 + 12 per digit frames, so `1-11-11` takes 120 frames. If the network has not answered by then, the status stays 1 until it does. Turbo skips the pause.
+- **The rate** is the profile's bit rate ÷ 10 (bits per character) ÷ frames per second, at least 1: 1200 ÷ 10 ÷ 60 = 2. At the end of every frame, after the CPU, video and sound, the modem sends up to that many characters from its send buffer and takes up to that many into its receive buffer.
+- **The number** at MDM_ADDR must be 1 … 32 characters, each 32 … 126, followed by a 0 (inside RAM). Anything else makes the call end at once with −3, without dialing.
+- **DIAL** while a call is up hangs it up first; both buffers are emptied. **HANG UP** always leaves −1 (also when no call was up). It empties the send buffer; what was received can still be read. Other MDM_CMD values do nothing.
+- **MDM_TX** takes the character MOD 256 (so 300 sends 44 and −1 sends 255). It is ignored unless the status is 2, and when the send buffer is full.
+- **MDM_RX** reads 0 when nothing is waiting.
+- **The other side hangs up:** the status becomes −1 only after the last character it sent has arrived in the receive buffer.
+- **Power-on** hangs up and clears everything, and the status is 0. Without a line plugged in by the host, every call ends with −4 ("network offline").
+
 ---
 
 ## 6. Timing
@@ -632,6 +642,8 @@ Example:
 | `MRECV$` | All received characters, as a string of up to 80 |
 
 With these, users can write their own terminal or bot in TRIBASIC. Example: `programs/basic/AUTOCALL.bas`.
+
+Details settled in M17 (D-065): the six keywords are the tokens −69 (`DIAL`) … −74 (`MRECV$`), after TERN$, so programs saved before keep their tokens. `DIAL` has its token already but gives `?SYNTAX ERROR` until M19 brings the terminal. `MDIAL` dials the first 13 characters of its string and returns at once: the program waits for `MSTATUS` to leave 1 itself. `MSEND` waits frame by frame while the send buffer is full (Esc still stops the program); when not connected the modem ignores the characters. `MRECV$` takes up to 80 characters, all of them codes 0 … 255 as received (a carriage return is 13). `MSTATUS` and `MRECV$` take no parentheses.
 
 ### 10.7 Errors
 Format: `?<MESSAGE> ERROR IN <line>` (no `IN …` in direct mode), then `READY.`

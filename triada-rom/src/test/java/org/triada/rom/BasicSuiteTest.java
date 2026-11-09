@@ -10,6 +10,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import org.triada.core.modem.WireModemPort;
+import org.triada.net.EchoExchange;
+import org.triada.net.LoopbackNetwork;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
@@ -79,6 +82,9 @@ class BasicSuiteTest {
             session = text.substring(4);
         }
         Triada t = Triada.basic();
+        // The modem's line goes to the echo exchange (M17): 1-11-11 echoes, 2-22-22 is busy,
+        // 3-33-33 never connects, other numbers don't exist.
+        t.m.modem().setPort(new WireModemPort(new LoopbackNetwork(new EchoExchange()), t.m.profile()));
         t.typeOnly(setup);
         t.frames(2);
         t.clearScreen();

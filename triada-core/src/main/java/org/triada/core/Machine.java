@@ -7,6 +7,7 @@ import org.triada.core.io.InputDevice;
 import org.triada.core.io.IoRegisters;
 import org.triada.core.io.SystemDevice;
 import org.triada.core.memory.Bus;
+import org.triada.core.modem.ModemDevice;
 import org.triada.core.sound.SoundChip;
 import org.triada.core.triskette.TrisketteDevice;
 import org.triada.core.ternary.Word;
@@ -47,6 +48,7 @@ public final class Machine {
     private final VideoChip video;
     private final SoundChip sound;
     private final TrisketteDevice triskette;
+    private final ModemDevice modem;
 
     /** A TRIADA-85 in power-on state, with an empty (all-zero) ROM. */
     public Machine() {
@@ -67,6 +69,7 @@ public final class Machine {
         video = new VideoChip(bus);
         sound = new SoundChip(profile.voices(), profile.framesPerSecond());
         triskette = new TrisketteDevice(bus);
+        modem = new ModemDevice(bus);
         cyclesLeft = cyclesPerFrame;
         if (profile.has(Device.SYSTEM)) {
             bus.attach(IoRegisters.FRAME, 1, system);
@@ -86,6 +89,9 @@ public final class Machine {
         }
         if (profile.has(Device.TRISKETTE)) {
             bus.attach(TrisketteDevice.FIRST_REGISTER, TrisketteDevice.REGISTER_COUNT, triskette);
+        }
+        if (profile.has(Device.MODEM)) {
+            bus.attach(ModemDevice.FIRST_REGISTER, ModemDevice.REGISTER_COUNT, modem);
         }
     }
 
@@ -145,6 +151,9 @@ public final class Machine {
     private void finishFrame() {
         video.render();             // the picture shows memory as the CPU left it
         sound.renderFrame();        // and the sound plays the registers as the CPU left them
+        if (profile.has(Device.MODEM)) {
+            modem.endFrame();       // up to two characters each way down the line (SPEC §5.2)
+        }
         system.advanceFrame();
         cyclesLeft = cyclesPerFrame;
     }
@@ -214,6 +223,7 @@ public final class Machine {
         video.render();
         sound.reset();
         triskette.reset();
+        modem.reset();
     }
 
     /**
@@ -245,6 +255,11 @@ public final class Machine {
     /** The triskette drive (M13); {@code triskette().setPort(...)} puts in the host's triskette. */
     public TrisketteDevice triskette() {
         return triskette;
+    }
+
+    /** The modem (M17); {@code modem().setPort(...)} connects it to a line. */
+    public ModemDevice modem() {
+        return modem;
     }
 
     public InputDevice input() {

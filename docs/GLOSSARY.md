@@ -4,6 +4,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 ---
 
+**ACK and NAK**: Two one-character answers: "got it" (acknowledge, character 6) and "that arrived broken, send it again" (negative acknowledge, character 21). *In TRIADA:* the receiver's answers in TRIMODEM (M17).
+
 **Address**: The number of a memory cell, like a house number on a street. *In TRIADA:* a word, −265,720 … +265,720, with 0 in the middle (SPEC §2.1). First seen: M2.
 
 **Annotation**: A note in Java code, starting with `@`, that a tool reads, e.g. `@Test` for JUnit. *In TRIADA:* `@JSBody` and `@JSByRef` tell TeaVM how to call JavaScript. First seen: M12.
@@ -34,6 +36,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Bit**: One binary digit, 0 or 1. *In TRIADA:* the font is stored as bits and turned into trit pixels at boot. First seen: M8.
 
+**Bit rate**: How many bits (binary digits) a line carries per second. With a start and a stop bit, one character takes 10 bits. *In TRIADA:* the modem's line runs at 1200 bit/s, which is 2 characters per frame (M17).
+
 **BOM (bill of materials)**: A list that pins every part of a library family to versions that work together. *In TRIADA:* the JUnit BOM. First seen: M0.
 
 **Boot**: Starting a computer up: from power-on to the point where it waits for you. *In TRIADA:* about 48 frames: font, chime, boot screen, monitor. First seen: M8.
@@ -49,6 +53,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Build**: Turning source code into something that runs, usually running the tests on the way. *In TRIADA:* `./gradlew build` builds and tests everything. First seen: M0.
 
 **Build tool**: A program that knows how to build a project: what to compile, in which order, and which libraries to download. *In TRIADA:* Gradle. First seen: M0.
+
+**Bulletin board system (BBS)**: A computer that people called with a modem in the 1980s to read and leave messages, send private mail and download programs. *In TRIADA:* the boards of TRIADA-NET (Phase 3).
 
 **Bus**: The path that carries every read and write between the processor and memory or devices. *In TRIADA:* the `Bus` class. First seen: M2.
 
@@ -70,9 +76,13 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Changelog**: A list of what changed in each released version. *In TRIADA:* `CHANGELOG.md`. First seen: M15.
 
+**Checksum**: A number worked out from a block of data and sent along with it. The receiver works it out again; if the two differ, the block was damaged on the way. *In TRIADA:* TRIMODEM's checksum weighs each word by its place in the block (M17, D-063).
+
 **Class path**: The list of places (folders and jar files) where Java looks for classes and resource files. A browser has none. First seen: M12.
 
 **CLI (command-line interface)**: A program you control by typing commands in a terminal instead of clicking. *In TRIADA:* the `triada` tool in `triada-cli`. First seen: M0.
+
+**Client and server**: The program that calls (client) and the program that answers and serves many callers (server). *In TRIADA:* the emulated machine is the client of a TRIADA-NET server (M17).
 
 **Clipboard**: Where a computer keeps the text you copied, until you paste it. First seen: M15.
 
@@ -140,6 +150,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Escape sequence**: A backslash code for a special character inside quotes, such as `\n` for a new line. First seen: M4.
 
+**Exchange (telephone)**: The place where calls are connected: you dial a number, the exchange decides who answers. *In TRIADA:* the `Exchange` interface of the server; `EchoExchange` is the test one (M17).
+
 **Execute**: Carrying out an instruction. First seen: M3.
 
 **Exhaustive test**: A test that tries every possible input instead of a sample. *In TRIADA:* all 531,441 words in `WordTest`. First seen: M1.
@@ -197,6 +209,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Grammar**: The rules for what a valid line looks like. First seen: M4.
 
 **Halt**: Stop the CPU for good, until a reset. *In TRIADA:* HLT, or a fault. First seen: M3.
+
+**Handshake**: The few messages two sides exchange before a conversation, to agree that they speak the same language. *In TRIADA:* HELLO, WELCOME, DIAL and CONNECT in the wire protocol (M17).
 
 **Hard-coded**: A value written straight into the code, often in many places, instead of read from one place. Hard to change without missing a spot. *In TRIADA:* M16 replaced the machine's hard-coded numbers with the machine profile.
 
@@ -278,6 +292,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Lookup table**: A list of precomputed answers, so a calculation becomes a single array read. First seen: M1.
 
+**Loopback**: A connection that leads back into the same program or computer, with no network in between. Handy for tests. *In TRIADA:* `LoopbackLink` and `LoopbackNetwork` connect a test machine to a server in the same program (M17).
+
 **LWJGL**: "Lightweight Java Game Library", the layer libGDX uses on desktop computers to talk to the graphics card (OpenGL), the window system (GLFW) and sound (OpenAL). First seen: M0.
 
 **Machine profile**: The list of numbers and parts that makes one computer model what it is: memory, screen, speed, sound, which devices are inside. The machine's birth certificate. *In TRIADA:* `MachineProfile`; the TRIADA-85's is `MachineProfiles.TRIADA_85`, and `--model` picks one on the command line (M16).
@@ -295,6 +311,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Mixing**: Adding several sounds together into one stream of samples. First seen: M7.
 
 **Mnemonic**: The short name of an instruction, such as `ADD` or `JSR`. First seen: M3.
+
+**Modem**: "Modulator-demodulator": the box that let a 1980s computer talk over a telephone line, turning characters into sounds and back. *In TRIADA:* the device on I/O registers 28–35 (SPEC §5.2), which really connects to a TRIADA-NET server (M17).
 
 **Module**: One self-contained part of a larger project, built separately, with its own code and tests. *In TRIADA:* `triada-core`, `triada-assembler`, `triada-rom`, `triada-cli`, `triada-app`, `triada-desktop` and `triada-web`. First seen: M0.
 
@@ -324,6 +342,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Option (command line)**: A setting given on a command line, such as `--frames 10` or `-o out.tri`. First seen: M5.
 
+**Origin (web)**: The address of the site a web page comes from, such as `https://droidek314.github.io`. Browsers tell a server the origin of the page that opens a connection. *In TRIADA:* the server only lets in WebSockets from allowed origins (M17).
+
 **Palette**: The list of colours a machine can show. *In TRIADA:* 27 colours, each one's three trits giving red, green and blue (SPEC §4.2). First seen: M6.
 
 **Par**: A number of moves within which a puzzle is known to be solvable, as in golf. *In TRIADA:* TROIKA's scramble length. First seen: M10.
@@ -348,6 +368,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Plugin (Gradle)**: A ready-made bundle of build steps you switch on in a build file, for example `application`, which knows how to run a program. First seen: M0.
 
+**Port (network)**: A number that picks one program on a computer, so many network programs can share one address. *In TRIADA:* the server listens on TCP port 2385 and WebSocket port 2386 (M17). (Not the same as a `TriskettePort` or `ModemPort`, which are Java interfaces.)
+
 **Power-on state**: How a machine looks the instant it is switched on. *In TRIADA:* RAM all 0, registers 0, PC = −19,683 (SPEC §2.4). First seen: M2.
 
 **Precedence**: Which operator is worked out first, as × before + in school. *In TRIADA:* SPEC §10.2's seven levels. First seen: M14.
@@ -355,6 +377,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Prior art**: Work that came before yours and did something similar. *In TRIADA:* listed in `docs/PRIOR-ART.md` (M16).
 
 **Program counter (PC)**: The register holding the address of the next instruction, like a bookmark. *In TRIADA:* starts at −19,683 (SPEC §2.4). First seen: M3.
+
+**Protocol**: The agreed rules of a conversation between two programs: who says what, in which order, in which format. *In TRIADA:* the wire protocol and TRIMODEM (NET-SPEC, M17).
 
 **Pseudo-instruction**: A convenient spelling the assembler translates into a real instruction, e.g. `INC R0` → `ADDI R0, 1`. First seen: M4.
 
@@ -452,6 +476,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Tail call**: Ending a routine by jumping to another one, whose RET then returns directly to the original caller. First seen: M8.
 
+**TCP**: The basic way programs talk over the internet: a reliable two-way stream of bytes between two computers. *In TRIADA:* the desktop and the command line reach a TRIADA-NET server over TCP (M17).
+
 **TeaVM**: A tool that translates Java bytecode into JavaScript (or WebAssembly). The libGDX community web backend gdx-teavm is built on it. First seen: M6.
 
 **Ternary**: Counting with three digits. *Balanced* ternary uses −1, 0 and +1 (written `-`, `0`, `+`). *In TRIADA:* everything. First seen: M0.
@@ -483,6 +509,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 **Transparency**: A colour that is not drawn, so whatever is behind shows through. *In TRIADA:* gray (value 0) in sprites. First seen: M6.
 
 **TRIBASIC**: The TRIADA-85's built-in programming language, with three-valued IF … THEN … MAYBE … ELSE; written in TRIADA assembly in the extension ROM. First seen: M14.
+
+**TRIMODEM**: TRIADA-NET's way of sending a program down a phone line: every word as three characters (3^12 = 81^3), in checked blocks of 81 words. *In TRIADA:* NET-SPEC §3, `Trimodem` (M17).
 
 **Triskette**: The TRIADA-85's floppy disk: a flat list of named files, with no tracks or folders. *In TRIADA:* `TrisketteDevice` on I/O registers 23–27 (SPEC §5.1); a folder on the desktop, browser storage on the web. First seen: M13 (as a word for "a program file" since M9).
 
@@ -522,6 +550,8 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **Vignette**: A darkening towards the corners of a picture. First seen: M11.
 
+**Virtual thread**: A very light Java thread; a program can have thousands, one per caller, without slowing down. *In TRIADA:* the server serves each TCP caller on its own virtual thread (M17).
+
 **Voice**: One independent sound generator with its own pitch, volume and waveform. *In TRIADA:* three (V1–V3). First seen: M7.
 
 **Vsync**: Waiting for the monitor to finish showing one picture before handing it the next, so the image never tears halfway. First seen: M0.
@@ -534,7 +564,11 @@ Every technical word used in the documents, explained simply, in alphabetical or
 
 **WebGL**: The browser's version of OpenGL, for drawing with the graphics card. *In TRIADA:* libGDX draws the screen and the CRT shader with it on the web. First seen: M12.
 
+**WebSocket**: A way for a web page to keep a two-way connection open to a server, so both sides can send at any moment. *In TRIADA:* the web version's modem line (M17); from an HTTPS page it must be `wss://`, the encrypted kind.
+
 **Widget**: One piece of a user interface: a label, a button, a text field … First seen: M9.
+
+**Wire protocol**: The protocol two programs use on the connection between them, byte by byte. *In TRIADA:* HELLO … CONNECT, then raw characters (NET-SPEC §2, M17).
 
 **Word**: The amount of data a computer handles in one piece. *In TRIADA:* 12 trits, −265,720 … +265,720; every register and memory cell holds one word. First seen: M1.
 
